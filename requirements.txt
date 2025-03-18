@@ -1,0 +1,4 @@
+pandas==2.2.3
+plotly==6.0.0
+vcfpy==0.13.8
+dominate==2.9.1
