@@ -3,11 +3,11 @@ package:
   version: "1.0.0"
 
 source:
-  path: ..
+  git_url: https://github.com/Lupphes/Varify.git
 
 build:
-  number: 0
   noarch: python
+  number: 0
 
 requirements:
   host:
@@ -22,8 +22,10 @@ requirements:
 test:
   commands:
     - varify --help
+  imports:
+    - varify
 
 about:
   home: https://github.com/Lupphes/Varify
-  license: GPLv3
+  license: GPL-3.0-or-later
   summary: "A tool for genome processing"
