@@ -174,7 +174,7 @@ def generate_html_report(merged_vcf, other_vcfs, survivor_vcf, survivor_stats, o
     # Generate index page
     generate_index(output_dir, other_vcfs)
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Generate an HTML report from a merged VCF file, individual VCF files, and SURVIVOR analysis.")
     parser.add_argument("--merged_vcf", required=True, help="Path to the merged VCF file.")
     parser.add_argument("--other_vcfs", nargs='*', default=[], help="List of individual VCF files for separate analysis.")
@@ -184,3 +184,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     generate_html_report(args.merged_vcf, args.other_vcfs, args.survivor_vcf, args.survivor_stats, args.output_dir)
+
+if __name__ == "__main__":
+    main()
+

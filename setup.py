@@ -3,10 +3,10 @@ from setuptools import setup, find_packages
 setup(
     name="varify",
     version="0.1.0",
-    packages=find_packages(where="bin"),
-    package_dir={"": "bin"},
-    py_modules=["main"],  # Treat main.py as a standalone module
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     install_requires=[
+        "setuptools>=65.0",
         "pandas==2.2.3",
         "plotly==6.0.1",
         "pysam==0.23.0",
@@ -15,18 +15,18 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "varify=main:main",  # Keep pointing to main.py directly
+            "varify=varify.varify:main",
         ]
     },
     python_requires=">=3.12",
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="VCF and SURVIVOR Analysis Report Generator",
-    url="https://github.com/yourusername/varify",
-    license="MIT",
+    author="Ondřej Sloup",
+    author_email="dev@lupphes.com",
+    description="Variant File Report Generator",
+    url="https://github.com/lupphes/varify",
+    license="GPL-3.0-or-later",
     classifiers=[
         "Programming Language :: Python :: 3.12",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
     ],
 )

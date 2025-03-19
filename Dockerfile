@@ -12,16 +12,14 @@ RUN apt-get update && \
     apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the entire source code into the container
+COPY . /app
 
-# Copy the source code into the container (updated path)
-COPY bin/varify.py /usr/local/bin/varify
-RUN chmod +x /usr/local/bin/varify
+# Install the package using setup.py
+RUN pip install --no-cache-dir .
 
 # Set working directory where Nextflow will operate
 WORKDIR /data
 
-# Define the entrypoint (direct reference to the binary)
+# Define the entrypoint (direct reference to the console script defined in setup.py)
 ENTRYPOINT ["varify"]
