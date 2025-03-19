@@ -1,0 +1,12 @@
+name: varify-env
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pandas=2.2.3
+  - conda-forge::plotly=6.0.1
+  - bioconda::pysam=0.23.0
+  - bioconda::vcfpy=0.13.8
+  - conda-forge::dominate=2.9.1

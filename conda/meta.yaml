@@ -1,9 +1,9 @@
 package:
   name: varify
-  version: "1.0.0"
+  version: "0.0.1"
 
 source:
-  git_url: https://github.com/Lupphes/Varify.git
+  path: ..
 
 build:
   noarch: python
@@ -12,20 +12,25 @@ build:
 requirements:
   host:
     - python=3.12
-    - pip
   run:
     - python=3.12
     - pandas=2.2.3
     - conda-forge::plotly=6.0.1
-    - pip
+    - bioconda::pysam
+    - bioconda::vcfpy
+    - conda-forge::dominate
 
 test:
   commands:
     - varify --help
-  imports:
-    - varify
 
 about:
   home: https://github.com/Lupphes/Varify
   license: GPL-3.0-or-later
   summary: "A tool for genome processing"
+
+extra:
+  channels:
+    - bioconda
+    - conda-forge
+    - defaults
