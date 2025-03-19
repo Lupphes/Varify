@@ -21,7 +21,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ✅ Step 2: Build and publish Conda package
+      # ✅ Step 2: Set conda upload to true
+      - name: Set conda upload to true
+        run: conda config --set anaconda_upload yes
+
+      # ✅ Step 3: Build and publish Conda package
       - name: Build and Publish Conda Package
         uses: openalea/action-build-publish-anaconda@v0.1.4
         with:
@@ -33,3 +37,10 @@ jobs:
           token: ${{ secrets.ANACONDA_TOKEN }}
           publish: true
           label: main
+
+      # ✅ Step 4: Debug and upload (optional)
+      - name: Debug and Force Upload
+        run: |
+          ls -lh conda-build-dir.9MGakI/*/*
+          conda config --show
+          anaconda upload --skip-existing --label main conda-build-dir.9MGakI/*/*
