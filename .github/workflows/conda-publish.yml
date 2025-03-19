@@ -17,13 +17,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install conda-build
+    - name: Install Miniconda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        python-version: 3.12
+        auto-update-conda: true
+        miniforge-variant: Mambaforge
+        miniforge-version: latest
+        activate-environment: base
+
+    - name: Install conda-build and anaconda-client
       run: |
-        sudo apt-get update
-        sudo apt-get install -y curl
-        curl -L -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-        bash Miniconda3-latest-Linux-x86_64.sh -b -p ~/miniconda
-        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
         conda install -y -c conda-forge conda-build anaconda-client
 
     - name: Build Conda package
@@ -33,6 +37,9 @@ jobs:
         conda-build conda_build/recipe
 
     - name: Upload Conda package to Anaconda
+      env:
+        ANACONDA_USERNAME: ${{ secrets.ANACONDA_USERNAME }}
+        ANACONDA_PASSWORD: ${{ secrets.ANACONDA_PASSWORD }}
       run: |
-        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} --password ${{ secrets.ANACONDA_PASSWORD }}
-        anaconda upload ~/miniconda/conda-bld/noarch/varify-*.tar.bz2 --force
+        anaconda login --username "$ANACONDA_USERNAME" --password "$ANACONDA_PASSWORD"
+        anaconda upload ~/conda-bld/noarch/varify-*.tar.bz2 --force
