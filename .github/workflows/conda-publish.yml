@@ -1,46 +1,35 @@
-name: Push Conda Package
+name: Build and Publish Conda Package
 
 on:
   push:
     branches:
       - master
+  workflow_dispatch: # Allows you to trigger manually
 
 jobs:
-  publish:
+  build-and-publish:
+    name: Build and Publish Conda Package
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        python-minor-version: [12] # Only Python 3.12
+
     steps:
-      - name: Checkout repo
+      # ✅ Step 1: Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Set up Conda environment
-        uses: conda-incubator/setup-miniconda@v3
+
+      # ✅ Step 2: Build and publish Conda package
+      - name: Build and Publish Conda Package
+        uses: openalea/action-build-publish-anaconda@v0.1.4
         with:
-          python-version: 3.12
-          auto-update-conda: false
-          auto-activate-base: false
-          show-channel-urls: true
-
-      # ✅ Add conda-forge and bioconda channels and set priority
-      - name: Add conda-forge and bioconda channels
-        run: |
-          conda config --add channels conda-forge
-          conda config --add channels bioconda
-          conda config --set channel_priority strict
-
-      # ✅ Install conda-build and anaconda-client
-      - name: Install conda-build and anaconda-client
-        run: |
-          conda install -y conda-build anaconda-client
-
-      # ✅ Build and upload Conda package using uibcdf action
-      - name: Build and upload Conda package
-        uses: uibcdf/action-build-and-upload-conda-packages@v1.4.0
-        with:
-          meta_yaml_dir: ./conda
-          python-version: 3.12
-          user: luppo
+          conda: conda
+          mamba: true # Use mamba for faster builds
+          python: ${{ matrix.python-minor-version }}
+          numpy: '22' # Optional; works with Python version
+          channels: bioconda,conda-forge,defaults
           token: ${{ secrets.ANACONDA_TOKEN }}
-          upload: true
-          overwrite: true
-          platform_host: true
+          publish: true
+          label: main
