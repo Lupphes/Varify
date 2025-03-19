@@ -22,7 +22,12 @@ jobs:
           auto-activate-base: false
           show-channel-urls: true
 
-      # Build and upload Conda package using uibcdf action
+      # ✅ Install conda-build and anaconda-client
+      - name: Install conda-build and anaconda-client
+        run: |
+          conda install -y conda-build anaconda-client
+
+      # ✅ Build and upload Conda package using uibcdf action
       - name: Build and upload Conda package
         uses: uibcdf/action-build-and-upload-conda-packages@v1.4.0
         with:
