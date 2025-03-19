@@ -3,7 +3,7 @@ package:
   version: "1.0.0"
 
 source:
-  path: ../..
+  path: ..
 
 build:
   number: 0
@@ -24,6 +24,6 @@ test:
     - varify --help
 
 about:
-  home: https://github.com/yourusername/varify
-  license: MIT
+  home: https://github.com/Lupphes/Varify
+  license: GPLv3
   summary: "A tool for genome processing"
