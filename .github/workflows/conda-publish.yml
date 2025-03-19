@@ -34,7 +34,13 @@ jobs:
           publish: true
           label: main
 
-      # ✅ Step 3: Find and Upload Conda Package
+      # ✅ Step 4: Debug Output Path
+      - name: Debug output path
+        run: |
+          echo "Searching for output files..."
+          find /usr/share/miniconda/envs/test/conda-bld/ -type f -name "*.conda" -o -name "*.tar.bz2"
+
+      # ✅ Step 5: Upload Conda Package
       - name: Upload Conda Package
         run: |
           # Find the built file (.conda or .tar.bz2)
