@@ -23,7 +23,7 @@ jobs:
 
       # ✅ Step 2: Build and publish Conda package
       - name: Build and Publish Conda Package
-        uses: openalea/action-build-publish-anaconda@v0.1.4
+        uses: openalea/action-build-publish-anaconda@v0.1.5
         with:
           conda: conda
           mamba: false
