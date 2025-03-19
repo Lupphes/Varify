@@ -26,7 +26,7 @@ jobs:
         uses: openalea/action-build-publish-anaconda@v0.1.4
         with:
           conda: conda
-          mamba: true # Use mamba for faster builds
+          mamba: false
           python: ${{ matrix.python-minor-version }}
           numpy: '22' # Optional; works with Python version
           channels: bioconda,conda-forge,defaults
