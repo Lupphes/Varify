@@ -13,7 +13,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         
-      # Set up Conda environment with correct Python version
       - name: Set up Conda environment
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -21,6 +20,13 @@ jobs:
           auto-update-conda: false
           auto-activate-base: false
           show-channel-urls: true
+
+      # ✅ Add conda-forge and bioconda channels and set priority
+      - name: Add conda-forge and bioconda channels
+        run: |
+          conda config --add channels conda-forge
+          conda config --add channels bioconda
+          conda config --set channel_priority strict
 
       # ✅ Install conda-build and anaconda-client
       - name: Install conda-build and anaconda-client
@@ -31,7 +37,7 @@ jobs:
       - name: Build and upload Conda package
         uses: uibcdf/action-build-and-upload-conda-packages@v1.4.0
         with:
-          meta_yaml_dir: ./conda          # Path to the directory where meta.yaml is located
+          meta_yaml_dir: ./conda
           python-version: 3.12
           user: luppo
           token: ${{ secrets.ANACONDA_TOKEN }}
