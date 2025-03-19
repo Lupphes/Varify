@@ -33,26 +33,3 @@ jobs:
           token: ${{ secrets.ANACONDA_TOKEN }}
           publish: true
           label: main
-
-      # ✅ Step 4: Debug Output Path
-      - name: Debug output path
-        run: |
-          echo "Searching for output files..."
-          find /usr/share/miniconda/envs/test/conda-bld/ -type f -name "*.conda" -o -name "*.tar.bz2"
-
-      # ✅ Step 5: Upload Conda Package
-      - name: Upload Conda Package
-        run: |
-          # Find the built file (.conda or .tar.bz2)
-          BUILD_FILE=$(find /usr/share/miniconda/envs/test/conda-bld/ -name "*.conda" -o -name "*.tar.bz2" | head -n 1)
-          
-          if [ -f "$BUILD_FILE" ]; then
-            echo "Found package: $BUILD_FILE"
-            echo "Uploading to Anaconda..."
-            anaconda upload --skip-existing --label main "$BUILD_FILE"
-          else
-            echo "No package found!"
-            exit 1
-          fi
-        env:
-          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
