@@ -8,13 +8,24 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - uses: actions/checkout@v2
-    - name: Publish to Conda
-      uses: fcakyon/conda-publish-action@v1.3
-      with:
-        subdir: 'conda'
-        anacondatoken: ${{ secrets.ANACONDA_TOKEN }}
-        platforms: 'linux osx win'
-        args: "-c bioconda -c conda-forge"
+      - uses: actions/checkout@v2
+      
+      - name: Set up Conda channels
+        run: |
+          conda config --add channels bioconda
+          conda config --add channels conda-forge
+          conda config --add channels defaults
+          conda config --set channel_priority strict
+      
+      - name: Build Conda package
+        run: |
+          conda build conda -c bioconda -c conda-forge
+      
+      - name: Upload Conda package
+        env:
+          ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+        run: |
+          anaconda login --token $ANACONDA_TOKEN
+          anaconda upload $(conda build conda --output)
