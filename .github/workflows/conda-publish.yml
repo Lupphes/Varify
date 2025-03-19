@@ -8,21 +8,25 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v2
       
-      - name: Set up Conda channels
+      # Install conda-build and set up channels
+      - name: Install conda-build and configure channels
         run: |
+          conda install -y conda-build anaconda-client
           conda config --add channels bioconda
           conda config --add channels conda-forge
           conda config --add channels defaults
           conda config --set channel_priority strict
-      
+
+      # Build the Conda package manually
       - name: Build Conda package
         run: |
           conda build conda -c bioconda -c conda-forge
       
+      # Upload the Conda package to Anaconda
       - name: Upload Conda package
         env:
           ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
