@@ -10,26 +10,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      
-      # Install conda-build and set up channels
-      - name: Install conda-build and configure channels
-        run: |
-          conda install -y conda-build anaconda-client python=3.12
-          conda config --add channels bioconda
-          conda config --add channels conda-forge
-          conda config --add channels defaults
-          conda config --set channel_priority strict
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      # Set up Conda environment with correct Python version
+      - name: Set up Conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: 3.12
+          auto-update-conda: false
+          auto-activate-base: false
+          show-channel-urls: true
 
-      # Build the Conda package manually
-      - name: Build Conda package
-        run: |
-            conda build conda -c bioconda -c conda-forge --python=3.12
-      
-      # Upload the Conda package to Anaconda
-      - name: Upload Conda package
-        env:
-          ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-        run: |
-          anaconda login --token $ANACONDA_TOKEN
-          anaconda upload $(conda build conda --output)
+      # Build and upload Conda package using uibcdf action
+      - name: Build and upload Conda package
+        uses: uibcdf/action-build-and-upload-conda-packages@v1.4.0
+        with:
+          meta_yaml_dir: ./conda          # Path to the directory where meta.yaml is located
+          python-version: 3.12
+          user: luppo
+          token: ${{ secrets.ANACONDA_TOKEN }}
+          upload: true
+          overwrite: true
+          platform_host: true
