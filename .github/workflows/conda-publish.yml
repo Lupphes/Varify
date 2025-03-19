@@ -15,7 +15,7 @@ jobs:
       # Install conda-build and set up channels
       - name: Install conda-build and configure channels
         run: |
-          conda install -y conda-build anaconda-client
+          conda install -y conda-build anaconda-client python=3.12
           conda config --add channels bioconda
           conda config --add channels conda-forge
           conda config --add channels defaults
@@ -24,7 +24,7 @@ jobs:
       # Build the Conda package manually
       - name: Build Conda package
         run: |
-          conda build conda -c bioconda -c conda-forge
+            conda build conda -c bioconda -c conda-forge --python=3.12
       
       # Upload the Conda package to Anaconda
       - name: Upload Conda package
