@@ -21,11 +21,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ✅ Step 2: Set conda upload to true
-      - name: Set conda upload to true
-        run: conda config --set anaconda_upload yes
-
-      # ✅ Step 3: Build and publish Conda package
+      # ✅ Step 2: Build and publish Conda package
       - name: Build and Publish Conda Package
         uses: openalea/action-build-publish-anaconda@v0.1.4
         with:
@@ -38,9 +34,19 @@ jobs:
           publish: true
           label: main
 
-      # ✅ Step 4: Debug and upload (optional)
-      - name: Debug and Force Upload
+      # ✅ Step 3: Find and Upload Conda Package
+      - name: Upload Conda Package
         run: |
-          ls -lh conda-build-dir.9MGakI/*/*
-          conda config --show
-          anaconda upload --skip-existing --label main conda-build-dir.9MGakI/*/*
+          # Find the built file (.conda or .tar.bz2)
+          BUILD_FILE=$(find /usr/share/miniconda/envs/test/conda-bld/ -name "*.conda" -o -name "*.tar.bz2" | head -n 1)
+          
+          if [ -f "$BUILD_FILE" ]; then
+            echo "Found package: $BUILD_FILE"
+            echo "Uploading to Anaconda..."
+            anaconda upload --skip-existing --label main "$BUILD_FILE"
+          else
+            echo "No package found!"
+            exit 1
+          fi
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
