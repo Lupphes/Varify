@@ -1,0 +1,30 @@
+package:
+  name: varify
+  version: "1.0.0"
+
+source:
+  path: ../..
+
+build:
+  number: 0
+  script: bash build.sh
+  noarch: python
+
+requirements:
+  host:
+    - python=3.12
+    - pip
+  run:
+    - python=3.12
+    - pandas=2.2.3
+    - conda-forge::plotly=6.0.1
+    - pip
+
+test:
+  commands:
+    - varify --help
+
+about:
+  home: https://github.com/yourusername/varify
+  license: MIT
+  summary: "A tool for genome processing"

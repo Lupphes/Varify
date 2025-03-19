@@ -1,0 +1,38 @@
+name: Publish Conda Package
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-upload-conda:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install conda-build
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl
+        curl -L -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+        bash Miniconda3-latest-Linux-x86_64.sh -b -p ~/miniconda
+        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
+        conda install -y -c conda-forge conda-build anaconda-client
+
+    - name: Build Conda package
+      run: |
+        mkdir -p conda_build
+        cp -r recipe conda_build/
+        conda-build conda_build/recipe
+
+    - name: Upload Conda package to Anaconda
+      run: |
+        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} --password ${{ secrets.ANACONDA_PASSWORD }}
+        anaconda upload ~/miniconda/conda-bld/noarch/varify-*.tar.bz2 --force
