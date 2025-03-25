@@ -8,10 +8,8 @@ setup(
     install_requires=[
         "setuptools>=65.0",
         "pandas==2.2.3",
-        "plotly==6.0.1",
         "pysam==0.23.0",
         "vcfpy==0.13.8",
-        "dominate==2.9.1",
         "jinja2==3.1.6",
         "matplotlib==3.10.1",
         "seaborn==0.13.2",
