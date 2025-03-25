@@ -18,12 +18,17 @@ requirements:
   run:
     - python=3.12
     - pandas=2.2.3
-    - setuptools
+    - setuptools=77.0.3
     - conda-forge::plotly=6.0.1
     - bioconda::pysam=0.23.0
     - bioconda::vcfpy=0.13.8
     - conda-forge::dominate=2.9.1
-
+    - conda-forge::jinja2=3.1.6
+    - conda-forge::matplotlib=3.10.1
+    - conda-forge::seaborn=0.13.2
+    - conda-forge::numpy=2.2.4
+    - bioconda::igv-reports=1.14.1
+    
 test:
   commands:
     - varify --help
