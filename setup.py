@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="varify",
-    version="0.1.1",
+    version="0.1.5",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
@@ -11,7 +11,12 @@ setup(
         "plotly==6.0.1",
         "pysam==0.23.0",
         "vcfpy==0.13.8",
-        "dominate==2.9.1"
+        "dominate==2.9.1",
+        "jinja2==3.1.6",
+        "matplotlib==3.10.1",
+        "seaborn==0.13.2",
+        "numpy==2.2.4",
+        "igv-reports==1.14.1"
     ],
     entry_points={
         "console_scripts": [

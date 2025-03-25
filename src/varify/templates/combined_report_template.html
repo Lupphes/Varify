@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Varify – Final Combined Report</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans leading-relaxed antialiased">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white py-6 mb-8 shadow">
+        <div class="max-w-7xl mx-auto px-6">
+            <h1 class="text-3xl font-semibold">Varify: Final Combined Report</h1>
+            <p class="text-sm mt-1 text-blue-200">
+                Generated on: {{ generated_on }}
+            </p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6">
+        <!-- BFC Report -->
+        <details class="mb-12 border border-gray-300 rounded-lg shadow-md">
+            <summary class="cursor-pointer bg-gray-100 px-4 py-3 text-lg font-semibold text-gray-900">
+                BFC Merge Report
+            </summary>
+            <div class="px-4 py-3">
+                <!-- BFC Summary -->
+                <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-700">Summary</h3>
+                    <ul class="list-disc ml-6 mt-2 text-gray-600">
+                        <li><strong>Total Variants:</strong> {{ bfc_summary['Total Variants'] }}</li>
+                        <li><strong>Unique SV Types:</strong> {{ bfc_summary['Unique SV Types'] }}</li>
+                        <li><strong>Median Quality Score:</strong> {{ bfc_summary['Median Quality Score'] }}</li>
+                    </ul>
+                </div>
+
+                <!-- BFC Plots -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    {% for key, plot in bfc_plots.items() %}
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-700 mb-2">{{ plot.alt }}</h3>
+                            <a href="{{ plot.path }}" target="_blank">
+                                <img src="{{ plot.path }}" alt="{{ plot.alt }}" class="w-full rounded-lg shadow-md">
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- BFC HTML -->
+                <details class="mt-6">
+                    <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
+                        View BFC Report (HTML)
+                    </summary>
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-md p-6 overflow-x-auto">
+                        {{ bfc_html|safe }}
+                    </div>
+                </details>
+
+                <!-- BFC Stats Tables -->
+                {% for key, table in bcf_stats_html.items() %}
+                    <details class="mt-6">
+                        <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
+                            {{ key }}
+                        </summary>
+                        <div class="mt-2 border border-gray-300 rounded-md shadow-md overflow-hidden">
+                            {{ table|safe }}
+                        </div>
+                    </details>
+                {% endfor %}
+            </div>
+        </details>
+
+        <!-- SURVIVOR Report -->
+        <details class="mb-12 border border-gray-300 rounded-lg shadow-md">
+            <summary class="cursor-pointer bg-gray-100 px-4 py-3 text-lg font-semibold text-gray-900">
+                SURVIVOR Merge Report
+            </summary>
+            <div class="px-4 py-3">
+                <!-- SURVIVOR Summary -->
+                <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-700">Summary</h3>
+                    <ul class="list-disc ml-6 mt-2 text-gray-600">
+                        <li><strong>Total Variants:</strong> {{ survivor_summary['Total Variants'] }}</li>
+                        <li><strong>Unique SV Types:</strong> {{ survivor_summary['Unique SV Types'] }}</li>
+                        <li><strong>Median Quality Score:</strong> {{ survivor_summary['Median Quality Score'] }}</li>
+                    </ul>
+                </div>
+
+                <!-- SURVIVOR Plots -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    {% for key, plot in survivor_plots.items() %}
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-700 mb-2">{{ plot.alt }}</h3>
+                            <a href="{{ plot.path }}" target="_blank">
+                                <img src="{{ plot.path }}" alt="{{ plot.alt }}" class="w-full rounded-lg shadow-md">
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- SURVIVOR Stats Table -->
+                <details class="mt-6">
+                    <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
+                        View Detailed Statistics
+                    </summary>
+                    <div class="mt-2 border border-gray-300 rounded-md shadow-md overflow-hidden">
+                        {{ survivor_stats|safe }}
+                    </div>
+                </details>
+
+                <!-- SURVIVOR HTML -->
+                <details class="mt-6">
+                    <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
+                        View SURVIVOR Report (HTML)
+                    </summary>
+                    <div class="mt-2 border border-gray-300 rounded-md shadow-md overflow-x-auto">
+                        {{ survivor_html|safe }}
+                    </div>
+                </details>
+            </div>
+        </details>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-100 py-6 mt-8">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p class="text-sm text-gray-500">© 2025 Varify - All Rights Reserved</p>
+        </div>
+    </footer>
+
+</body>
+</html>
