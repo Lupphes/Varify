@@ -47,7 +47,7 @@ def generate_report(
         tracks=tracks,
         track_config=None,
         roi=[main_vcf, second_vcf],
-        sort=None,
+        sort=True,
         template=template_path,
         output=output_file,
         info_columns=info_columns,

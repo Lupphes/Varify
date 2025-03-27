@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="varify",
-    version="0.1.5",
+    version="0.1.6",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
@@ -21,7 +21,7 @@ setup(
             "varify=varify.varify:main",
         ]
     },
-    python_requires=">=3.12",
+    python_requires=">=3.10",
     author="Ondřej Sloup",
     author_email="dev@lupphes.com",
     description="Variant File Report Generator",
