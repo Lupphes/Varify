@@ -5,6 +5,10 @@ setup(
     version="0.1.6",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
+    include_package_data=True,
+    package_data={
+        "varify": ["templates/*.html"],
+    },
     install_requires=[
         "setuptools>=65.0",
         "pandas==2.2.3",
