@@ -1,161 +1,45 @@
-<html>
-<head>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-    <meta http-equiv="Pragma" content="no-cache"/>
-    <meta http-equiv="Expires" content="0"/>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
+<div id="{{ prefix }}_container" class="flex flex-col space-y-4">
 
-    <title>IGV Variant Inspector</title>
-
-    <!-- IGV -->
-    <script src="https://cdn.jsdelivr.net/npm/igv@3.0.5/dist/igv.min.js"></script>
-
-    <style type="text/css">
-        body {
-            font-size: 80%;
-            font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;
-        }
-    </style>
-
-    <!-- Selector table style -->
-    <style>
-        thead {
-            position: sticky;
-            top: 0;
-        }
-
-        tr {
-            cursor: default;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-
-        tr:hover {
-            background-color: lightblue;
-        }
-
-        th {
-            background-color: lightskyblue;
-            color: white;
-            cursor: pointer;
-        }
-
-        .selected {
-            background-color: lightblue !important;
-            outline: solid thin darkblue !important;
-        }
-    </style>
-
-    <!-- Accordion style -->
-    <style type="text/css">
-        .wrap-collabsible {
-            margin-bottom: 1.2rem;
-        }
-
-        input[type='checkbox'] {
-            display: none;
-        }
-
-        .lbl-toggle {
-            display: block;
-            font-weight: bold;
-            font-family: monospace;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            text-align: left;
-            padding: 1rem;
-            color: black;
-            background: #dddddd;
-            cursor: pointer;
-            border-radius: 7px;
-            transition: all 0.25s ease-out;
-        }
-
-        .lbl-toggle:hover {
-            color: blue;
-        }
-
-        .lbl-toggle::before {
-            content: ' ';
-            display: inline-block;
-            border-top: 5px solid transparent;
-            border-bottom: 5px solid transparent;
-            border-left: 5px solid currentColor;
-            vertical-align: middle;
-            margin-right: .7rem;
-            transform: translateY(-2px);
-            transition: transform .2s ease-out;
-        }
-
-        .toggle:checked + .lbl-toggle::before {
-            transform: rotate(90deg) translateX(-3px);
-        }
-
-        .collapsible-content {
-            max-height: 0px;
-            overflow: auto;
-            transition: max-height .25s ease-in-out;
-        }
-
-        .toggle:checked + .lbl-toggle + .collapsible-content {
-            max-height: 350px;
-        }
-
-        .toggle:checked + .lbl-toggle {
-            border-bottom-right-radius: 0;
-            border-bottom-left-radius: 0;
-        }
-
-        .collapsible-content .content-inner {
-            background: rgba(250, 224, 66, .2);
-            border-bottom: 1px solid rgba(250, 224, 66, .45);
-            border-bottom-left-radius: 7px;
-            border-bottom-right-radius: 7px;
-            padding: .5rem 1rem;
-        }
-    </style>
-</head>
-
-<body>
-
-<div id="{{ prefix }}_container" style="display: flex; flex-direction: column">
-    <div id="{{ prefix }}_tableContainer" class="wrap-collabsible">
-        <input id="{{ prefix }}_collapsible" class="toggle" type="checkbox" checked>
-        <label for="{{ prefix }}_collapsible" class="lbl-toggle">Variants</label>
-        <div class="collapsible-content">
-            <div id="{{ prefix }}_tableSelectorDiv"></div>
-        </div>
+    <!-- Variant Table Section -->
+    <div id="{{ prefix }}_tableContainer" class="border rounded shadow-sm">
+        <div id="{{ prefix }}_tableWrapper" class="p-2 bg-white max-h-[400px] overflow-auto"></div>
     </div>
 
-    <div id="{{ prefix }}_igvContainer">
-        <div id="{{ prefix }}_igvDiv"></div>
+    <!-- IGV Viewer Section -->
+    <div id="{{ prefix }}_igvContainer" class="border">
+        <div class="p-2 bg-white overflow-auto">
+            <h3 class="text-md font-semibold text-gray-800 mb-2">IGV Browser</h3>
+
+            <!-- Loading Overlay -->
+            <div id="{{ prefix }}_igvLoading" class="flex items-center justify-center min-h-[400px] bg-gray-900 text-white text-sm rounded shadow animate-pulse">
+                Loading IGV Viewer...
+            </div>    <div id="{{ prefix }}_igvContainer" class="border">
+
+            <!-- IGV Browser Container -->
+            <div class="flex-grow flex flex-col">
+                <div id="{{ prefix }}_igvDiv" class="w-full hidden"></div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- JS -->
 <script type="text/javascript">
-
-    // ✅ Keep placeholders intact for script replacement
     const tableJson_{{ prefix }} = "@TABLE_JSON@";
     const sessionDictionary_{{ prefix }} = "@SESSION_DICTIONARY@";
     let igvBrowser_{{ prefix }};
 
-    document.addEventListener("DOMContentLoaded", function () {
-        initIGV_{{ prefix }}();
-    });
+    // Lazy load IGV when section is opened
+    document.getElementById("{{ prefix }}_igvContainer").closest("details")
+        ?.addEventListener("toggle", function (e) {
+            if (e.target.open && !igvBrowser_{{ prefix }}) {
+                initIGV_{{ prefix }}();
+            }
+        });
 
-    /**
-     * Create the IGV instance initialized with the first session in the session dictionary.
-     * This will correspond to the first variant in the variant table.
-     */
     function initIGV_{{ prefix }}() {
         const igvDiv = document.getElementById("{{ prefix }}_igvDiv");
+        const loadingDiv = document.getElementById("{{ prefix }}_igvLoading");
+
         const options = {
             sessionURL: sessionDictionary_{{ prefix }}["0"],
             showChromosomeWidget: false,
@@ -163,79 +47,110 @@
             search: false
         };
 
-        igv.createBrowser(igvDiv, options)
-            .then(function (b) {
-                igvBrowser_{{ prefix }} = b;
-                initTable_{{ prefix }}();
-            });
+        igv.createBrowser(igvDiv, options).then(function (b) {
+            igvBrowser_{{ prefix }} = b;
+            initTable_{{ prefix }}();
+
+            // Show IGV and hide loader
+            loadingDiv.classList.add("hidden");
+            igvDiv.classList.remove("hidden");
+        });
     }
 
     function initTable_{{ prefix }}() {
         const table = document.createElement("table");
         table.id = "{{ prefix }}_variant_table";
-        table.style.width = "100%";
-        document.getElementById("{{ prefix }}_tableSelectorDiv").appendChild(table);
+        table.className = "min-w-full table-auto border-collapse text-sm";
+        document.getElementById("{{ prefix }}_tableWrapper").appendChild(table);
 
-        // Header
-        const thead = document.createElement('thead');
+        const thead = document.createElement("thead");
+        thead.className = "sticky top-0 bg-blue-200";
         table.appendChild(thead);
+
         const headerRow = thead.insertRow(0);
-        const headers = tableJson_{{ prefix }}.headers;
+        const headerPriority = [
+            // Core variant identification
+            "unique_id", "CHROM", "POSITION", "ALT", "ID",
 
-        for (let j = 0; j < headers.length; j++) {
-            let cell = document.createElement("th");
-            headerRow.appendChild(cell);
-            cell.innerHTML = headers[j];
-        }
+            // Core structural variant fields
+            "SVTYPE", "END", "SVLEN",
 
-        // Body
-        const tbody = document.createElement('tbody');
-        table.appendChild(tbody);
-        const tableRows = tableJson_{{ prefix }}.rows;
+            // Support/caller-related
+            "SUPP", "SUPP_VEC", "CALLER",
 
-        for (let i = 0; i < tableRows.length; i++) {
-            const rowData = tableRows[i];
-            const unique_id = rowData[0];
-            const row = document.createElement("tr");
-            row.id = "{{ prefix }}_row_" + unique_id;
-            tbody.appendChild(row);
+            // Genotype and sample info
+            "CHROM2", "POSITION2", "REF",
 
-            if (i === 0) row.classList.add("selected");
+            // Quality and alignment
+            "MAPQ", "STRANDS", "SVMETHOD",
 
-            row.onclick = function () {
-                const session = sessionDictionary_{{ prefix }}[unique_id];
-                igvBrowser_{{ prefix }}.loadSession({ url: session });
-            };
+            // Breakpoint and confidence info
+            "CHR2", "CIPOS", "CIEND",
 
-            for (let j = 0; j < headers.length; j++) {
-                let cell = document.createElement("td");
-                row.appendChild(cell);
-                cell.innerHTML = rowData[j];
-            }
-        }
+            // Extended metadata (sorted for consistency)
+            "AS", "BA", "BEALN", "BQ", "CE", "CONSBP", "CONSENSUS", "CQ", "CT",
+            "EVENT", "HOMLEN", "HOMSEQ", "IC", "INSLEN", "MATEID", "MQ", "REFPAIR",
+            "SB", "SC", "SR", "SRMAPQ", "SRQ", "VF"
+        ];
 
-        // ✅ Sorting logic restored with dynamic prefixing
-        Array.prototype.slice.call(document.querySelectorAll('#{{ prefix }}_variant_table th')).forEach(function (th) {
-            th.addEventListener('click', function () {
-                Array.prototype.slice.call(table.querySelectorAll('tr:nth-child(n+1)'), 1)
-                    .sort(comparer_{{ prefix }}(Array.prototype.slice.call(th.parentNode.children).indexOf(th), this.asc = !this.asc))
-                    .forEach(function (tr) {
-                        table.appendChild(tr);
-                    });
-            });
+
+        // Sort headers by priority list; unknowns go last alphabetically
+        const headers = [...tableJson_{{ prefix }}.headers].sort((a, b) => {
+            const aIdx = headerPriority.indexOf(a);
+            const bIdx = headerPriority.indexOf(b);
+            if (aIdx === -1 && bIdx === -1) return a.localeCompare(b); // both unknown
+            if (aIdx === -1) return 1; // a unknown, put after b
+            if (bIdx === -1) return -1; // b unknown, put after a
+            return aIdx - bIdx; // both known, sort by index
+        });
+        headers.forEach(header => {
+            const th = document.createElement("th");
+            th.className = "px-3 py-2 text-left font-semibold text-white bg-blue-600 cursor-pointer";
+            th.innerHTML = header;
+            headerRow.appendChild(th);
         });
 
-        function getCellValue_{{ prefix }}(tr, idx) {
-            return tr.children[idx].innerText || tr.children[idx].textContent;
-        }
+        const tbody = document.createElement("tbody");
+        table.appendChild(tbody);
+        const rows = tableJson_{{ prefix }}.rows;
 
-        function comparer_{{ prefix }}(idx, asc) {
-            return function (a, b) {
-                return (getCellValue_{{ prefix }}(a, idx) > getCellValue_{{ prefix }}(b, idx) ? 1 : -1) * (asc ? 1 : -1);
-            }
-        }
+        rows.forEach((rowData, i) => {
+            const row = document.createElement("tr");
+            row.id = "{{ prefix }}_row_" + rowData[0];
+            row.className = i % 2 === 0 ? "bg-gray-50" : "bg-white";
+            if (i === 0) row.classList.add("bg-blue-100");
+
+            row.onclick = function () {
+                const session = sessionDictionary_{{ prefix }}[rowData[0]];
+                igvBrowser_{{ prefix }}.loadSession({ url: session });
+                Array.from(tbody.rows).forEach(r => r.classList.remove("bg-blue-100"));
+                row.classList.add("bg-blue-100");
+            };
+
+            // Match rowData with sorted headers
+            headers.forEach(header => {
+                const td = document.createElement("td");
+                td.className = "px-3 py-1 text-gray-700";
+                td.innerHTML = rowData[tableJson_{{ prefix }}.headers.indexOf(header)];
+                row.appendChild(td);
+            });
+
+            tbody.appendChild(row);
+        });
+
+        // Sortable headers
+        Array.from(table.querySelectorAll("th")).forEach((th, i) => {
+            th.addEventListener("click", function () {
+                const asc = !this.asc;
+                this.asc = asc;
+                Array.from(tbody.rows)
+                    .sort((a, b) => {
+                        const v1 = a.cells[i].textContent;
+                        const v2 = b.cells[i].textContent;
+                        return (v1 > v2 ? 1 : v1 < v2 ? -1 : 0) * (asc ? 1 : -1);
+                    })
+                    .forEach(tr => tbody.appendChild(tr));
+            });
+        });
     }
 </script>
-
-</body>
-</html>

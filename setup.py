@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="varify",
-    version="0.1.6",
+    version="0.2.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
@@ -18,7 +18,10 @@ setup(
         "matplotlib==3.10.1",
         "seaborn==0.13.2",
         "numpy==2.2.4",
-        "igv-reports==1.14.1"
+        "igv-reports==1.14.1",
+        "kaleido-core=0.2.1",
+        "plotly=6.0.1"
+
     ],
     entry_points={
         "console_scripts": [

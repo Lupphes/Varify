@@ -176,4 +176,6 @@ cython_debug/
 data/
 output/
 bfc_structural_variant_report.html
+bcf_structural_variant_report.html
 survivor_structural_variant_report.html
+igv-reports/*

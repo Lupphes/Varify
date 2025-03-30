@@ -1,264 +1,274 @@
 import os
-import matplotlib.pyplot as plt
-import seaborn as sns
+from typing import Optional, Dict
+from collections import Counter
+
 import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 
-def plot_sv_type_distribution(df, output_path):
-    filtered_df = df.dropna(subset=["SVTYPE"])
-    plt.figure(figsize=(8, 6))
-    sns.countplot(
-        data=filtered_df, x="SVTYPE", hue="SVTYPE", palette="viridis", legend=False
+from .parser import decode_supp_vec
+
+
+def save_fig(fig: go.Figure, output_path: str) -> None:
+    fig.write_html(
+        output_path,
+        include_plotlyjs="cdn",
+        full_html=True,
+        config={"responsive": True},
     )
-    plt.title("SV Type Distribution")
-    plt.xlabel("SV Type")
-    plt.ylabel("Count")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "SV Type Distribution",
-        "width": 600,
-    }
+    fig.write_image(output_path.replace(".html", ".png"), scale=2)
 
 
-def plot_sv_size_distribution(df, output_path):
-    lower_quantile = df["SVLEN"].quantile(0.05)
-    upper_quantile = df["SVLEN"].quantile(0.95)
-    filtered_df = df[(df["SVLEN"] >= lower_quantile) & (df["SVLEN"] <= upper_quantile)]
-
-    plt.figure(figsize=(8, 6))
-    sns.histplot(filtered_df["SVLEN"].dropna(), bins=50, kde=True, log_scale=True)
-    plt.title("SV Size Distribution (5th–95th percentile)")
-    plt.xlabel("SV Length (bp)")
-    plt.ylabel("Count")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "SV Size Distribution (5th–95th percentile)",
-        "width": 600,
-    }
-
-
-def plot_qual_distribution(df, output_path):
-    lower_quantile = df["QUAL"].quantile(0.05)
-    upper_quantile = df["QUAL"].quantile(0.95)
-    filtered_df = df[(df["QUAL"] >= lower_quantile) & (df["QUAL"] <= upper_quantile)]
-
-    plt.figure(figsize=(8, 6))
-    sns.histplot(filtered_df["QUAL"].dropna(), bins=50, kde=True)
-    plt.title("Quality Score Distribution (5th–95th percentile)")
-    plt.xlabel("Quality Score")
-    plt.ylabel("Frequency")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "Quality Score Distribution (5th–95th percentile)",
-        "width": 600,
-    }
-
-
-def plot_sv_type_vs_size(df, output_path):
-    lower_quantile = df["SVLEN"].quantile(0.05)
-    upper_quantile = df["SVLEN"].quantile(0.95)
-    filtered_df = df[(df["SVLEN"] >= lower_quantile) & (df["SVLEN"] <= upper_quantile)]
-
-    plt.figure(figsize=(10, 6))
-    sns.violinplot(data=filtered_df, x="SVTYPE", y="SVLEN", density_norm="width")
-    plt.title("SV Type vs Size Distribution (5th–95th percentile)")
-    plt.xlabel("SV Type")
-    plt.ylabel("SV Length (bp)")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "SV Type vs Size Distribution (5th–95th percentile)",
-        "width": 600,
-    }
-
-
-def plot_sv_density_by_chromosome(df, output_path):
-    chrom_counts = df["CHROM"].value_counts()
-    lower_quantile = chrom_counts.quantile(0.05)
-    upper_quantile = chrom_counts.quantile(0.95)
-    filtered_chrom = chrom_counts[
-        (chrom_counts >= lower_quantile) & (chrom_counts <= upper_quantile)
-    ].index
-
-    filtered_df = df[df["CHROM"].isin(filtered_chrom)]
-
-    plt.figure(figsize=(12, 6))
-    sns.histplot(filtered_df["CHROM"].astype(str), bins=len(filtered_chrom), kde=False)
-    plt.title("SV Density by Chromosome (5th–95th percentile)")
-    plt.xlabel("Chromosome")
-    plt.ylabel("Count")
-    plt.xticks(rotation=45)
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "SV Density by Chromosome (5th–95th percentile)",
-        "width": 600,
-    }
-
-
-def plot_sv_size_vs_quality(df, output_path):
-    lower_svlen = df["SVLEN"].quantile(0.05)
-    upper_svlen = df["SVLEN"].quantile(0.95)
-    lower_qual = df["QUAL"].quantile(0.05)
-    upper_qual = df["QUAL"].quantile(0.95)
-
-    filtered_df = df[
-        (df["SVLEN"] >= lower_svlen)
-        & (df["SVLEN"] <= upper_svlen)
-        & (df["QUAL"] >= lower_qual)
-        & (df["QUAL"] <= upper_qual)
-    ]
-
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(
-        data=filtered_df, x="SVLEN", y="QUAL", hue="SVTYPE", alpha=0.7, edgecolor=None
+def standard_layout(fig: go.Figure, title: str) -> None:
+    fig.update_layout(
+        title=title,
+        template="plotly_white",
+        autosize=True,
+        margin=dict(l=40, r=40, t=60, b=60),
+        legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.3),
+        xaxis=dict(title_font=dict(size=12)),
+        yaxis=dict(title_font=dict(size=12)),
     )
-    plt.title("SV Size vs Quality Score (5th–95th percentile)")
-    plt.xscale("log")
-    plt.xlabel("SV Length (bp)")
-    plt.ylabel("Quality Score")
-    plt.legend(title="SV Type")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
+
+
+def relative_path(output_path: str, subfolder: str = "plots") -> str:
+    return os.path.join(subfolder, os.path.basename(output_path))
+
+
+def _wrap_output(output_path: str, alt: str, subfolder: str) -> Dict[str, str]:
     return {
-        "path": os.path.basename(output_path),
-        "alt": "SV Size vs Quality Score (5th–95th percentile)",
-        "width": 600,
+        "path": relative_path(output_path, subfolder),
+        "alt": alt,
+        "width": "100%",
+        "type": "html",
     }
 
 
-def plot_sv_type_heatmap(df, output_path):
-    plt.figure(figsize=(12, 8))
-    sv_by_chrom = df.groupby(["CHROM", "SVTYPE"]).size().unstack().fillna(0)
-    sns.heatmap(sv_by_chrom, cmap="YlGnBu", annot=True, fmt=".0f")
-    plt.title("SV Type Heatmap by Chromosome")
-    plt.xlabel("SV Type")
-    plt.ylabel("Chromosome")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "SV Type Heatmap by Chromosome",
-        "width": 800,
-    }
+def normalize_svlen(df: pd.DataFrame) -> pd.DataFrame:
+    df_copy = df.copy()
+    df_copy["SVLEN"] = pd.to_numeric(df_copy["SVLEN"], errors="coerce").abs()
+    return df_copy[df_copy["SVLEN"] < 1_000_000]
 
 
-def plot_sample_variation(df, output_path):
-    plt.figure(figsize=(12, 8))
-    sns.violinplot(data=df, x="Sample", y="SVLEN", hue="SVTYPE", scale="width")
-    plt.title("Sample-Level Structural Variant Distribution")
-    plt.xticks(rotation=90)
-    plt.xlabel("Sample")
-    plt.ylabel("SV Length (bp)")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "Sample-Level SV Distribution",
-        "width": 800,
-    }
-
-
-def plot_strand_bias(df, output_path):
-    plt.figure(figsize=(8, 6))
-    sns.countplot(data=df, x="SVTYPE", hue="STRAND", palette="Set2")
-    plt.title("Strand Bias Across Structural Variants")
-    plt.xlabel("SV Type")
-    plt.ylabel("Count")
-    plt.legend(title="Strand")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "Strand Bias Across SV Types",
-        "width": 600,
-    }
-
-
-def plot_cumulative_sv_length(df, output_path):
-    if "SVLEN" not in df.columns or "CHROM" not in df.columns:
-        raise ValueError("Missing 'SVLEN' or 'CHROM' column in input DataFrame")
-
-    sv_length_per_chrom = df.groupby("CHROM")["SVLEN"].sum().reset_index()
-
-    # Handle empty DataFrame
-    if sv_length_per_chrom.empty:
-        print("No data available for SV length per chromosome.")
-        return None
-
-    # Handle NaN and inf values
-    sv_length_per_chrom.replace([np.inf, -np.inf], np.nan, inplace=True)
-    sv_length_per_chrom.dropna(subset=["SVLEN"], inplace=True)
-
-    plt.figure(figsize=(12, 6))
-    sns.barplot(
-        data=sv_length_per_chrom,
-        x="CHROM",
-        y="SVLEN",
-        hue="CHROM",  # Fix for Seaborn FutureWarning
-        palette="coolwarm",
-        legend=False
-    )
-    plt.title("Cumulative SV Length per Chromosome")
-    plt.xticks(rotation=45)
-    plt.xlabel("Chromosome")
-    plt.ylabel("Cumulative SV Length (bp)")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "Cumulative SV Length per Chromosome",
-        "width": 800,
-    }
-
-
-def plot_allele_frequency(df, output_path):
-    lower_quantile = df["AF"].quantile(0.05)
-    upper_quantile = df["AF"].quantile(0.95)
-    filtered_df = df[(df["AF"] >= lower_quantile) & (df["AF"] <= upper_quantile)]
-
-    plt.figure(figsize=(8, 6))
-    sns.histplot(filtered_df["AF"].dropna(), bins=30, kde=True)
-    plt.title("Allele Frequency Distribution (5th–95th percentile)")
-    plt.xlabel("Allele Frequency")
-    plt.ylabel("Count")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "Allele Frequency Distribution (5th–95th percentile)",
-        "width": 600,
-    }
-
-
-def plot_sv_callers(df, output_path):
+def plot_sv_callers(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Optional[Dict[str, str]]:
     if "CALLER" not in df.columns:
         print("No 'CALLER' column found in the data.")
         return None
 
-    caller_counts = df["CALLER"].value_counts()
+    exploded = (
+        df.dropna(subset=["CALLER"])
+        .assign(CALLER=df["CALLER"].str.split(","))
+        .explode("CALLER")
+        .assign(CALLER=lambda d: d["CALLER"].str.strip())
+    )
+    df_counts = exploded["CALLER"].value_counts().reset_index()
+    df_counts.columns = ["Caller", "Count"]
 
-    plt.figure(figsize=(8, 6))
-    sns.barplot(x=caller_counts.index, y=caller_counts.values, hue=caller_counts.index, palette="viridis", legend=False)
-    plt.title("Structural Variant Callers")
-    plt.xlabel("Caller")
-    plt.ylabel("Number of Variants")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300)
-    plt.close()
+    fig = px.bar(df_counts, x="Caller", y="Count", color="Caller")
+    standard_layout(fig, "Structural Variant Callers")
+    save_fig(fig, output_path)
+    return _wrap_output(output_path, "Structural Variant Callers", subfolder)
 
-    return {
-        "path": os.path.basename(output_path),
-        "alt": "Structural Variant Callers",
-        "width": 600,
-    }
 
+def plot_sv_type_distribution(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    filtered = df.dropna(subset=["SVTYPE"])
+    fig = px.histogram(filtered, x="SVTYPE", color="SVTYPE")
+    standard_layout(fig, "SV Type Distribution")
+    save_fig(fig, output_path)
+    return _wrap_output(output_path, "SV Type Distribution", subfolder)
+
+
+def plot_sv_size_distribution(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    df_copy = normalize_svlen(df)
+    lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
+    filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
+
+    fig = px.histogram(
+        filtered, x="SVLEN", nbins=50, labels={"SVLEN": "SV Length (bp)"}
+    )
+    standard_layout(fig, "SV Size Distribution (5th–95th percentile)")
+    save_fig(fig, output_path)
+    return _wrap_output(
+        output_path, "SV Size Distribution (5th–95th percentile)", subfolder
+    )
+
+
+def plot_qual_distribution(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    lower, upper = df["QUAL"].quantile([0.05, 0.95])
+    filtered = df[(df["QUAL"] >= lower) & (df["QUAL"] <= upper)]
+
+    fig = px.histogram(filtered, x="QUAL", nbins=50)
+    standard_layout(fig, "Quality Score Distribution (5th–95th percentile)")
+    save_fig(fig, output_path)
+    return _wrap_output(
+        output_path, "Quality Score Distribution (5th–95th percentile)", subfolder
+    )
+
+
+def plot_sv_type_vs_size(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    df_copy = normalize_svlen(df)
+    lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
+    filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
+
+    fig = px.violin(
+        filtered,
+        x="SVTYPE",
+        y="SVLEN",
+        box=True,
+        points="outliers",
+        labels={"SVLEN": "SV Length (bp)", "SVTYPE": "SV Type"},
+    )
+    standard_layout(fig, "SV Type vs Size Distribution (5th–95th percentile)")
+    save_fig(fig, output_path)
+    return _wrap_output(
+        output_path, "SV Type vs Size Distribution (5th–95th percentile)", subfolder
+    )
+
+
+def plot_sv_size_vs_quality(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    df_copy = normalize_svlen(df)
+    bounds = df_copy[["SVLEN", "QUAL"]].quantile([0.05, 0.95])
+    filtered = df_copy[
+        (df_copy["SVLEN"] >= bounds.loc[0.05, "SVLEN"])
+        & (df_copy["SVLEN"] <= bounds.loc[0.95, "SVLEN"])
+        & (df_copy["QUAL"] >= bounds.loc[0.05, "QUAL"])
+        & (df_copy["QUAL"] <= bounds.loc[0.95, "QUAL"])
+    ]
+
+    fig = px.scatter(
+        filtered,
+        x="SVLEN",
+        y="QUAL",
+        color="SVTYPE",
+        labels={"SVLEN": "SV Length (bp)", "QUAL": "Quality Score"},
+    )
+    standard_layout(fig, "SV Size vs Quality Score (5th–95th percentile)")
+    save_fig(fig, output_path)
+    return _wrap_output(
+        output_path, "SV Size vs Quality Score (5th–95th percentile)", subfolder
+    )
+
+
+def plot_sv_type_heatmap(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    sv_by_chrom = df.groupby(["CHROM", "SVTYPE"]).size().unstack().fillna(0)
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=sv_by_chrom.values,
+            x=sv_by_chrom.columns,
+            y=sv_by_chrom.index,
+            colorscale="YlGnBu",
+            hoverongaps=False,
+        )
+    )
+    fig.update_layout(
+        title="SV Type Heatmap by Chromosome",
+        xaxis_title="SV Type",
+        yaxis_title="Chromosome",
+        template="plotly_white",
+        margin=dict(l=40, r=40, t=60, b=60),
+    )
+    save_fig(fig, output_path)
+    return _wrap_output(output_path, "SV Type Heatmap by Chromosome", subfolder)
+
+
+def plot_cumulative_sv_length(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    if not {"SVLEN", "CHROM"}.issubset(df.columns):
+        raise ValueError("Missing 'SVLEN' or 'CHROM' column in input DataFrame")
+
+    df_copy = normalize_svlen(df)
+    sv_length = df_copy.groupby("CHROM")["SVLEN"].sum().reset_index()
+    sv_length.replace([np.inf, -np.inf], np.nan, inplace=True)
+    sv_length.dropna(subset=["SVLEN"], inplace=True)
+
+    fig = px.bar(
+        sv_length,
+        x="CHROM",
+        y="SVLEN",
+        labels={"CHROM": "Chromosome", "SVLEN": "Cumulative SV Length (bp)"},
+        color="CHROM",
+    )
+    fig.update_layout(
+        template="plotly_white", showlegend=False, margin=dict(l=40, r=40, t=60, b=60)
+    )
+    save_fig(fig, output_path)
+    return _wrap_output(output_path, "Cumulative SV Length per Chromosome", subfolder)
+
+
+def extract_callers_with_duplicates(id_field: Optional[str]) -> list[str]:
+    if isinstance(id_field, list):
+        id_field = ",".join(map(str, id_field))
+    if not isinstance(id_field, str) or not id_field:
+        return []
+
+    callers = []
+    for part in id_field.split(","):
+        if "_" in part:
+            callers.append(part.split("_")[0])
+    return callers
+
+
+def plot_bcf_exact_instance_combinations(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    df = df.copy()
+    df["caller_list_raw"] = df["ID"].apply(extract_callers_with_duplicates)
+    df["Caller_Instance_Combo"] = df["caller_list_raw"].apply(
+        lambda lst: ",".join(sorted(lst)) if lst else "None"
+    )
+    df_counts = df["Caller_Instance_Combo"].value_counts().reset_index()
+    df_counts.columns = ["Caller Instance Combo", "Count"]
+
+    fig = px.bar(
+        df_counts,
+        x="Caller Instance Combo",
+        y="Count",
+        color="Caller Instance Combo",
+        title="Exact Caller Instance Combinations (incl. duplicates)",
+    )
+    fig.update_layout(
+        template="plotly_white", showlegend=False, margin=dict(l=40, r=40, t=60, b=60)
+    )
+    save_fig(fig, output_path)
+    return _wrap_output(output_path, "Exact Caller Instance Combinations", subfolder)
+
+
+def plot_survivor_exact_instance_combinations(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Dict[str, str]:
+    df = df.copy()
+    df["Caller_Instance_Combo"] = df["caller_list_raw"].apply(
+        lambda lst: ",".join(sorted(lst)) if lst else "None"
+    )
+    df_counts = df["Caller_Instance_Combo"].value_counts().reset_index()
+    df_counts.columns = ["Caller Instance Combo", "Count"]
+
+    fig = px.bar(
+        df_counts,
+        x="Caller Instance Combo",
+        y="Count",
+        color="Caller Instance Combo",
+        title="Exact Caller Instance Combinations (incl. duplicates)",
+    )
+    fig.update_layout(
+        template="plotly_white", showlegend=False, margin=dict(l=40, r=40, t=60, b=60)
+    )
+    save_fig(fig, output_path)
+    return _wrap_output(output_path, "Exact Caller Instance Combinations", subfolder)
