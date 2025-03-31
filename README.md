@@ -122,4 +122,5 @@ Created with ❤️ by **Luppo** for structural variant exploration.
 
 ---
 
-> Contributions welcome! If you'd like to add filters, annotation support, pipeline integration, or
+Contributions welcome! If you'd like to add filters, annotation support, pipeline integration, or new visualizations, open a PR!
+
