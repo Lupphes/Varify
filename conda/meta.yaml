@@ -26,7 +26,7 @@ requirements:
     - conda-forge::seaborn=0.13.2
     - conda-forge::numpy=2.2.4
     - conda-forge::plotly=6.0.1
-    - conda-forge::kaleido=0.2.1
+    - conda-forge::kaleido-core=0.2.1
     - bioconda::igv-reports=1.14.1
     
 test:
