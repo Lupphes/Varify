@@ -138,15 +138,27 @@
             tbody.appendChild(row);
         });
 
-        // Sortable headers
+        // Sortable headers with numeric support
         Array.from(table.querySelectorAll("th")).forEach((th, i) => {
             th.addEventListener("click", function () {
                 const asc = !this.asc;
                 this.asc = asc;
+
+                const isNumericColumn = Array.from(tbody.rows).every(row => {
+                    const text = row.cells[i].textContent.trim();
+                    return text === "" || !isNaN(text);
+                });
+
                 Array.from(tbody.rows)
                     .sort((a, b) => {
-                        const v1 = a.cells[i].textContent;
-                        const v2 = b.cells[i].textContent;
+                        let v1 = a.cells[i].textContent.trim();
+                        let v2 = b.cells[i].textContent.trim();
+
+                        if (isNumericColumn) {
+                            v1 = parseFloat(v1) || 0;
+                            v2 = parseFloat(v2) || 0;
+                        }
+
                         return (v1 > v2 ? 1 : v1 < v2 ? -1 : 0) * (asc ? 1 : -1);
                     })
                     .forEach(tr => tbody.appendChild(tr));

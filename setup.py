@@ -20,8 +20,7 @@ setup(
         "numpy==2.2.4",
         "igv-reports==1.14.1",
         "kaleido==0.2.1",
-        "plotly==6.0.1"
-
+        "plotly==6.0.1",
     ],
     entry_points={
         "console_scripts": [

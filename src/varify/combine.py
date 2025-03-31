@@ -52,7 +52,8 @@ def render_stats_table(title: str, description: str, df: pd.DataFrame) -> str:
     # Apply Tailwind styling
     table_html = (
         table_html.replace(
-            "<thead>", '<thead class="bg-blue-600 text-white text-sm uppercase tracking-wider">'
+            "<thead>",
+            '<thead class="bg-blue-600 text-white text-sm uppercase tracking-wider">',
         )
         .replace("<tbody>", '<tbody class="divide-y divide-gray-200">')
         .replace("<tr>", '<tr class="hover:bg-gray-50 even:bg-gray-50">')
@@ -82,7 +83,8 @@ def generate_combined_report(
     survivor_stats,
     bcf_plots,
     survivor_plots,
-    profiles
+    profiles,
+    reference_name,
 ):
     with open(bcf_html_path, "r") as f:
         bcf_html = f.read()
@@ -113,8 +115,10 @@ def generate_combined_report(
     bcf_stats_html = {
         key: render_stats_table(
             title=f"BCFtools - {key} Section",
-            description=BCFTOOLS_SECTION_DESCRIPTIONS.get(key, "No description available."),
-            df=df
+            description=BCFTOOLS_SECTION_DESCRIPTIONS.get(
+                key, "No description available."
+            ),
+            df=df,
         )
         for key, df in bcf_stats.items()
     }
@@ -126,9 +130,8 @@ def generate_combined_report(
             "across different size ranges. It is derived from SURVIVOR's support file and shows how many variants "
             "fall into each class."
         ),
-        df=survivor_stats.reset_index()
+        df=survivor_stats.reset_index(),
     )
-
 
     template = env.get_template("combined_report_template.html")
     rendered_html = template.render(
@@ -142,7 +145,8 @@ def generate_combined_report(
         survivor_plots=survivor_plots,
         generated_on=os.popen("date").read().strip(),
         BCFTOOLS_SECTION_DESCRIPTIONS=BCFTOOLS_SECTION_DESCRIPTIONS,
-        profiles=profiles
+        profiles=profiles,
+        reference_name=os.path.basename(reference_name),
     )
 
     with open(combined_report_file, "w") as f:
