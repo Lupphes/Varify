@@ -3,7 +3,7 @@
 **Variant File Report Generator**  
 A Python-based tool to generate rich, interactive HTML reports from structural variant (SV) VCF files, such as those produced by [bcftools](http://samtools.github.io/bcftools/) and [SURVIVOR](https://github.com/fritzsedlazeck/SURVIVOR).
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)  
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)  
 ![Plotly](https://img.shields.io/badge/plotly-interactive-lightgrey)
 
@@ -117,7 +117,7 @@ Varify consists of:
 
 ## 📜 License
 
-MIT License.  
+GPL-3.0-or-later.  
 Created with ❤️ by **Luppo** for structural variant exploration.
 
 ---
