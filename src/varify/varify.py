@@ -138,7 +138,7 @@ def main() -> None:
         loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates"))
     )
 
-    bcf_df, _, _, _, bcf_html = process_vcf_and_generate_report(
+    bcf_df, _, bcf_sample_columns, _, bcf_html = process_vcf_and_generate_report(
         env,
         "bcf",
         args.bcf_vcf_file,
@@ -150,7 +150,7 @@ def main() -> None:
     bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
     bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label="bcf")
 
-    survivor_df, _, _, _, survivor_html = process_vcf_and_generate_report(
+    survivor_df, _, survivor_sample_columns, _, survivor_html = process_vcf_and_generate_report(
         env,
         "survivor",
         args.survivor_vcf_file,
@@ -166,7 +166,7 @@ def main() -> None:
 
     generate_combined_report(
         env=env,
-        combined_report_file=args.report_file,
+        combined_report_file=os.path.join(args.output_dir, args.report_file),
         bcf_html_path=bcf_html,
         survivor_html_path=survivor_html,
         bcf_df=bcf_df,
@@ -177,6 +177,12 @@ def main() -> None:
         survivor_plots=survivor_plots,
         profiles=args.profile,
         reference_name=args.fasta_file,
+        bcf_sample_columns=["RECORD_IDX", "CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER",
+        "SVTYPE", "CALLER", "END", "SVLEN", "IMPRECISE", "PRECISE",
+        "CHR2", "STRANDS", "MATEID", "EVENT"],
+        survivor_sample_columns=["RECORD_IDX", "CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER",
+        "SVTYPE", "CALLER", "END", "SVLEN", "IMPRECISE", "PRECISE",
+        "CHR2", "STRANDS", "MATEID", "EVENT"],
     )
 
     print("\n--- Report Generation Complete ---\n")

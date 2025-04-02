@@ -136,9 +136,9 @@ def parse_vcf(file_path, label="bcf"):
 
         # Base record data
         record_data = {
-            "RECORD_IDX": idx,
+            "unique_id": idx,
             "CHROM": record.CHROM,
-            "POS": record.POS,
+            "POSITION": record.POS,
             "ID": record.ID,
             "REF": record.REF,
             "ALT": ",".join(str(alt) for alt in record.ALT) if record.ALT else None,
@@ -150,10 +150,10 @@ def parse_vcf(file_path, label="bcf"):
             "SVLEN": svlen,
             "IMPRECISE": "IMPRECISE" in info,
             "PRECISE": "PRECISE" in info,
-            "CHR2": info.get("CHR2"),
+            "CHROM2": info.get("CHR2"),
             "STRANDS": info.get("STRANDS"),
-            "MATEID": info.get("MATEID"),
-            "EVENT": info.get("EVENT"),
+            "MATE_ID": info.get("MATEID"),
+            "EVENT_ID": info.get("EVENT"),
             "caller_list_raw": caller_list_raw,
         }
 
