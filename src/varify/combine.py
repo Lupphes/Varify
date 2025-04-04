@@ -179,8 +179,20 @@ def render_interactive_variant_table(
                        class="w-full px-3 py-1 border rounded text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             {filter_inputs_html}
+            <div class="flex items-center mt-2">
+                <label for="min_callers" class="mr-2 text-sm font-medium text-gray-700">Number of callers:</label>
+                <select id="min_callers" class="w-20 px-2 py-1 border rounded text-sm bg-white text-gray-800">
+                    <option value="0">All</option>
+                    <option value="1">1+</option>
+                    <option value="2">2+</option>
+                    <option value="3">3+</option>
+                    <option value="4">4+</option>
+                    <option value="5">5+</option>
+                </select>
+            </div>
             <div class="flex gap-2">
                 <button onclick="exportSelectedToCSV('{table_id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">CSV</button>
+                <button onclick="exportSelectedToVCF('{table_id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">VCF</button>
             </div>
         </div>
         <div class="bg-white border border-gray-300 rounded-md shadow-sm p-2">
@@ -203,24 +215,6 @@ def render_interactive_variant_table(
                 fixedHeader: true,
                 order: [], // Disable initial sorting
                 search: {{ return: true }}, // Enable search functionality
-                columnDefs: [
-                    {{
-                        targets: 'caller-checkbox',
-                        render: function(data, type, row) {{
-                            if (type === 'display') {{
-                                const callers = data.split(',').filter(c => c);
-                                return callers.map(caller => 
-                                    `<div class="flex items-center">
-                                        <input type="checkbox" class="caller-checkbox" value="${{caller}}" 
-                                               ${{caller_list_raw.includes(caller) ? 'checked' : ''}}>
-                                        <span class="ml-1">${{caller}}</span>
-                                    </div>`
-                                ).join('');
-                            }}
-                            return data;
-                        }}
-                    }}
-                ]
             }});
 
             // Add global search functionality
@@ -253,44 +247,90 @@ def render_interactive_variant_table(
                 $('#select-all').prop('checked', allChecked);
             }});
 
-            // Handle caller checkbox changes
-            $('#{table_id} tbody').on('change', '.caller-checkbox', function() {{
-                const caller = $(this).val();
-                const row = $(this).closest('tr');
-                const callerList = row.find('.caller-list').val().split(',').filter(c => c);
-                
-                if ($(this).is(':checked')) {{
-                    if (!callerList.includes(caller)) {{
-                        callerList.push(caller);
-                    }}
-                }} else {{
-                    const index = callerList.indexOf(caller);
-                    if (index > -1) {{
-                        callerList.splice(index, 1);
-                    }}
-                }}
-                
-                row.find('.caller-list').val(callerList.join(','));
-            }});
-
             // Add event listeners for filters
             const categoricalFields = {categorical_fields};
             categoricalFields.forEach(function(colName) {{
-                const colIdx = $('#{table_id} thead th').filter(function () {{
-                    return $(this).text().trim() === colName;
-                }}).index();
-
-                $('#filter_' + colName).on('change', function () {{
-                    const searchValue = this.value;
-                    table.column(colIdx).search(searchValue).draw();
+                if (colName === 'CALLER') {{
+                    const colIdx = $('#{table_id} thead th').filter(function () {{
+                        return $(this).text().trim() === colName;
+                    }}).index();
                     
-                    // Update select-all checkbox state after filtering
-                    const visibleRows = table.rows({{ search: 'applied' }}).nodes();
-                    const visibleCheckboxes = $('.row-checkbox', visibleRows);
-                    const allChecked = visibleCheckboxes.length > 0 && 
-                                     visibleCheckboxes.filter(':checked').length === visibleCheckboxes.length;
-                    $('#select-all').prop('checked', allChecked);
-                }});
+                    // Convert column data to strings using DataTables API
+                    const columnData = table.column(colIdx).data();
+                    const stringData = [];
+                    for (let i = 0; i < columnData.length; i++) {{
+                        stringData[i] = String(columnData[i] || '');
+                    }}
+                    table.column(colIdx).data(stringData);
+
+                    $('#filter_' + colName).on('change', function () {{
+                        const searchValue = this.value;
+                        table.column(colIdx).data(stringData).search('.*' + searchValue + '.*', {{regex: true, smart: false}}).draw();
+                        
+                        // Update select-all checkbox state after filtering
+                        const visibleRows = table.rows({{ search: 'applied' }}).nodes();
+                        const visibleCheckboxes = $('.row-checkbox', visibleRows);
+                        const allChecked = visibleCheckboxes.length > 0 && 
+                                        visibleCheckboxes.filter(':checked').length === visibleCheckboxes.length;
+                        $('#select-all').prop('checked', allChecked);
+                    }});
+                }}
+                else {{
+                    const colIdx = $('#{table_id} thead th').filter(function () {{
+                        return $(this).text().trim() === colName;
+                    }}).index();
+
+                    $('#filter_' + colName).on('change', function () {{
+                        const searchValue = this.value;
+                        table.column(colIdx).search(searchValue).draw();
+                        
+                        // Update select-all checkbox state after filtering
+                        const visibleRows = table.rows({{ search: 'applied' }}).nodes();
+                        const visibleCheckboxes = $('.row-checkbox', visibleRows);
+                        const allChecked = visibleCheckboxes.length > 0 && 
+                                        visibleCheckboxes.filter(':checked').length === visibleCheckboxes.length;
+                        $('#select-all').prop('checked', allChecked);
+                    }});
+                }}
+            }});
+            
+            // Add event listener for caller count filter
+            $('#min_callers').on('change', function () {{
+                const minCallers = parseInt($('#min_callers').val());
+                
+                // Get the CALLER column index
+                const colIdx = $('#{table_id} thead th').filter(function () {{
+                    return $(this).text().trim() === 'CALLER';
+                }}).index();
+                
+                // Convert column data to strings using DataTables API
+                const columnData = table.column(colIdx).data();
+                const stringData = [];
+                for (let i = 0; i < columnData.length; i++) {{
+                    stringData[i] = String(columnData[i] || '');
+                }}
+                
+                // Create a simple search string based on min/max values
+                let searchString = '';
+                if (minCallers > 0) {{
+                    const range = [];
+                    for (let i = 1; i < minCallers; i++) {{
+                        range.push(',');
+                    }}
+                    searchString = range.join('.*');
+                }} else {{
+                    searchString = '';
+                }}
+
+                // Apply the search and redraw
+                table.column(colIdx).data(stringData).search(searchString, {{regex: true, smart: false}}).draw();
+                
+                // Update select-all checkbox state after filtering
+                const visibleRows = table.rows({{ search: 'applied' }}).nodes();
+                const visibleCheckboxes = $('.row-checkbox', visibleRows);
+                const allChecked = visibleCheckboxes.length > 0 && 
+                                visibleCheckboxes.filter(':checked').length === visibleCheckboxes.length;
+                $('#select-all').prop('checked', allChecked);
             }});
         }});
 
@@ -302,6 +342,77 @@ def render_interactive_variant_table(
                 csv.push(Object.values(row).map(v => '"' + v + '"').join(","));
             }});
             downloadFile(csv.join("\\n"), "selected_variants.csv", "text/csv");
+        }}
+
+        function exportSelectedToVCF(tableId) {{
+            const rows = getSelectedRows(tableId);
+            if (rows.length === 0) return alert("No rows selected.");
+            
+            // VCF header
+            const vcfHeader = [
+                '##fileformat=VCFv4.2',
+                '##source=Varify',
+                '##FILTER=<ID=PASS,Description="All filters passed">',
+                '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">',
+                '##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">',
+                '##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">',
+                '##INFO=<ID=STRANDS,Number=.,Type=String,Description="Strands of evidence in the final merged call">',
+                '##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">',
+                '##INFO=<ID=PRECISE,Number=0,Type=Flag,Description="Precise structural variation">',
+                '##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">',
+                '##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">',
+                '##INFO=<ID=CALLER,Number=1,Type=String,Description="Caller that generated this variant">',
+                '##ALT=<ID=DEL,Description="Deletion">',
+                '##ALT=<ID=DUP,Description="Duplication">',
+                '##ALT=<ID=INV,Description="Inversion">',
+                '##ALT=<ID=INS,Description="Insertion">',
+                '##ALT=<ID=CNV,Description="Copy Number Variant">',
+                '##ALT=<ID=BND,Description="Breakend">',
+                '#CHROM\\tPOS\\tID\\tREF\\tALT\\tQUAL\\tFILTER\\tINFO'
+            ];
+            
+            // Process each row to create VCF entries
+            const vcfRows = rows.map(row => {{
+                // Extract required fields
+                const chrom = row['CHROM'] || '.';
+                const pos = row['POSITION'] || '.';
+                const id = row['ID'] || '.';
+                const ref = row['REF'] || '.';
+                const alt = row['ALT'] || '.';
+                const qual = row['QUAL'] || '.';
+                const filter = row['FILTER'] || 'PASS';
+                
+                // Build INFO field
+                const infoParts = [];
+                
+                if (row['SVTYPE']) infoParts.push(`SVTYPE=${{row['SVTYPE']}}`);
+                if (row['END']) infoParts.push(`END=${{row['END']}}`);
+                if (row['SVLEN']) infoParts.push(`SVLEN=${{row['SVLEN']}}`);
+                if (row['STRANDS']) infoParts.push(`STRANDS=${{row['STRANDS']}}`);
+                if (row['IMPRECISE'] === 'True') infoParts.push('IMPRECISE');
+                if (row['PRECISE'] === 'True') infoParts.push('PRECISE');
+                if (row['MATE_ID']) infoParts.push(`MATEID=${{row['MATE_ID']}}`);
+                if (row['EVENT_ID']) infoParts.push(`EVENT=${{row['EVENT_ID']}}`);
+                if (row['CALLER']) infoParts.push(`CALLER=${{row['CALLER']}}`);
+                
+                // Add any other fields as custom INFO tags
+                Object.entries(row).forEach(([key, value]) => {{
+                    if (!['CHROM', 'POSITION', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 
+                           'SVTYPE', 'END', 'SVLEN', 'STRANDS', 'IMPRECISE', 'PRECISE', 
+                           'MATE_ID', 'EVENT_ID', 'CALLER'].includes(key) && value) {{
+                        infoParts.push(`${{key}}=${{value}}`);
+                    }}
+                }});
+                
+                const info = infoParts.join(';');
+                
+                // Return VCF line
+                return `${{chrom}}\\t${{pos}}\\t${{id}}\\t${{ref}}\\t${{alt}}\\t${{qual}}\\t${{filter}}\\t${{info}}`;
+            }});
+            
+            // Combine header and rows
+            const vcfContent = [...vcfHeader, ...vcfRows].join('\\n');
+            downloadFile(vcfContent, "selected_variants.vcf", "text/vcf");
         }}
 
         function getSelectedRows(tableId) {{

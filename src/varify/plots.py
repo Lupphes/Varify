@@ -74,6 +74,10 @@ def plot_sv_type_distribution(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
     filtered = df.dropna(subset=["SVTYPE"])
+
+    # Sort filtered alphabetically by SVTYPE
+    filtered = filtered.sort_values(by="SVTYPE")
+
     fig = px.histogram(filtered, x="SVTYPE", color="SVTYPE")
     standard_layout(fig, "SV Type Distribution")
     save_fig(fig, output_path)
@@ -91,8 +95,15 @@ def plot_sv_size_distribution(
     lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
     filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
 
+    # TODO: Do nicer
+    if len(filtered) == 0:
+        return None
+
+    # Calculate number of bins using Sturge's rule: k = 1 + 3.322 * log10(n)
+    n_bins = int(1 + np.log2(len(filtered)))
     fig = px.histogram(
-        filtered, x="SVLEN", nbins=50, histnorm='percent', labels={"SVLEN": "SV Length (bp)"}
+        filtered, x="SVLEN", nbins=n_bins, histnorm='percent', labels={"SVLEN": "SV Length (bp)"},
+        range_y=[0,100]
     )
     standard_layout(fig, "SV Size Distribution (5th–95th percentile)")
     save_fig(fig, output_path)
@@ -161,6 +172,9 @@ def plot_sv_type_vs_size(
     lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
     filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
 
+    # Sort filtered alphabetically by SVTYPE
+    filtered = filtered.sort_values(by="SVTYPE")
+
     # Plotting the violin plot
     fig = px.violin(
         filtered,
@@ -205,6 +219,9 @@ def plot_sv_size_vs_quality(
         & (df_copy["QUAL"] >= bounds.loc[0.05, "QUAL"])
         & (df_copy["QUAL"] <= bounds.loc[0.95, "QUAL"])
     ]
+
+    # Sort filtered alphabetically by SVTYPE
+    filtered = filtered.sort_values(by="SVTYPE")
 
     fig = px.scatter(
         filtered,
@@ -275,7 +292,7 @@ def extract_callers_with_duplicates(id_field: Optional[str]) -> list[str]:
         id_field = ",".join(map(str, id_field))
     if not isinstance(id_field, str) or not id_field:
         return []
-
+    
     callers = []
     for part in id_field.split(","):
         if "_" in part:
@@ -288,22 +305,27 @@ def plot_bcf_exact_instance_combinations(
 ) -> Dict[str, str]:
     df = df.copy()
     df["caller_list_raw"] = df["ID"].apply(extract_callers_with_duplicates)
-    df["Caller_Instance_Combo"] = df["caller_list_raw"].apply(
-        lambda lst: ",".join(sorted(lst)) if lst else "None"
-    )
 
     # Count the number of callers per SV
-    df["num_callers"] = df["Caller_Instance_Combo"].str.split(",").str.len()
+    df["num_callers"] = df["caller_list_raw"].apply(lambda x: len(x))
+    # print the rows where num_callers is greater than or equal to 3
 
     # Split the caller list into separate columns for each caller
-    callers = set([caller for sublist in df["caller_list_raw"].dropna() for caller in sublist])
+    callers = sorted(
+        set([caller for sublist in df["caller_list_raw"].dropna() for caller in sublist]),
+        key=lambda x: df["caller_list_raw"].apply(lambda y: x in y).sum(),
+        reverse=True
+    )
     for caller in callers:
-        df[caller] = df["Caller_Instance_Combo"].apply(lambda x: 1 if caller in x.split(",") else 0)
-
+        df[caller] = df["caller_list_raw"].apply(lambda x: int(caller in x))
+    
     # Count how many SVs were called by exactly 1, 2, 3, ..., n callers
     counts = df.groupby("num_callers")[list(callers)].sum()
 
     # Plotting: We need to plot counts as the number of SVs called by 1, 2, 3, etc. callers
+    # Calculate total counts for each number of callers
+    total_counts = counts.sum(axis=1)
+    
     fig = px.bar(
         counts,
         x=counts.index,
@@ -316,6 +338,12 @@ def plot_bcf_exact_instance_combinations(
         text_auto=True,
         orientation="v",  # Vertical bars
         barmode="stack",  # Stack the bars by caller
+    )
+    
+    # Add secondary labels showing total counts
+    fig.update_xaxes(
+        ticktext=[f"{x}<br>(Count: {total_counts[x]})" for x in counts.index],
+        tickvals=counts.index
     )
 
     # Update legend title to specify callers
@@ -338,19 +366,28 @@ def plot_survivor_exact_instance_combinations(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
     df = df.copy()
+    df["caller_list_raw"] = df["ID"].apply(extract_callers_with_duplicates)
 
-    # Generate caller instance combinations and number of callers from caller_list_raw
-    df["Caller_Instance_Combo"] = df["caller_list_raw"].apply(lambda lst: ",".join(sorted(lst)) if lst else "None")
-    df["num_callers"] = df["Caller_Instance_Combo"].str.split(",").str.len()
+    # Count the number of callers per SV
+    df["num_callers"] = df["caller_list_raw"].apply(lambda x: len(x))
+    # print the rows where num_callers is greater than or equal to 3
 
     # Split the caller list into separate columns for each caller
-    callers = set([caller for sublist in df["caller_list_raw"].dropna() for caller in sublist])
+    callers = sorted(
+        set([caller for sublist in df["caller_list_raw"].dropna() for caller in sublist]),
+        key=lambda x: df["caller_list_raw"].apply(lambda y: x in y).sum(),
+        reverse=True
+    )
     for caller in callers:
-        df[caller] = df["Caller_Instance_Combo"].apply(lambda x: 1 if caller in x.split(",") else 0)
-
+        df[caller] = df["caller_list_raw"].apply(lambda x: int(caller in x))
+    
     # Count how many SVs were called by exactly 1, 2, 3, ..., n callers
     counts = df.groupby("num_callers")[list(callers)].sum()
 
+    # Plotting: We need to plot counts as the number of SVs called by 1, 2, 3, etc. callers
+    # Calculate total counts for each number of callers
+    total_counts = counts.sum(axis=1)
+    
     # Plotting: We need to plot counts as the number of SVs called by 1, 2, 3, etc. callers
     fig = px.bar(
         counts,
@@ -364,6 +401,12 @@ def plot_survivor_exact_instance_combinations(
         text_auto=True,
         orientation="v",  # Vertical bars
         barmode="stack",  # Stack the bars by caller
+    )
+
+    # Add secondary labels showing total counts
+    fig.update_xaxes(
+        ticktext=[f"{x}<br>(Count: {total_counts[x]})" for x in counts.index],
+        tickvals=counts.index
     )
 
     # Update legend title to specify callers
