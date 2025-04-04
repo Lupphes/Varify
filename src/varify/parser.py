@@ -44,11 +44,11 @@ def decode_supp_vec(supp_vec, sample_names):
 
 def parse_vcf(file_path, label=VcfType.BCF):
     """Parse a VCF file and extract structural variant information.
-    
+
     Args:
         file_path (str): Path to the VCF file
         label (VcfType): Type of VCF file (BCF or SURVIVOR)
-        
+
     Returns:
         tuple: (DataFrame, list, list, list) containing:
             - DataFrame with parsed VCF records
@@ -57,19 +57,23 @@ def parse_vcf(file_path, label=VcfType.BCF):
             - List of cleaned sample names
     """
     reader = vcfpy.Reader.from_path(file_path)
-    
+
     # Extract all INFO field IDs from header
     info_ids = {
         line.id
         for line in reader.header.lines
         if isinstance(line, vcfpy.header.InfoHeaderLine)
     }
-    
+
     # Find required fields explicitly
-    svtype_field = next((field for field in info_ids if "SVTYPE" in field.upper()), None)
+    svtype_field = next(
+        (field for field in info_ids if "SVTYPE" in field.upper()), None
+    )
     end_field = next((field for field in info_ids if "END" in field.upper()), None)
-    caller_field = next((field for field in info_ids if "CALLER" in field.upper()), None)
-    
+    caller_field = next(
+        (field for field in info_ids if "CALLER" in field.upper()), None
+    )
+
     if not svtype_field:
         raise ValueError("Required field SVTYPE not found in VCF header.")
 
@@ -84,7 +88,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
         for line in reader.header.lines
         if isinstance(line, vcfpy.header.FormatHeaderLine)
     ]
-    
+
     raw_samples = reader.header.samples.names
     cleaned_samples = [clean_sample_name(s) for s in raw_samples]
 
@@ -101,7 +105,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
     total_records = 0
     excluded_records = 0
     invalid_svlen_records = 0
-    
+
     for idx, record in enumerate(reader, start=1):
         total_records += 1
         info = record.INFO
@@ -131,7 +135,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
         if svlen is None:
             excluded_records += 1
             continue  # Skip records without SVLEN in INFO
-        
+
         # Convert SV length to absolute value
         try:
             if isinstance(svlen, list):
@@ -144,34 +148,40 @@ def parse_vcf(file_path, label=VcfType.BCF):
         # Handle different confidence interval formats
         cipos = None
         ciend = None
-        
+
         # Check for direct CIPOS/CIEND in info
         if "CIPOS" in info:
             cipos = info.get("CIPOS")
             if isinstance(cipos, list):
                 cipos = [int(cipos[0]), int(cipos[1])]
-                
+
         if "CIEND" in info:
             ciend = info.get("CIEND")
             if isinstance(ciend, list):
                 ciend = [int(ciend[0]), int(ciend[1])]
-        
+
         # Sniffles format (standard deviation)
         if "CIPOS_STD" in info:
             std = info.get("CIPOS_STD")
             if isinstance(std, list):
                 std = std[0]
             try:
-                cipos = [int(record.POS - 2*float(std)), int(record.POS + 2*float(std))]  # 95% CI
+                cipos = [
+                    int(record.POS - 2 * float(std)),
+                    int(record.POS + 2 * float(std)),
+                ]  # 95% CI
             except (ValueError, TypeError):
                 pass
-                
+
         if "CIEND_STD" in info:
             std = info.get("CIEND_STD")
             if isinstance(std, list):
                 std = std[0]
             try:
-                ciend = [int(float(end) - 2*float(std)), int(float(end) + 2*float(std))]  # 95% CI
+                ciend = [
+                    int(float(end) - 2 * float(std)),
+                    int(float(end) + 2 * float(std)),
+                ]  # 95% CI
             except (ValueError, TypeError):
                 pass
 
@@ -189,7 +199,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
                     cipos = [int(reg[0]), int(reg[1])]
                 except (ValueError, TypeError):
                     pass
-                    
+
         if "CIEND_REG" in info:
             reg = info.get("CIEND_REG")
             if isinstance(reg, str):
@@ -214,7 +224,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
                 cipos = [record.POS - half_size, record.POS + half_size]
             except (ValueError, TypeError):
                 pass
-                
+
         if "CIEND95" in info:
             size = info.get("CIEND95")
             if isinstance(size, list):
@@ -252,7 +262,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
 
         # Add specific format fields to record_data
         format_fields = record.FORMAT  # Use the full FORMAT list
-        
+
         # Initialize lists for each format field
         for field in format_fields:
             field_values = []
@@ -267,26 +277,30 @@ def parse_vcf(file_path, label=VcfType.BCF):
                 if isinstance(value, list):
                     value = value[0] if value else None
                 # Convert None, NaN, or "NULL" to '.' and add to values
-                if value is None or (isinstance(value, float) and pd.isna(value)) or (isinstance(value, str) and value.upper() == "NULL"):
-                    field_values.append('.')
+                if (
+                    value is None
+                    or (isinstance(value, float) and pd.isna(value))
+                    or (isinstance(value, str) and value.upper() == "NULL")
+                ):
+                    field_values.append(".")
                 else:
                     field_values.append(str(value))
-            
+
             # If all values are '.', just store a single '.'
-            if all(v == '.' for v in field_values):
-                record_data[field] = '.'
+            if all(v == "." for v in field_values):
+                record_data[field] = "."
             else:
                 # Join values with semicolons and store in record_data
-                record_data[field] = ' | '.join(field_values)
+                record_data[field] = " | ".join(field_values)
 
         # Set any missing format fields to '.'
         required_format_fields = {"GT", "PR", "SR", "GQ"}
         for field in required_format_fields:
             if field not in format_fields:
-                record_data[field] = '-'
+                record_data[field] = "-"
 
         records.append(record_data)
-  
+
     print("\nSVLEN Statistics:")
     print(f"Total records processed: {total_records}")
     print(f"Records excluded (no SVLEN): {excluded_records}")
@@ -295,6 +309,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
 
     haha = pd.DataFrame(records)
     return haha, info_columns, sample_columns, cleaned_samples
+
 
 def parse_survivor_stats(file_path):
     return pd.read_csv(file_path, sep="\t", index_col=0)

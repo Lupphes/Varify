@@ -105,10 +105,10 @@ def process_vcf_and_generate_report(
     bam_files: Optional[List[str]],
     output_dir: str,
 ) -> Tuple[pd.DataFrame, List[str], List[str], List[str], str]:
-    
+
     if not os.path.exists(vcf_path):
         raise FileNotFoundError(f"VCF file '{vcf_path}' does not exist.")
-    
+
     df, info_columns, sample_columns, cleaned_samples = parse_vcf(vcf_path, label=label)
 
     non_empty_info_columns = [
@@ -116,7 +116,9 @@ def process_vcf_and_generate_report(
     ]
 
     os.makedirs(output_dir, exist_ok=True)
-    html_path = os.path.join(output_dir, f"{label.value}_structural_variant_report.html")
+    html_path = os.path.join(
+        output_dir, f"{label.value}_structural_variant_report.html"
+    )
 
     generate_report(
         env=env,
@@ -156,14 +158,16 @@ def main() -> None:
     bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
     bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
 
-    survivor_df, _, survivor_sample_columns, _, survivor_html = process_vcf_and_generate_report(
-        env,
-        VcfType.SURVIVOR,
-        args.survivor_vcf_file,
-        args.bcf_vcf_file,
-        args.fasta_file,
-        args.bam_files,
-        args.output_dir,
+    survivor_df, _, survivor_sample_columns, _, survivor_html = (
+        process_vcf_and_generate_report(
+            env,
+            VcfType.SURVIVOR,
+            args.survivor_vcf_file,
+            args.bcf_vcf_file,
+            args.fasta_file,
+            args.bam_files,
+            args.output_dir,
+        )
     )
     survivor_stats = parse_survivor_stats(args.survivor_stats_file)
 
@@ -184,12 +188,53 @@ def main() -> None:
         survivor_plots=survivor_plots,
         profiles=args.profile,
         reference_name=args.fasta_file,
-        bcf_sample_columns=["unique_id", "CHROM", "POSITION", "ID", "REF", "QUAL", "FILTER",
-        "SVTYPE", "CALLER", "END", "SVLEN", "CHROM2", "MATE_ID", "CIPOS", "CIEND", "HOMSEQ", "HOMLEN", 
-        "GT", "PR", "SR", "GQ"],
-        survivor_sample_columns=["unique_id", "CHROM", "POSITION", "ID", "REF", "QUAL", "FILTER",
-        "SVTYPE", "CALLER", "END", "SVLEN", "CHROM2", "STRANDS", "CIPOS", "CIEND", "HOMSEQ", "HOMLEN", 
-        "SVMETHOD", "GT", "PR", "SR", "GQ"],
+        bcf_sample_columns=[
+            "unique_id",
+            "CHROM",
+            "POSITION",
+            "ID",
+            "REF",
+            "QUAL",
+            "FILTER",
+            "SVTYPE",
+            "CALLER",
+            "END",
+            "SVLEN",
+            "CHROM2",
+            "MATE_ID",
+            "CIPOS",
+            "CIEND",
+            "HOMSEQ",
+            "HOMLEN",
+            "GT",
+            "PR",
+            "SR",
+            "GQ",
+        ],
+        survivor_sample_columns=[
+            "unique_id",
+            "CHROM",
+            "POSITION",
+            "ID",
+            "REF",
+            "QUAL",
+            "FILTER",
+            "SVTYPE",
+            "CALLER",
+            "END",
+            "SVLEN",
+            "CHROM2",
+            "STRANDS",
+            "CIPOS",
+            "CIEND",
+            "HOMSEQ",
+            "HOMLEN",
+            "SVMETHOD",
+            "GT",
+            "PR",
+            "SR",
+            "GQ",
+        ],
     )
 
     print("\n--- Report Generation Complete ---\n")

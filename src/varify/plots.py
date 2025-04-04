@@ -9,6 +9,7 @@ from scipy.stats import gaussian_kde
 
 from .parser import VcfType
 
+
 def save_fig(fig: go.Figure, output_path: str) -> None:
     fig.write_html(
         output_path,
@@ -90,10 +91,10 @@ def plot_sv_size_distribution(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
     df_copy = normalize_svlen(df)
-    
+
     # Filter out rows with SVLEN of 0 and SVTYPE of 'TRA'
     df_copy = df_copy[~((df_copy["SVLEN"] == 0) & (df_copy["SVTYPE"] == "TRA"))]
-    
+
     lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
     filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
 
@@ -104,8 +105,12 @@ def plot_sv_size_distribution(
     # Calculate number of bins using Sturge's rule: k = 1 + 3.322 * log10(n)
     n_bins = int(1 + np.log2(len(filtered)))
     fig = px.histogram(
-        filtered, x="SVLEN", nbins=n_bins, histnorm='percent', labels={"SVLEN": "SV Length (bp)"},
-        range_y=[0,100]
+        filtered,
+        x="SVLEN",
+        nbins=n_bins,
+        histnorm="percent",
+        labels={"SVLEN": "SV Length (bp)"},
+        range_y=[0, 100],
     )
     standard_layout(fig, "SV Size Distribution (5th–95th percentile)")
     save_fig(fig, output_path)
@@ -127,12 +132,21 @@ def plot_qual_distribution(
     y_vals = kde(x_vals)
 
     # Normalize the KDE to match the histogram's total count
-    bin_width = (filtered["QUAL"].max() - filtered["QUAL"].min()) / 50  # Number of bins (same as in the histogram)
+    bin_width = (
+        filtered["QUAL"].max() - filtered["QUAL"].min()
+    ) / 50  # Number of bins (same as in the histogram)
     kde_area = np.sum(y_vals) * bin_width  # This gives the area under the KDE curve
     y_vals_normalized = y_vals / kde_area  # Normalize the KDE
 
     # Plotting the histogram as percentages
-    fig = px.histogram(filtered, x="QUAL", histnorm='percent', nbins=50, opacity=0.8, labels={"QUAL": "Quality Score"})
+    fig = px.histogram(
+        filtered,
+        x="QUAL",
+        histnorm="percent",
+        nbins=50,
+        opacity=0.8,
+        labels={"QUAL": "Quality Score"},
+    )
 
     # Scale the KDE to the same percentage range as the histogram
     y_vals_normalized_percent = y_vals_normalized * 100  # Scale to percentage
@@ -141,7 +155,8 @@ def plot_qual_distribution(
     fig.add_trace(
         go.Scatter(
             x=x_vals,
-            y=y_vals_normalized_percent * len(filtered),  # Scale the KDE to match the histogram's total count
+            y=y_vals_normalized_percent
+            * len(filtered),  # Scale the KDE to match the histogram's total count
             mode="lines",
             name="KDE",
             line=dict(color="red", width=2),
@@ -158,7 +173,9 @@ def plot_qual_distribution(
     )
 
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "Quality Score Distribution (5th–95th percentile)", subfolder)
+    return _wrap_output(
+        output_path, "Quality Score Distribution (5th–95th percentile)", subfolder
+    )
 
 
 def plot_sv_type_vs_size(
@@ -166,9 +183,11 @@ def plot_sv_type_vs_size(
 ) -> Dict[str, str]:
     # Normalize SVLEN values to absolute before plotting
     df_copy = normalize_svlen(df)
-    
+
     # Explicitly calculate the quantiles on the absolute values
-    df_copy["SVLEN"] = df_copy["SVLEN"].abs()  # Ensure absolute values are used for calculations
+    df_copy["SVLEN"] = df_copy[
+        "SVLEN"
+    ].abs()  # Ensure absolute values are used for calculations
 
     # Filter using absolute quantiles for whiskers
     lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
@@ -202,18 +221,20 @@ def plot_sv_type_vs_size(
 
     # Save the figure
     save_fig(fig, output_path)
-    
-    return _wrap_output(output_path, "SV Type vs Size Distribution (5th–95th percentile)", subfolder)
+
+    return _wrap_output(
+        output_path, "SV Type vs Size Distribution (5th–95th percentile)", subfolder
+    )
 
 
 def plot_sv_size_vs_quality(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
     df_copy = normalize_svlen(df)
-    
+
     # Filter out rows with SVLEN of 0 and SVTYPE of 'TR'
     df_copy = df_copy[~((df_copy["SVLEN"] == 0) & (df_copy["SVTYPE"] == "TRA"))]
-    
+
     bounds = df_copy[["SVLEN", "QUAL"]].quantile([0.05, 0.95])
     filtered = df_copy[
         (df_copy["SVLEN"] >= bounds.loc[0.05, "SVLEN"])
@@ -294,7 +315,7 @@ def extract_callers_with_duplicates(id_field: Optional[str]) -> list[str]:
         id_field = ",".join(map(str, id_field))
     if not isinstance(id_field, str) or not id_field:
         return []
-    
+
     callers = []
     for part in id_field.split(","):
         if "_" in part:
@@ -313,20 +334,22 @@ def plot_bcf_exact_instance_combinations(
 
     # Split the caller list into separate columns for each caller
     callers = sorted(
-        set([caller for sublist in df["caller_list_raw"].dropna() for caller in sublist]),
+        set(
+            [caller for sublist in df["caller_list_raw"].dropna() for caller in sublist]
+        ),
         key=lambda x: df["caller_list_raw"].apply(lambda y: x in y).sum(),
-        reverse=True
+        reverse=True,
     )
     for caller in callers:
         df[caller] = df["caller_list_raw"].apply(lambda x: int(caller in x))
-    
+
     # Count how many SVs were called by exactly 1, 2, 3, ..., n callers
     counts = df.groupby("num_callers")[list(callers)].sum()
 
     # Plotting: We need to plot counts as the number of SVs called by 1, 2, 3, etc. callers
     # Calculate total counts for each number of callers
     total_counts = counts.sum(axis=1)
-    
+
     fig = px.bar(
         counts,
         x=counts.index,
@@ -340,11 +363,11 @@ def plot_bcf_exact_instance_combinations(
         orientation="v",  # Vertical bars
         barmode="stack",  # Stack the bars by caller
     )
-    
+
     # Add secondary labels showing total counts
     fig.update_xaxes(
         ticktext=[f"{x}<br>(Count: {total_counts[x]})" for x in counts.index],
-        tickvals=counts.index
+        tickvals=counts.index,
     )
 
     # Update legend title to specify callers
@@ -352,7 +375,7 @@ def plot_bcf_exact_instance_combinations(
         template="plotly_white",
         showlegend=True,
         legend_title="SV Callers",  # Title for the legend
-        margin=dict(l=40, r=40, t=60, b=60)
+        margin=dict(l=40, r=40, t=60, b=60),
     )
 
     # Customize axis titles further if needed
@@ -362,6 +385,7 @@ def plot_bcf_exact_instance_combinations(
     # Save the figure
     save_fig(fig, output_path)
     return _wrap_output(output_path, "SV Callers Distribution", subfolder)
+
 
 def plot_survivor_exact_instance_combinations(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
@@ -374,26 +398,28 @@ def plot_survivor_exact_instance_combinations(
 
     # Split the caller list into separate columns for each caller
     callers = sorted(
-        set([caller for sublist in df["caller_list_raw"].dropna() for caller in sublist]),
+        set(
+            [caller for sublist in df["caller_list_raw"].dropna() for caller in sublist]
+        ),
         key=lambda x: df["caller_list_raw"].apply(lambda y: x in y).sum(),
-        reverse=True
+        reverse=True,
     )
     for caller in callers:
         df[caller] = df["caller_list_raw"].apply(lambda x: int(caller in x))
-    
+
     # Count how many SVs were called by exactly 1, 2, 3, ..., n callers
     counts = df.groupby("num_callers")[list(callers)].sum()
 
     # Plotting: We need to plot counts as the number of SVs called by 1, 2, 3, etc. callers
     # Calculate total counts for each number of callers
     total_counts = counts.sum(axis=1)
-    
+
     fig = px.bar(
         counts,
         x=counts.index,
         y=counts.columns,
         title="Survivor Exact Caller Instance Combinations (Decoded)",
-        labels={ 
+        labels={
             "x": "Number of Callers per SV",
             "y": "Count of SVs",
         },
@@ -405,7 +431,7 @@ def plot_survivor_exact_instance_combinations(
     # Add secondary labels showing total counts
     fig.update_xaxes(
         ticktext=[f"{x}<br>(Count: {total_counts[x]})" for x in counts.index],
-        tickvals=counts.index
+        tickvals=counts.index,
     )
 
     # Update legend title to specify callers
@@ -413,7 +439,7 @@ def plot_survivor_exact_instance_combinations(
         template="plotly_white",
         showlegend=True,
         legend_title="SV Callers",  # Title for the legend
-        margin=dict(l=40, r=40, t=60, b=60)
+        margin=dict(l=40, r=40, t=60, b=60),
     )
 
     # Customize axis titles further if needed
@@ -422,4 +448,6 @@ def plot_survivor_exact_instance_combinations(
 
     # Save the figure
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "Survivor Exact Caller Instance Combinations", subfolder)
+    return _wrap_output(
+        output_path, "Survivor Exact Caller Instance Combinations", subfolder
+    )

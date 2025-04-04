@@ -75,35 +75,59 @@ def render_stats_table(title: str, description: str, df: pd.DataFrame) -> str:
         </div>
     """
 
+
 def render_interactive_variant_table(
     df: pd.DataFrame,
     table_id: str,
     label: VcfType,
-    columns_to_display: Optional[List[str]] = None
+    columns_to_display: Optional[List[str]] = None,
 ) -> str:
     if columns_to_display is None:
         display_columns = [
-            col for col in df.columns
-            if col not in ("INFO", "FORMAT") 
+            col
+            for col in df.columns
+            if col not in ("INFO", "FORMAT")
             and not df[col].apply(lambda x: isinstance(x, list)).any()
             and not df[col].isna().all()  # Drop columns that are all NaN
         ]
     else:
-        display_columns = [col for col in columns_to_display if col in df.columns and not df[col].isna().all()]
+        display_columns = [
+            col
+            for col in columns_to_display
+            if col in df.columns and not df[col].isna().all()
+        ]
 
     df_to_display = df[display_columns].copy()
-    
+
     header_priority = [
-        "unique_id", "CHROM", "ID", "SVTYPE", "SVLEN", "POSITION", "END",  "CALLER", "FILTER", 
-        "QUAL", "STRANDS",
-        "MATE_ID", "EVENT_ID",
-        "CIPOS", "CIEND", "HOMSEQ", "HOMLEN",
-        "REF", "ALT",
-        "CHROM2", "IMPRECISE", "PRECISE"
+        "unique_id",
+        "CHROM",
+        "ID",
+        "SVTYPE",
+        "SVLEN",
+        "POSITION",
+        "END",
+        "CALLER",
+        "FILTER",
+        "QUAL",
+        "STRANDS",
+        "MATE_ID",
+        "EVENT_ID",
+        "CIPOS",
+        "CIEND",
+        "HOMSEQ",
+        "HOMLEN",
+        "REF",
+        "ALT",
+        "CHROM2",
+        "IMPRECISE",
+        "PRECISE",
     ]
 
     ordered_columns = [col for col in header_priority if col in df_to_display.columns]
-    remaining_columns = [col for col in df_to_display.columns if col not in ordered_columns]
+    remaining_columns = [
+        col for col in df_to_display.columns if col not in ordered_columns
+    ]
     final_columns = ["Select"] + ordered_columns + remaining_columns
     df_to_display["Select"] = "checkbox"
     df_to_display = df_to_display[final_columns]
@@ -120,18 +144,22 @@ def render_interactive_variant_table(
                 # Truncate long strings
                 df_to_display[col] = df_to_display[col].str.slice(0, 100)
                 # Replace empty strings with None
-                df_to_display[col] = df_to_display[col].replace('', None)
+                df_to_display[col] = df_to_display[col].replace("", None)
 
     # Get unique values for categorical fields before creating the table
     format_fields = {"GT", "PR", "SR", "GQ", "REF", "END"}
     categorical_fields = [
-        col for col in df_to_display.columns
-        if col != "Select" 
+        col
+        for col in df_to_display.columns
+        if col != "Select"
         and col not in format_fields
-        and not df_to_display[col].apply(lambda x: isinstance(x, list)).any()  # Check for lists first
-        and df_to_display[col].nunique() <= 30  # Only count unique values for non-list columns
+        and not df_to_display[col]
+        .apply(lambda x: isinstance(x, list))
+        .any()  # Check for lists first
+        and df_to_display[col].nunique()
+        <= 30  # Only count unique values for non-list columns
     ]
-    
+
     # Create a mapping of column names to their unique values
     categorical_values = {
         col: sorted(df_to_display[col].dropna().unique().tolist())
@@ -140,14 +168,19 @@ def render_interactive_variant_table(
 
     # Handle different types of null values: None, empty strings, empty lists, and NaN
     for col in df_to_display.columns:
-        if df_to_display[col].dtype == 'object':  # For string and mixed columns
+        if df_to_display[col].dtype == "object":  # For string and mixed columns
             df_to_display[col] = df_to_display[col].apply(
-                lambda x: '-' if (isinstance(x, list) and len(x) == 0) or 
-                                (not isinstance(x, list) and (pd.isna(x) or x is None or x == '')) 
-                         else x
+                lambda x: (
+                    "-"
+                    if (isinstance(x, list) and len(x) == 0)
+                    or (
+                        not isinstance(x, list) and (pd.isna(x) or x is None or x == "")
+                    )
+                    else x
+                )
             )
         else:  # For numeric columns
-            df_to_display[col] = df_to_display[col].fillna('-')
+            df_to_display[col] = df_to_display[col].fillna("-")
 
     table_html = df_to_display.to_html(
         index=False,
@@ -159,21 +192,21 @@ def render_interactive_variant_table(
 
     # Replace the placeholder values with actual checkboxes
     table_html = table_html.replace(
-        '>checkbox<', '><input type="checkbox" class="row-checkbox" /><'
-    ).replace(
-        "<th>Select</th>", '<th><input type="checkbox" id="select-all" /></th>'
-    )
+        ">checkbox<", '><input type="checkbox" class="row-checkbox" /><'
+    ).replace("<th>Select</th>", '<th><input type="checkbox" id="select-all" /></th>')
 
-    filter_inputs_html = "".join([
-        f"""
+    filter_inputs_html = "".join(
+        [
+            f"""
         <label for="filter_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
         <select id="filter_{col}" class="mr-4 px-2 py-1 border rounded text-sm bg-white text-gray-800">
             <option value="">All</option>
             {"".join(f'<option value="{val}">{val}</option>' for val in values)}
         </select>
-        """ for col, values in categorical_values.items()
-    ])
-    
+        """
+            for col, values in categorical_values.items()
+        ]
+    )
 
     return f"""
     <div class="mb-6 mt-6 mx-4">
@@ -469,7 +502,7 @@ def generate_combined_report(
     profiles,
     reference_name,
     bcf_sample_columns,
-    survivor_sample_columns
+    survivor_sample_columns,
 ):
     with open(bcf_html_path, "r") as f:
         bcf_html = f.read()
@@ -522,13 +555,13 @@ def generate_combined_report(
         bcf_df,
         table_id="bcf_variant_table",
         label=VcfType.BCF,
-        columns_to_display=bcf_sample_columns
+        columns_to_display=bcf_sample_columns,
     )
     survivor_variant_table_html = render_interactive_variant_table(
         survivor_df,
         table_id="survivor_variant_table",
         label=VcfType.SURVIVOR,
-        columns_to_display=survivor_sample_columns
+        columns_to_display=survivor_sample_columns,
     )
 
     template = env.get_template("combined_report_template.html")
