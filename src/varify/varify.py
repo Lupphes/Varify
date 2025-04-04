@@ -5,7 +5,7 @@ from typing import Optional, Dict, Tuple, List
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
-from .parser import parse_vcf, parse_survivor_stats, parse_bcftools_stats
+from .parser import parse_vcf, parse_survivor_stats, parse_bcftools_stats, VcfType
 from .report import generate_report
 from .combine import generate_combined_report
 from .plots import (
@@ -50,11 +50,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def plot_caller_combinations(
-    df: pd.DataFrame, label: str, output_path: str, subfolder: str = "plots"
+    df: pd.DataFrame, label: VcfType, output_path: str, subfolder: str = "plots"
 ) -> Optional[Dict[str, str]]:
-    if label == "survivor":
+    if label == VcfType.SURVIVOR:
         return plot_survivor_exact_instance_combinations(df, output_path, subfolder)
-    elif label == "bcf":
+    elif label == VcfType.BCF:
         return plot_bcf_exact_instance_combinations(df, output_path, subfolder)
     print(f"[Warning] Unknown label '{label}' - skipping caller combination plot.")
     return None
@@ -64,7 +64,7 @@ def generate_plots(
     df: pd.DataFrame,
     prefix: str,
     output_dir: str,
-    label: str,
+    label: VcfType,
     subfolder: str = "plots",
     ext: str = "html",
 ) -> Dict[str, Optional[Dict[str, str]]]:
@@ -98,20 +98,25 @@ def generate_plots(
 
 def process_vcf_and_generate_report(
     env: Environment,
-    label: str,
+    label: VcfType,
     vcf_path: str,
     alt_vcf_path: str,
     fasta: str,
     bam_files: Optional[List[str]],
     output_dir: str,
 ) -> Tuple[pd.DataFrame, List[str], List[str], List[str], str]:
-    os.makedirs(output_dir, exist_ok=True)
+    
+    if not os.path.exists(vcf_path):
+        raise FileNotFoundError(f"VCF file '{vcf_path}' does not exist.")
+    
     df, info_columns, sample_columns, cleaned_samples = parse_vcf(vcf_path, label=label)
 
     non_empty_info_columns = [
         col for col in info_columns if col in df.columns and df[col].notna().any()
     ]
-    html_path = os.path.join(output_dir, f"{label}_structural_variant_report.html")
+
+    os.makedirs(output_dir, exist_ok=True)
+    html_path = os.path.join(output_dir, f"{label.value}_structural_variant_report.html")
 
     generate_report(
         env=env,
@@ -120,8 +125,8 @@ def process_vcf_and_generate_report(
         output_file=html_path,
         genome_file=fasta,
         bam_files=bam_files,
-        title=f"{label.upper()} Merge Report",
-        prefix=label,
+        title=f"{label.value.upper()} Merge Report",
+        prefix=label.value,
         info_columns=non_empty_info_columns,
         sample_columns=None,
         samples=None,
@@ -132,6 +137,7 @@ def process_vcf_and_generate_report(
 
 def main() -> None:
     args = parse_args()
+
     print("\n--- Starting Report Generation ---\n")
 
     env = Environment(
@@ -140,7 +146,7 @@ def main() -> None:
 
     bcf_df, _, bcf_sample_columns, _, bcf_html = process_vcf_and_generate_report(
         env,
-        "bcf",
+        VcfType.BCF,
         args.bcf_vcf_file,
         args.survivor_vcf_file,
         args.fasta_file,
@@ -148,11 +154,11 @@ def main() -> None:
         args.output_dir,
     )
     bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
-    bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label="bcf")
+    bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
 
     survivor_df, _, survivor_sample_columns, _, survivor_html = process_vcf_and_generate_report(
         env,
-        "survivor",
+        VcfType.SURVIVOR,
         args.survivor_vcf_file,
         args.bcf_vcf_file,
         args.fasta_file,
@@ -160,8 +166,9 @@ def main() -> None:
         args.output_dir,
     )
     survivor_stats = parse_survivor_stats(args.survivor_stats_file)
+
     survivor_plots = generate_plots(
-        survivor_df, "survivor", args.output_dir, label="survivor"
+        survivor_df, "survivor", args.output_dir, label=VcfType.SURVIVOR
     )
 
     generate_combined_report(
@@ -177,12 +184,12 @@ def main() -> None:
         survivor_plots=survivor_plots,
         profiles=args.profile,
         reference_name=args.fasta_file,
-        bcf_sample_columns=["RECORD_IDX", "CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER",
-        "SVTYPE", "CALLER", "END", "SVLEN", "IMPRECISE", "PRECISE",
-        "CHR2", "STRANDS", "MATEID", "EVENT"],
-        survivor_sample_columns=["RECORD_IDX", "CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER",
-        "SVTYPE", "CALLER", "END", "SVLEN", "IMPRECISE", "PRECISE",
-        "CHR2", "STRANDS", "MATEID", "EVENT"],
+        bcf_sample_columns=["unique_id", "CHROM", "POSITION", "ID", "REF", "QUAL", "FILTER",
+        "SVTYPE", "CALLER", "END", "SVLEN", "CHROM2", "MATE_ID", "CIPOS", "CIEND", "HOMSEQ", "HOMLEN", 
+        "GT", "PR", "SR", "GQ"],
+        survivor_sample_columns=["unique_id", "CHROM", "POSITION", "ID", "REF", "QUAL", "FILTER",
+        "SVTYPE", "CALLER", "END", "SVLEN", "CHROM2", "STRANDS", "CIPOS", "CIEND", "HOMSEQ", "HOMLEN", 
+        "SVMETHOD", "GT", "PR", "SR", "GQ"],
     )
 
     print("\n--- Report Generation Complete ---\n")

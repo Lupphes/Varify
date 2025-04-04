@@ -3,6 +3,8 @@ from typing import List, Optional
 import pandas as pd
 import json
 
+from .parser import VcfType
+
 BCFTOOLS_SECTION_DESCRIPTIONS = {
     "SN": (
         "<strong>Summary Numbers</strong> – Provides a high-level overview of variant counts, "
@@ -76,64 +78,58 @@ def render_stats_table(title: str, description: str, df: pd.DataFrame) -> str:
 def render_interactive_variant_table(
     df: pd.DataFrame,
     table_id: str,
-    label: str,
+    label: VcfType,
     columns_to_display: Optional[List[str]] = None
 ) -> str:
     if columns_to_display is None:
         display_columns = [
             col for col in df.columns
-            if col not in ("INFO", "FORMAT") and not df[col].apply(lambda x: isinstance(x, list)).any()
+            if col not in ("INFO", "FORMAT") 
+            and not df[col].apply(lambda x: isinstance(x, list)).any()
+            and not df[col].isna().all()  # Drop columns that are all NaN
         ]
     else:
-        display_columns = [col for col in columns_to_display if col in df.columns]
+        display_columns = [col for col in columns_to_display if col in df.columns and not df[col].isna().all()]
 
     df_to_display = df[display_columns].copy()
     
-    # Add checkbox column first
-    df_to_display["Select"] = "checkbox"  # Use a placeholder value
-    
-    # Define column priority
     header_priority = [
-        # Core variant identification
-        "unique_id", "CHROM", "POSITION", "ID", "REF", "ALT",
-        # Core structural variant fields
-        "SVTYPE", "END", "SVLEN",
-        # Support/caller-related
-        "CALLER", "FILTER",
-        # Quality and alignment
+        "unique_id", "CHROM", "ID", "SVTYPE", "SVLEN", "POSITION", "END",  "CALLER", "FILTER", 
         "QUAL", "STRANDS",
-        # Breakpoint and confidence info
-        "CHROM2", "IMPRECISE", "PRECISE",
-        # Event and mate info
-        "MATE_ID", "EVENT_ID"
+        "MATE_ID", "EVENT_ID",
+        "CIPOS", "CIEND", "HOMSEQ", "HOMLEN",
+        "REF", "ALT",
+        "CHROM2", "IMPRECISE", "PRECISE"
     ]
 
-    # Reorder columns based on priority
-    # First, get columns that are in the priority list
     ordered_columns = [col for col in header_priority if col in df_to_display.columns]
-    # Then add any remaining columns that weren't in the priority list
-    remaining_columns = [col for col in df_to_display.columns if col not in ordered_columns and col != "Select"]
+    remaining_columns = [col for col in df_to_display.columns if col not in ordered_columns]
     final_columns = ["Select"] + ordered_columns + remaining_columns
-    
-    # Reorder the DataFrame
+    df_to_display["Select"] = "checkbox"
     df_to_display = df_to_display[final_columns]
 
     # Preprocess categorical columns (excluding the Select column)
     for col in df_to_display.select_dtypes(include="object").columns:
         if col != "Select":  # Skip preprocessing for the Select column
-            # Convert to string and clean up
-            df_to_display[col] = df_to_display[col].astype(str)
-            # Remove leading/trailing whitespace
-            df_to_display[col] = df_to_display[col].str.strip()
-            # Truncate long strings
-            df_to_display[col] = df_to_display[col].str.slice(0, 100)
-            # Replace empty strings with None
-            df_to_display[col] = df_to_display[col].replace('', None)
+            # Skip string conversion for columns that contain lists
+            if not df_to_display[col].apply(lambda x: isinstance(x, list)).any():
+                # Convert to string and clean up
+                df_to_display[col] = df_to_display[col].astype(str)
+                # Remove leading/trailing whitespace
+                df_to_display[col] = df_to_display[col].str.strip()
+                # Truncate long strings
+                df_to_display[col] = df_to_display[col].str.slice(0, 100)
+                # Replace empty strings with None
+                df_to_display[col] = df_to_display[col].replace('', None)
 
     # Get unique values for categorical fields before creating the table
+    format_fields = {"GT", "PR", "SR", "GQ", "REF", "END"}
     categorical_fields = [
         col for col in df_to_display.columns
-        if df_to_display[col].nunique() <= 30 and col != "Select"
+        if col != "Select" 
+        and col not in format_fields
+        and not df_to_display[col].apply(lambda x: isinstance(x, list)).any()  # Check for lists first
+        and df_to_display[col].nunique() <= 30  # Only count unique values for non-list columns
     ]
     
     # Create a mapping of column names to their unique values
@@ -141,6 +137,17 @@ def render_interactive_variant_table(
         col: sorted(df_to_display[col].dropna().unique().tolist())
         for col in categorical_fields
     }
+
+    # Handle different types of null values: None, empty strings, empty lists, and NaN
+    for col in df_to_display.columns:
+        if df_to_display[col].dtype == 'object':  # For string and mixed columns
+            df_to_display[col] = df_to_display[col].apply(
+                lambda x: '-' if (isinstance(x, list) and len(x) == 0) or 
+                                (not isinstance(x, list) and (pd.isna(x) or x is None or x == '')) 
+                         else x
+            )
+        else:  # For numeric columns
+            df_to_display[col] = df_to_display[col].fillna('-')
 
     table_html = df_to_display.to_html(
         index=False,
@@ -166,12 +173,13 @@ def render_interactive_variant_table(
         </select>
         """ for col, values in categorical_values.items()
     ])
+    
 
     return f"""
     <div class="mb-6 mt-6 mx-4">
-        <h3 class="text-lg font-semibold mb-2">{label} Variant Table</h3>
+        <h3 class="text-lg font-semibold mb-2">{label.value.upper()} Variant Table</h3>
         <p class="text-sm text-gray-600 mb-3">
-            Interactive structural variant table from the {label.upper()} VCF file.
+            Interactive structural variant table from the {label.value.upper()} VCF file.
         </p>
         <div class="flex flex-wrap gap-4 mb-4 items-center">
             <div class="flex-1">
@@ -389,8 +397,10 @@ def render_interactive_variant_table(
                 if (row['END']) infoParts.push(`END=${{row['END']}}`);
                 if (row['SVLEN']) infoParts.push(`SVLEN=${{row['SVLEN']}}`);
                 if (row['STRANDS']) infoParts.push(`STRANDS=${{row['STRANDS']}}`);
-                if (row['IMPRECISE'] === 'True') infoParts.push('IMPRECISE');
-                if (row['PRECISE'] === 'True') infoParts.push('PRECISE');
+                if (row['CIPOS']) infoParts.push(`CIPOS=${{row['CIPOS']}}`);    
+                if (row['CIEND']) infoParts.push(`CIEND=${{row['CIEND']}}`);
+                if (row['HOMSEQ']) infoParts.push(`HOMSEQ=${{row['HOMSEQ']}}`);
+                if (row['HOMLEN']) infoParts.push(`HOMLEN=${{row['HOMLEN']}}`);
                 if (row['MATE_ID']) infoParts.push(`MATEID=${{row['MATE_ID']}}`);
                 if (row['EVENT_ID']) infoParts.push(`EVENT=${{row['EVENT_ID']}}`);
                 if (row['CALLER']) infoParts.push(`CALLER=${{row['CALLER']}}`);
@@ -398,7 +408,7 @@ def render_interactive_variant_table(
                 // Add any other fields as custom INFO tags
                 Object.entries(row).forEach(([key, value]) => {{
                     if (!['CHROM', 'POSITION', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 
-                           'SVTYPE', 'END', 'SVLEN', 'STRANDS', 'IMPRECISE', 'PRECISE', 
+                           'SVTYPE', 'END', 'SVLEN', 'STRANDS', 'CIPOS', 'CIEND', 'HOMSEQ', 'HOMLEN', 
                            'MATE_ID', 'EVENT_ID', 'CALLER'].includes(key) && value) {{
                         infoParts.push(`${{key}}=${{value}}`);
                     }}
@@ -489,7 +499,7 @@ def generate_combined_report(
 
     bcf_stats_html = {
         key: render_stats_table(
-            title=f"BCFtools - {key} Section",
+            title=f"{VcfType.BCF.value.upper()} - {key} Section",
             description=BCFTOOLS_SECTION_DESCRIPTIONS.get(
                 key, "No description available."
             ),
@@ -499,7 +509,7 @@ def generate_combined_report(
     }
 
     survivor_stats_html = render_stats_table(
-        title="SURVIVOR Summary Table",
+        title=f"{VcfType.SURVIVOR.value.upper()} Summary Table",
         description=(
             "This table summarizes structural variant types (e.g., Deletions, Duplications, Insertions, Translocations) "
             "across different size ranges. It is derived from SURVIVOR's support file and shows how many variants "
@@ -511,13 +521,13 @@ def generate_combined_report(
     bcf_variant_table_html = render_interactive_variant_table(
         bcf_df,
         table_id="bcf_variant_table",
-        label="BCF",
+        label=VcfType.BCF,
         columns_to_display=bcf_sample_columns
     )
     survivor_variant_table_html = render_interactive_variant_table(
         survivor_df,
         table_id="survivor_variant_table",
-        label="SURVIVOR",
+        label=VcfType.SURVIVOR,
         columns_to_display=survivor_sample_columns
     )
 

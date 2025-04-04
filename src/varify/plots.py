@@ -7,6 +7,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from scipy.stats import gaussian_kde
 
+from .parser import VcfType
+
 def save_fig(fig: go.Figure, output_path: str) -> None:
     fig.write_html(
         output_path,
@@ -308,7 +310,6 @@ def plot_bcf_exact_instance_combinations(
 
     # Count the number of callers per SV
     df["num_callers"] = df["caller_list_raw"].apply(lambda x: len(x))
-    # print the rows where num_callers is greater than or equal to 3
 
     # Split the caller list into separate columns for each caller
     callers = sorted(
@@ -370,7 +371,6 @@ def plot_survivor_exact_instance_combinations(
 
     # Count the number of callers per SV
     df["num_callers"] = df["caller_list_raw"].apply(lambda x: len(x))
-    # print the rows where num_callers is greater than or equal to 3
 
     # Split the caller list into separate columns for each caller
     callers = sorted(
@@ -388,7 +388,6 @@ def plot_survivor_exact_instance_combinations(
     # Calculate total counts for each number of callers
     total_counts = counts.sum(axis=1)
     
-    # Plotting: We need to plot counts as the number of SVs called by 1, 2, 3, etc. callers
     fig = px.bar(
         counts,
         x=counts.index,
