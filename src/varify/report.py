@@ -27,6 +27,7 @@ def generate_report(
     template_path = _render_template(env, prefix)
     track_config_path = _write_track_config(main_vcf, second_vcf, bam_files, prefix)
 
+    # TODO: Output file could be temporary file
     args = _build_igv_args(
         main_vcf=main_vcf,
         second_vcf=second_vcf,

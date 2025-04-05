@@ -7,7 +7,7 @@ source:
 
 build:
   noarch: python
-  number: 0
+  number: 1
   script: "{{ PYTHON }} -m pip install . -vv"
 
 requirements:
@@ -28,7 +28,8 @@ requirements:
     - conda-forge::plotly=6.0.1
     - conda-forge::python-kaleido=0.2.1
     - bioconda::igv-reports=1.14.1
-    
+    - conda-forge::scipy=1.15.2
+
 test:
   commands:
     - varify --help

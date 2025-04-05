@@ -327,11 +327,11 @@ def parse_vcf(file_path, label=VcfType.BCF):
     haha = pd.DataFrame(records)
     return haha, info_columns
 
-
+# TODO: Veryfy parsing and remove if empty, maybe create chart out of this
 def parse_survivor_stats(file_path):
     return pd.read_csv(file_path, sep="\t", index_col=0)
 
-
+# TODO: Veryfy parsing and remove tables on empty 
 def parse_bcftools_stats(file_path):
     # Initialize empty containers for each section
     sections = {

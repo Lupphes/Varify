@@ -44,7 +44,7 @@ def _wrap_output(output_path: str, alt: str, subfolder: str) -> Dict[str, str]:
         "type": "html",
     }
 
-
+# TODO: Verify if still needed and remove if not, how does it change the graphs?
 def normalize_svlen(df: pd.DataFrame) -> pd.DataFrame:
     df_copy = df.copy()
     df_copy["SVLEN"] = pd.to_numeric(df_copy["SVLEN"], errors="coerce").abs()
