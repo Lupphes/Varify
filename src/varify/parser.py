@@ -42,6 +42,111 @@ def decode_supp_vec(supp_vec, sample_names):
     return ",".join(sorted(set(callers_list))), support, callers_list
 
 
+def calculate_confidence_intervals(info, record):
+    """Calculate confidence intervals for variant positions.
+
+    Args:
+        info (dict): INFO field dictionary from VCF record
+        record (vcfpy.Record): VCF record object
+
+    Returns:
+        tuple: (cipos, ciend) containing confidence intervals for start and end positions
+    """
+    cipos = None
+    ciend = None
+
+    # Check for direct CIPOS/CIEND in info
+    if "CIPOS" in info:
+        cipos = info.get("CIPOS")
+        if isinstance(cipos, list):
+            cipos = [int(cipos[0]), int(cipos[1])]
+
+    if "CIEND" in info:
+        ciend = info.get("CIEND")
+        if isinstance(ciend, list):
+            ciend = [int(ciend[0]), int(ciend[1])]
+
+    # Sniffles format (standard deviation)
+    if "CIPOS_STD" in info:
+        std = info.get("CIPOS_STD")
+        if isinstance(std, list):
+            std = std[0]
+        try:
+            cipos = [
+                int(record.POS - 2 * float(std)),
+                int(record.POS + 2 * float(std)),
+            ]  # 95% CI
+        except (ValueError, TypeError):
+            pass
+
+    if "CIEND_STD" in info:
+        std = info.get("CIEND_STD")
+        if isinstance(std, list):
+            std = std[0]
+        try:
+            ciend = [
+                int(float(info.get("END", 0)) - 2 * float(std)),
+                int(float(info.get("END", 0)) + 2 * float(std)),
+            ]  # 95% CI
+        except (ValueError, TypeError):
+            pass
+
+    # TIDDIT format (direct interval)
+    if "CIPOS_REG" in info:
+        reg = info.get("CIPOS_REG")
+        if isinstance(reg, str):
+            try:
+                start, end = map(int, reg.split(","))
+                cipos = [start, end]
+            except (ValueError, TypeError):
+                pass
+        elif isinstance(reg, list):
+            try:
+                cipos = [int(reg[0]), int(reg[1])]
+            except (ValueError, TypeError):
+                pass
+
+    if "CIEND_REG" in info:
+        reg = info.get("CIEND_REG")
+        if isinstance(reg, str):
+            try:
+                start, end = map(int, reg.split(","))
+                ciend = [start, end]
+            except (ValueError, TypeError):
+                pass
+        elif isinstance(reg, list):
+            try:
+                ciend = [int(reg[0]), int(reg[1])]
+            except (ValueError, TypeError):
+                pass
+
+    # Dysgu format (95% CI size)
+    if "CIPOS95" in info:
+        size = info.get("CIPOS95")
+        if isinstance(size, list):
+            size = size[0]
+        try:
+            half_size = int(size) // 2
+            cipos = [record.POS - half_size, record.POS + half_size]
+        except (ValueError, TypeError):
+            pass
+
+    if "CIEND95" in info:
+        size = info.get("CIEND95")
+        if isinstance(size, list):
+            size = size[0]
+        try:
+            half_size = int(size) // 2
+            ciend = [
+                int(float(info.get("END", 0)) - half_size),
+                int(float(info.get("END", 0)) + half_size),
+            ]
+        except (ValueError, TypeError):
+            pass
+
+    return cipos, ciend
+
+
 def parse_vcf(file_path, label=VcfType.BCF):
     """Parse a VCF file and extract structural variant information.
 
@@ -50,11 +155,9 @@ def parse_vcf(file_path, label=VcfType.BCF):
         label (VcfType): Type of VCF file (BCF or SURVIVOR)
 
     Returns:
-        tuple: (DataFrame, list, list, list) containing:
+        tuple: (DataFrame, list) containing:
             - DataFrame with parsed VCF records
             - List of INFO column names
-            - List of FORMAT column names
-            - List of cleaned sample names
     """
     reader = vcfpy.Reader.from_path(file_path)
 
@@ -83,23 +186,9 @@ def parse_vcf(file_path, label=VcfType.BCF):
         for line in reader.header.lines
         if isinstance(line, vcfpy.header.InfoHeaderLine)
     ]
-    sample_columns = [
-        line.id
-        for line in reader.header.lines
-        if isinstance(line, vcfpy.header.FormatHeaderLine)
-    ]
 
     raw_samples = reader.header.samples.names
     cleaned_samples = [clean_sample_name(s) for s in raw_samples]
-
-    # Flag INFO fields
-    flag_fields = [
-        line.id
-        for line in reader.header.lines
-        if isinstance(line, vcfpy.header.InfoHeaderLine)
-        and line.number == 0
-        and line.type == "Flag"
-    ]
 
     records = []
     total_records = 0
@@ -118,17 +207,23 @@ def parse_vcf(file_path, label=VcfType.BCF):
         caller = None
         if "SUPP_VEC" in info and label == VcfType.SURVIVOR:
             supp_vec = info.get("SUPP_VEC")
-            if isinstance(supp_vec, list):
-                supp_vec = supp_vec[0]
-            caller, support, caller_list_raw = decode_supp_vec(
-                supp_vec, cleaned_samples
-            )
-        else:
+            caller, _, caller_list_raw = decode_supp_vec(supp_vec, cleaned_samples)
+            # Filter out None, empty strings, and empty lists from caller_list_raw
+            caller_list_raw = [c for c in caller_list_raw if c and c.strip()]
+
+        if label == VcfType.BCF:
+            # For BCF files, count unique values in ID field
             caller = info.get(caller_field)
-            if isinstance(caller, list):
-                caller = caller[0]
-            support = {}
-            caller_list_raw = []
+
+            # Count unique values in ID field and extract algorithm names
+            id_value = record.ID
+            if isinstance(id_value, list):
+                supp_callers = len(set(id_value))
+                # Extract algorithm names (everything before first underscore)
+                caller_list_raw = [id.split("_")[0] for id in id_value]
+            else:
+                supp_callers = 1
+                caller_list_raw = [caller] if caller else []
 
         # Get SV length directly from INFO
         svlen = info.get("SVLEN")
@@ -145,95 +240,8 @@ def parse_vcf(file_path, label=VcfType.BCF):
             invalid_svlen_records += 1
             continue  # Skip records with invalid SVLEN values
 
-        # Handle different confidence interval formats
-        cipos = None
-        ciend = None
-
-        # Check for direct CIPOS/CIEND in info
-        if "CIPOS" in info:
-            cipos = info.get("CIPOS")
-            if isinstance(cipos, list):
-                cipos = [int(cipos[0]), int(cipos[1])]
-
-        if "CIEND" in info:
-            ciend = info.get("CIEND")
-            if isinstance(ciend, list):
-                ciend = [int(ciend[0]), int(ciend[1])]
-
-        # Sniffles format (standard deviation)
-        if "CIPOS_STD" in info:
-            std = info.get("CIPOS_STD")
-            if isinstance(std, list):
-                std = std[0]
-            try:
-                cipos = [
-                    int(record.POS - 2 * float(std)),
-                    int(record.POS + 2 * float(std)),
-                ]  # 95% CI
-            except (ValueError, TypeError):
-                pass
-
-        if "CIEND_STD" in info:
-            std = info.get("CIEND_STD")
-            if isinstance(std, list):
-                std = std[0]
-            try:
-                ciend = [
-                    int(float(end) - 2 * float(std)),
-                    int(float(end) + 2 * float(std)),
-                ]  # 95% CI
-            except (ValueError, TypeError):
-                pass
-
-        # TIDDIT format (direct interval)
-        if "CIPOS_REG" in info:
-            reg = info.get("CIPOS_REG")
-            if isinstance(reg, str):
-                try:
-                    start, end = map(int, reg.split(","))
-                    cipos = [start, end]
-                except (ValueError, TypeError):
-                    pass
-            elif isinstance(reg, list):
-                try:
-                    cipos = [int(reg[0]), int(reg[1])]
-                except (ValueError, TypeError):
-                    pass
-
-        if "CIEND_REG" in info:
-            reg = info.get("CIEND_REG")
-            if isinstance(reg, str):
-                try:
-                    start, end = map(int, reg.split(","))
-                    ciend = [start, end]
-                except (ValueError, TypeError):
-                    pass
-            elif isinstance(reg, list):
-                try:
-                    ciend = [int(reg[0]), int(reg[1])]
-                except (ValueError, TypeError):
-                    pass
-
-        # Dysgu format (95% CI size)
-        if "CIPOS95" in info:
-            size = info.get("CIPOS95")
-            if isinstance(size, list):
-                size = size[0]
-            try:
-                half_size = int(size) // 2
-                cipos = [record.POS - half_size, record.POS + half_size]
-            except (ValueError, TypeError):
-                pass
-
-        if "CIEND95" in info:
-            size = info.get("CIEND95")
-            if isinstance(size, list):
-                size = size[0]
-            try:
-                half_size = int(size) // 2
-                ciend = [int(end) - half_size, int(end) + half_size]
-            except (ValueError, TypeError):
-                pass
+        # Calculate confidence intervals
+        cipos, ciend = calculate_confidence_intervals(info, record)
 
         # Base record data
         record_data = {
@@ -255,10 +263,19 @@ def parse_vcf(file_path, label=VcfType.BCF):
             "MATE_ID": info.get("MATEID") if "MATEID" in info else None,
             "CIPOS": cipos,
             "CIEND": ciend,
-            "HOMLEN": info.get("HOMLEN"),
-            "HOMSEQ": info.get("HOMSEQ"),
+            "HOMLEN": info.get("HOMLEN") if "HOMLEN" in info else None,
+            "HOMSEQ": info.get("HOMSEQ") if "HOMSEQ" in info else None,
             "caller_list_raw": caller_list_raw,
         }
+
+        # Number of callers in SURVIVOR files
+        if label == VcfType.SURVIVOR:
+            record_data["SUPP_CALLERS"] = info.get("SUPP")
+            record_data["SUPP_VEC"] = info.get("SUPP_VEC")
+            record_data["STRANDS"] = info.get("STRANDS")
+            record_data["SVMETHOD"] = info.get("SVMETHOD")
+        if label == VcfType.BCF:
+            record_data["SUPP_CALLERS"] = supp_callers
 
         # Add specific format fields to record_data
         format_fields = record.FORMAT  # Use the full FORMAT list
@@ -308,7 +325,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
     print(f"Records kept: {len(records)}")
 
     haha = pd.DataFrame(records)
-    return haha, info_columns, sample_columns, cleaned_samples
+    return haha, info_columns
 
 
 def parse_survivor_stats(file_path):
@@ -350,10 +367,16 @@ def parse_bcftools_stats(file_path):
     dataframes = {}
 
     if sections["SN"]:
-        dataframes["SN"] = pd.DataFrame(sections["SN"], columns=["id", "key", "value"])
+        df = pd.DataFrame(sections["SN"], columns=["id", "key", "value"])
+        # Convert value column to numeric, replacing non-numeric with 0
+        df["value"] = pd.to_numeric(df["value"], errors="coerce").fillna(0)
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["SN"] = df
 
     if sections["TSTV"]:
-        dataframes["TSTV"] = pd.DataFrame(
+        df = pd.DataFrame(
             sections["TSTV"],
             columns=[
                 "id",
@@ -365,9 +388,18 @@ def parse_bcftools_stats(file_path):
                 "ts/tv (1st ALT)",
             ],
         )
+        # Convert numeric columns, replacing non-numeric with 0
+        numeric_cols = ["ts", "tv", "ts (1st ALT)", "tv (1st ALT)"]
+        df[numeric_cols] = (
+            df[numeric_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["TSTV"] = df
 
     if sections["SiS"]:
-        dataframes["SiS"] = pd.DataFrame(
+        df = pd.DataFrame(
             sections["SiS"],
             columns=[
                 "id",
@@ -381,9 +413,26 @@ def parse_bcftools_stats(file_path):
                 "not applicable",
             ],
         )
+        # Convert numeric columns, replacing non-numeric with 0
+        numeric_cols = [
+            "number of SNPs",
+            "number of transitions",
+            "number of transversions",
+            "number of indels",
+            "repeat-consistent",
+            "repeat-inconsistent",
+            "not applicable",
+        ]
+        df[numeric_cols] = (
+            df[numeric_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["SiS"] = df
 
     if sections["AF"]:
-        dataframes["AF"] = pd.DataFrame(
+        df = pd.DataFrame(
             sections["AF"],
             columns=[
                 "id",
@@ -397,9 +446,26 @@ def parse_bcftools_stats(file_path):
                 "not applicable",
             ],
         )
+        # Convert numeric columns, replacing non-numeric with 0
+        numeric_cols = [
+            "number of SNPs",
+            "number of transitions",
+            "number of transversions",
+            "number of indels",
+            "repeat-consistent",
+            "repeat-inconsistent",
+            "not applicable",
+        ]
+        df[numeric_cols] = (
+            df[numeric_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["AF"] = df
 
     if sections["QUAL"]:
-        dataframes["QUAL"] = pd.DataFrame(
+        df = pd.DataFrame(
             sections["QUAL"],
             columns=[
                 "id",
@@ -410,9 +476,23 @@ def parse_bcftools_stats(file_path):
                 "number of indels",
             ],
         )
+        # Convert numeric columns, replacing non-numeric with 0
+        numeric_cols = [
+            "number of SNPs",
+            "number of transitions (1st ALT)",
+            "number of transversions (1st ALT)",
+            "number of indels",
+        ]
+        df[numeric_cols] = (
+            df[numeric_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["QUAL"] = df
 
     if sections["IDD"]:
-        dataframes["IDD"] = pd.DataFrame(
+        df = pd.DataFrame(
             sections["IDD"],
             columns=[
                 "id",
@@ -422,12 +502,27 @@ def parse_bcftools_stats(file_path):
                 "mean VAF",
             ],
         )
+        # Convert numeric columns, replacing non-numeric with 0
+        numeric_cols = ["number of sites", "number of genotypes", "mean VAF"]
+        df[numeric_cols] = (
+            df[numeric_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["IDD"] = df
 
     if sections["ST"]:
-        dataframes["ST"] = pd.DataFrame(sections["ST"], columns=["id", "type", "count"])
+        df = pd.DataFrame(sections["ST"], columns=["id", "type", "count"])
+        # Convert count column to numeric, replacing non-numeric with 0
+        df["count"] = pd.to_numeric(df["count"], errors="coerce").fillna(0)
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["ST"] = df
 
     if sections["DP"]:
-        dataframes["DP"] = pd.DataFrame(
+        df = pd.DataFrame(
             sections["DP"],
             columns=[
                 "id",
@@ -438,5 +533,19 @@ def parse_bcftools_stats(file_path):
                 "fraction of sites (%)",
             ],
         )
+        # Convert numeric columns, replacing non-numeric with 0
+        numeric_cols = [
+            "number of genotypes",
+            "fraction of genotypes (%)",
+            "number of sites",
+            "fraction of sites (%)",
+        ]
+        df[numeric_cols] = (
+            df[numeric_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        # Only keep columns where at least one value is non-zero
+        df = df.loc[:, df.any()]
+        if not df.empty:
+            dataframes["DP"] = df
 
     return dataframes

@@ -104,12 +104,12 @@ def process_vcf_and_generate_report(
     fasta: str,
     bam_files: Optional[List[str]],
     output_dir: str,
-) -> Tuple[pd.DataFrame, List[str], List[str], List[str], str]:
+) -> Tuple[pd.DataFrame, str]:
 
     if not os.path.exists(vcf_path):
         raise FileNotFoundError(f"VCF file '{vcf_path}' does not exist.")
 
-    df, info_columns, sample_columns, cleaned_samples = parse_vcf(vcf_path, label=label)
+    df, info_columns = parse_vcf(vcf_path, label=label)
 
     non_empty_info_columns = [
         col for col in info_columns if col in df.columns and df[col].notna().any()
@@ -134,7 +134,7 @@ def process_vcf_and_generate_report(
         samples=None,
     )
 
-    return df, non_empty_info_columns, sample_columns, cleaned_samples, html_path
+    return df, html_path
 
 
 def main() -> None:
@@ -146,7 +146,7 @@ def main() -> None:
         loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates"))
     )
 
-    bcf_df, _, bcf_sample_columns, _, bcf_html = process_vcf_and_generate_report(
+    bcf_df, bcf_html = process_vcf_and_generate_report(
         env,
         VcfType.BCF,
         args.bcf_vcf_file,
@@ -158,16 +158,14 @@ def main() -> None:
     bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
     bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
 
-    survivor_df, _, survivor_sample_columns, _, survivor_html = (
-        process_vcf_and_generate_report(
-            env,
-            VcfType.SURVIVOR,
-            args.survivor_vcf_file,
-            args.bcf_vcf_file,
-            args.fasta_file,
-            args.bam_files,
-            args.output_dir,
-        )
+    survivor_df, survivor_html = process_vcf_and_generate_report(
+        env,
+        VcfType.SURVIVOR,
+        args.survivor_vcf_file,
+        args.bcf_vcf_file,
+        args.fasta_file,
+        args.bam_files,
+        args.output_dir,
     )
     survivor_stats = parse_survivor_stats(args.survivor_stats_file)
 
@@ -193,6 +191,7 @@ def main() -> None:
             "CHROM",
             "POSITION",
             "ID",
+            "SUPP_CALLERS",
             "REF",
             "QUAL",
             "FILTER",
@@ -216,6 +215,7 @@ def main() -> None:
             "CHROM",
             "POSITION",
             "ID",
+            "SUPP_CALLERS",
             "REF",
             "QUAL",
             "FILTER",

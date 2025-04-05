@@ -102,6 +102,7 @@ def render_interactive_variant_table(
     header_priority = [
         "unique_id",
         "CHROM",
+        "SUPP_CALLERS",
         "ID",
         "SVTYPE",
         "SVLEN",
@@ -403,6 +404,14 @@ def render_interactive_variant_table(
                 '##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">',
                 '##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">',
                 '##INFO=<ID=CALLER,Number=1,Type=String,Description="Caller that generated this variant">',
+                '##INFO=<ID=CIPOS,Number=.,Type=Integer,Description="Confidence interval for the start of the variant">',   
+                '##INFO=<ID=CIEND,Number=.,Type=Integer,Description="Confidence interval for the end of the variant">',
+                '##INFO=<ID=HOMSEQ,Number=.,Type=String,Description="Homozygous sequence for the variant">',
+                '##INFO=<ID=HOMLEN,Number=.,Type=Integer,Description="Length of the homozygous sequence for the variant">',
+                '##INFO=<ID=GQ,Number=.,Type=Integer,Description="Genotype quality">',
+                '##INFO=<ID=PR,Number=.,Type=Integer,Description="Phred-scaled genotype posterior probabilities">',
+                '##INFO=<ID=SR,Number=.,Type=Integer,Description="Strand read count">',
+                '##INFO=<ID=CHROM2,Number=.,Type=String,Description="Chromosome of mate breakend">',
                 '##ALT=<ID=DEL,Description="Deletion">',
                 '##ALT=<ID=DUP,Description="Duplication">',
                 '##ALT=<ID=INV,Description="Inversion">',
@@ -430,6 +439,7 @@ def render_interactive_variant_table(
                 if (row['END']) infoParts.push(`END=${{row['END']}}`);
                 if (row['SVLEN']) infoParts.push(`SVLEN=${{row['SVLEN']}}`);
                 if (row['STRANDS']) infoParts.push(`STRANDS=${{row['STRANDS']}}`);
+                if (row['CHROM2']) infoParts.push(`CHROM2=${{row['CHROM2']}}`);
                 if (row['CIPOS']) infoParts.push(`CIPOS=${{row['CIPOS']}}`);    
                 if (row['CIEND']) infoParts.push(`CIEND=${{row['CIEND']}}`);
                 if (row['HOMSEQ']) infoParts.push(`HOMSEQ=${{row['HOMSEQ']}}`);
