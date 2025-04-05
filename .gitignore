@@ -179,3 +179,12 @@ bfc_structural_variant_report.html
 bcf_structural_variant_report.html
 survivor_structural_variant_report.html
 igv-reports/*
+pac_test/
+3444c7614e9f2ab2c8e76ede4cee4e/
+pac/
+short/
+short_real/
+data2/
+short_real_out/
+output2/
+data_empty/
