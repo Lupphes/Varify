@@ -14,11 +14,14 @@ from .plots import (
     plot_qual_distribution,
     plot_sv_type_vs_size,
     plot_sv_callers,
+    plot_sv_primary_callers,
     plot_sv_size_vs_quality,
     plot_sv_type_heatmap,
     plot_cumulative_sv_length,
     plot_bcf_exact_instance_combinations,
     plot_survivor_exact_instance_combinations,
+    plot_sv_types_by_caller,
+    plot_quality_by_primary_caller,
 )
 
 
@@ -77,6 +80,9 @@ def generate_plots(
 
     return {
         "plot_sv_callers": plot_sv_callers(df, out("caller_stats")),
+        "plot_sv_primary_callers": plot_sv_primary_callers(
+            df, out("primary_caller_stats")
+        ),
         "caller_combinations": plot_caller_combinations(
             df, label, out("caller_combinations")
         ),
@@ -93,6 +99,10 @@ def generate_plots(
         "cumulative_sv_length": plot_cumulative_sv_length(
             df, out("cumulative_sv_length")
         ),
+        "sv_types_by_caller": plot_sv_types_by_caller(df, out("sv_types_by_caller")),
+        "quality_by_primary_caller": plot_quality_by_primary_caller(
+            df, out("quality_by_primary_caller")
+        ),
     }
 
 
@@ -105,7 +115,7 @@ def process_vcf_and_generate_report(
     bam_files: Optional[List[str]],
     output_dir: str,
 ) -> Tuple[pd.DataFrame, str]:
-
+    """Process VCF file and generate report. Returns DataFrame and HTML content."""
     if not os.path.exists(vcf_path):
         raise FileNotFoundError(f"VCF file '{vcf_path}' does not exist.")
 
@@ -116,15 +126,11 @@ def process_vcf_and_generate_report(
     ]
 
     os.makedirs(output_dir, exist_ok=True)
-    html_path = os.path.join(
-        output_dir, f"{label.value}_structural_variant_report.html"
-    )
 
-    generate_report(
+    temp_file_path, html_content = generate_report(
         env=env,
         main_vcf=vcf_path,
         second_vcf=alt_vcf_path,
-        output_file=html_path,
         genome_file=fasta,
         bam_files=bam_files,
         title=f"{label.value.upper()} Merge Report",
@@ -134,7 +140,13 @@ def process_vcf_and_generate_report(
         samples=None,
     )
 
-    return df, html_path
+    # Clean up the temporary file
+    try:
+        os.unlink(temp_file_path)
+    except Exception as e:
+        print(f"Warning: Could not delete temporary file {temp_file_path}: {e}")
+
+    return df, html_content
 
 
 def main() -> None:
@@ -176,8 +188,8 @@ def main() -> None:
     generate_combined_report(
         env=env,
         combined_report_file=os.path.join(args.output_dir, args.report_file),
-        bcf_html_path=bcf_html,
-        survivor_html_path=survivor_html,
+        bcf_html=bcf_html,
+        survivor_html=survivor_html,
         bcf_df=bcf_df,
         bcf_stats=bcf_stats,
         survivor_df=survivor_df,
@@ -196,7 +208,7 @@ def main() -> None:
             "QUAL",
             "FILTER",
             "SVTYPE",
-            "CALLER",
+            "PRIMARY_CALLER",
             "END",
             "SVLEN",
             "CHROM2",
@@ -220,7 +232,7 @@ def main() -> None:
             "QUAL",
             "FILTER",
             "SVTYPE",
-            "CALLER",
+            "PRIMARY_CALLER",
             "END",
             "SVLEN",
             "CHROM2",

@@ -21,7 +21,7 @@ setup(
         "igv-reports==1.14.1",
         "kaleido==0.2.1",
         "plotly==6.0.1",
-        "scipy==1.15.2"
+        "scipy==1.15.2",
     ],
     entry_points={
         "console_scripts": [

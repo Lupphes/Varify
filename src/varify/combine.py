@@ -2,6 +2,7 @@ import os
 from typing import List, Optional
 import pandas as pd
 import json
+import numpy as np
 
 from .parser import VcfType
 
@@ -42,6 +43,7 @@ BCFTOOLS_SECTION_DESCRIPTIONS = {
 
 
 def render_stats_table(title: str, description: str, df: pd.DataFrame) -> str:
+
     table_html = df.to_html(
         classes="min-w-full table-auto text-sm text-left text-gray-700",
         border=0,
@@ -108,7 +110,7 @@ def render_interactive_variant_table(
         "SVLEN",
         "POSITION",
         "END",
-        "CALLER",
+        "PRIMARY_CALLER",
         "FILTER",
         "QUAL",
         "STRANDS",
@@ -158,7 +160,7 @@ def render_interactive_variant_table(
         .apply(lambda x: isinstance(x, list))
         .any()  # Check for lists first
         and df_to_display[col].nunique()
-        <= 30  # Only count unique values for non-list columns
+        <= 100  # Only count unique values for non-list columns
     ]
 
     # Create a mapping of column names to their unique values
@@ -199,8 +201,8 @@ def render_interactive_variant_table(
     filter_inputs_html = "".join(
         [
             f"""
-        <label for="filter_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
-        <select id="filter_{col}" class="mr-4 px-2 py-1 border rounded text-sm bg-white text-gray-800">
+        <label for="filter_{label.value}_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
+        <select id="filter_{label.value}_{col}" class="mr-4 px-2 py-1 border rounded text-sm bg-white text-gray-800">
             <option value="">All</option>
             {"".join(f'<option value="{val}">{val}</option>' for val in values)}
         </select>
@@ -218,7 +220,7 @@ def render_interactive_variant_table(
         <div class="flex flex-wrap gap-4 mb-4 items-center">
             <div class="flex-1">
                 <input type="text" id="global-search" placeholder="Search across all columns..." 
-                       class="w-full px-3 py-1 border rounded text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                       class="w-48 px-3 py-1 border rounded text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             {filter_inputs_html}
             <div class="flex items-center mt-2">
@@ -292,7 +294,7 @@ def render_interactive_variant_table(
             // Add event listeners for filters
             const categoricalFields = {categorical_fields};
             categoricalFields.forEach(function(colName) {{
-                if (colName === 'CALLER') {{
+                if (colName.trim() === 'SUPP_CALLERS') {{
                     const colIdx = $('#{table_id} thead th').filter(function () {{
                         return $(this).text().trim() === colName;
                     }}).index();
@@ -305,7 +307,16 @@ def render_interactive_variant_table(
                     }}
                     table.column(colIdx).data(stringData);
 
-                    $('#filter_' + colName).on('change', function () {{
+                    // Filter out values containing commas from the select box
+                    const uniqueValues = [...new Set(stringData)].filter(val => !val.includes(','));
+                    const selectBox = $('#filter_{label.value}_' + colName);
+                    selectBox.empty();
+                    selectBox.append('<option value="">All</option>');
+                    uniqueValues.forEach(val => {{
+                        selectBox.append(`<option value="${{val}}">${{val}}</option>`);
+                    }});
+
+                    $('#filter_{label.value}_' + colName).on('change', function () {{
                         const searchValue = this.value;
                         table.column(colIdx).data(stringData).search('.*' + searchValue + '.*', {{regex: true, smart: false}}).draw();
                         
@@ -322,7 +333,7 @@ def render_interactive_variant_table(
                         return $(this).text().trim() === colName;
                     }}).index();
 
-                    $('#filter_' + colName).on('change', function () {{
+                    $('#filter_{label.value}_' + colName).on('change', function () {{
                         const searchValue = this.value;
                         table.column(colIdx).search(searchValue).draw();
                         
@@ -342,7 +353,7 @@ def render_interactive_variant_table(
                 
                 // Get the CALLER column index
                 const colIdx = $('#{table_id} thead th').filter(function () {{
-                    return $(this).text().trim() === 'CALLER';
+                    return $(this).text().trim() === 'SUPP_CALLERS';
                 }}).index();
                 
                 // Convert column data to strings using DataTables API
@@ -403,7 +414,7 @@ def render_interactive_variant_table(
                 '##INFO=<ID=PRECISE,Number=0,Type=Flag,Description="Precise structural variation">',
                 '##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">',
                 '##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">',
-                '##INFO=<ID=CALLER,Number=1,Type=String,Description="Caller that generated this variant">',
+                '##INFO=<ID=SUPP_CALLERS,Number=1,Type=String,Description="Callers that generated this variant">',
                 '##INFO=<ID=CIPOS,Number=.,Type=Integer,Description="Confidence interval for the start of the variant">',   
                 '##INFO=<ID=CIEND,Number=.,Type=Integer,Description="Confidence interval for the end of the variant">',
                 '##INFO=<ID=HOMSEQ,Number=.,Type=String,Description="Homozygous sequence for the variant">',
@@ -446,13 +457,13 @@ def render_interactive_variant_table(
                 if (row['HOMLEN']) infoParts.push(`HOMLEN=${{row['HOMLEN']}}`);
                 if (row['MATE_ID']) infoParts.push(`MATEID=${{row['MATE_ID']}}`);
                 if (row['EVENT_ID']) infoParts.push(`EVENT=${{row['EVENT_ID']}}`);
-                if (row['CALLER']) infoParts.push(`CALLER=${{row['CALLER']}}`);
+                if (row['SUPP_CALLERS']) infoParts.push(`SUPP_CALLERS=${{row['SUPP_CALLERS']}}`);
                 
                 // Add any other fields as custom INFO tags
                 Object.entries(row).forEach(([key, value]) => {{
                     if (!['CHROM', 'POSITION', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 
                            'SVTYPE', 'END', 'SVLEN', 'STRANDS', 'CIPOS', 'CIEND', 'HOMSEQ', 'HOMLEN', 
-                           'MATE_ID', 'EVENT_ID', 'CALLER'].includes(key) && value) {{
+                           'MATE_ID', 'EVENT_ID', 'SUPP_CALLERS'].includes(key) && value) {{
                         infoParts.push(`${{key}}=${{value}}`);
                     }}
                 }});
@@ -501,8 +512,8 @@ def render_interactive_variant_table(
 def generate_combined_report(
     env,
     combined_report_file,
-    bcf_html_path,
-    survivor_html_path,
+    bcf_html,
+    survivor_html,
     bcf_df,
     bcf_stats,
     survivor_df,
@@ -514,12 +525,6 @@ def generate_combined_report(
     bcf_sample_columns,
     survivor_sample_columns,
 ):
-    with open(bcf_html_path, "r") as f:
-        bcf_html = f.read()
-
-    with open(survivor_html_path, "r") as f:
-        survivor_html = f.read()
-
     bcf_summary = {
         "total_sv": len(bcf_df),
         "unique_sv": bcf_df["SVTYPE"].nunique(),
@@ -549,17 +554,21 @@ def generate_combined_report(
             df=df,
         )
         for key, df in bcf_stats.items()
+        if not (df.empty or (df.values == "0.00")[0, :].any())
     }
 
-    survivor_stats_html = render_stats_table(
-        title=f"{VcfType.SURVIVOR.value.upper()} Summary Table",
-        description=(
-            "This table summarizes structural variant types (e.g., Deletions, Duplications, Insertions, Translocations) "
-            "across different size ranges. It is derived from SURVIVOR's support file and shows how many variants "
-            "fall into each class."
-        ),
-        df=survivor_stats.reset_index(),
-    )
+    if not survivor_stats.empty:
+        survivor_stats_html = render_stats_table(
+            title=f"{VcfType.SURVIVOR.value.upper()} Summary Table",
+            description=(
+                "This table summarizes structural variant types (e.g., Deletions, Duplications, Insertions, Translocations) "
+                "across different size ranges. It is derived from SURVIVOR's support file and shows how many variants "
+                "fall into each class."
+            ),
+            df=survivor_stats.reset_index(),
+        )
+    else:
+        survivor_stats_html = ""
 
     bcf_variant_table_html = render_interactive_variant_table(
         bcf_df,
@@ -587,7 +596,7 @@ def generate_combined_report(
         generated_on=os.popen("date").read().strip(),
         BCFTOOLS_SECTION_DESCRIPTIONS=BCFTOOLS_SECTION_DESCRIPTIONS,
         profiles=profiles,
-        reference_name=os.path.basename(reference_name),
+        reference_name=reference_name,
         bcf_variant_table_html=bcf_variant_table_html,
         survivor_variant_table_html=survivor_variant_table_html,
     )
