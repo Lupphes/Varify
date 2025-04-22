@@ -220,7 +220,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
             if not id_value:
                 id_value = [f"{primary_caller}_{svtype}_{svlen}"]
 
-            callers = ", ".join([e.split("_")[0] for e in id_value])
+            callers = ", ".join(set([e.split("_")[0] for e in id_value]))
 
         # Calculate confidence intervals
         cipos, ciend = calculate_confidence_intervals(info, record)

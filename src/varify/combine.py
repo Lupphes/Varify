@@ -200,13 +200,34 @@ def render_interactive_variant_table(
 
     filter_inputs_html = "".join(
         [
-            f"""
+            (
+                f"""
+        <label for="filter_{label.value}_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
+        <div class="relative inline-block text-left mr-4">
+            <button type="button" class="px-2 py-1 border rounded text-sm bg-white text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" id="dropdown_{label.value}_{col}">All</button>
+            <div class="hidden origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" id="dropdown-menu_{label.value}_{col}">
+                <div class="py-1 max-h-60 overflow-y-auto">
+                    {"".join(f'''
+                    <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" value="{val}">
+                            <span class="ml-2">{val}</span>
+                        </label>
+                    </div>
+                    ''' for val in values)}
+                </div>
+            </div>
+        </div>
+        """
+                if col == "SUPP_CALLERS"
+                else f"""
         <label for="filter_{label.value}_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
         <select id="filter_{label.value}_{col}" class="mr-4 px-2 py-1 border rounded text-sm bg-white text-gray-800">
             <option value="">All</option>
             {"".join(f'<option value="{val}">{val}</option>' for val in values)}
         </select>
         """
+            )
             for col, values in categorical_values.items()
         ]
     )
@@ -219,13 +240,13 @@ def render_interactive_variant_table(
         </p>
         <div class="flex flex-wrap gap-4 mb-4 items-center">
             <div class="flex-1">
-                <input type="text" id="global-search" placeholder="Search across all columns..." 
+                <input type="text" id="global-search-{label.value}" placeholder="Search across all columns..." 
                        class="w-48 px-3 py-1 border rounded text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             {filter_inputs_html}
             <div class="flex items-center mt-2">
-                <label for="min_callers" class="mr-2 text-sm font-medium text-gray-700">Number of callers:</label>
-                <select id="min_callers" class="w-20 px-2 py-1 border rounded text-sm bg-white text-gray-800">
+                <label for="min_callers_{label.value}" class="mr-2 text-sm font-medium text-gray-700">Number of callers:</label>
+                <select id="min_callers_{label.value}" class="w-20 px-2 py-1 border rounded text-sm bg-white text-gray-800">
                     <option value="0">All</option>
                     <option value="1">1+</option>
                     <option value="2">2+</option>
@@ -262,7 +283,7 @@ def render_interactive_variant_table(
             }});
 
             // Add global search functionality
-            $('#global-search').on('keyup', function() {{
+            $('#global-search-{label.value}').on('keyup', function() {{
                 table.search(this.value).draw();
                 
                 // Update select-all checkbox state after searching
@@ -309,16 +330,49 @@ def render_interactive_variant_table(
 
                     // Filter out values containing commas from the select box
                     const uniqueValues = [...new Set(stringData)].filter(val => !val.includes(','));
-                    const selectBox = $('#filter_{label.value}_' + colName);
-                    selectBox.empty();
-                    selectBox.append('<option value="">All</option>');
+                    const dropdownMenu = $('#dropdown-menu_{label.value}_' + colName);
+                    dropdownMenu.empty();
                     uniqueValues.forEach(val => {{
-                        selectBox.append(`<option value="${{val}}">${{val}}</option>`);
+                        dropdownMenu.append(`
+                            <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" value="${{val}}">
+                                    <span class="ml-2">${{val}}</span>
+                                </label>
+                            </div>
+                        `);
                     }});
 
-                    $('#filter_{label.value}_' + colName).on('change', function () {{
-                        const searchValue = this.value;
-                        table.column(colIdx).data(stringData).search('.*' + searchValue + '.*', {{regex: true, smart: false}}).draw();
+                    // Toggle dropdown menu
+                    $('#dropdown_{label.value}_' + colName).on('click', function(e) {{
+                        e.stopPropagation();
+                        $('#dropdown-menu_{label.value}_' + colName).toggleClass('hidden');
+                    }});
+
+                    // Close dropdown when clicking outside
+                    $(document).on('click', function(e) {{
+                        if (!$(e.target).closest('#dropdown_{label.value}_' + colName).length) {{
+                            $('#dropdown-menu_{label.value}_' + colName).addClass('hidden');
+                        }}
+                    }});
+
+                    // Handle checkbox changes
+                    $('#dropdown-menu_{label.value}_' + colName).on('change', 'input[type="checkbox"]', function() {{
+                        const selectedValues = $('#dropdown-menu_{label.value}_' + colName + ' input[type="checkbox"]:checked')
+                            .map(function() {{ return $(this).val(); }}).get();
+                        
+                        if (selectedValues.length === 0) {{
+                            table.column(colIdx).search('').draw();
+                        }} else {{
+                            const searchPattern = selectedValues.map(val => `(?=.*${{val}})`).join('');
+                            table.column(colIdx).search(searchPattern, true, false).draw();
+                        }}
+
+                        // Update button text
+                        const buttonText = selectedValues.length > 0 
+                            ? `${{selectedValues}}`
+                            : `All`;
+                        $('#dropdown_{label.value}_' + colName).text(buttonText);
                         
                         // Update select-all checkbox state after filtering
                         const visibleRows = table.rows({{ search: 'applied' }}).nodes();
@@ -334,8 +388,8 @@ def render_interactive_variant_table(
                     }}).index();
 
                     $('#filter_{label.value}_' + colName).on('change', function () {{
-                        const searchValue = this.value;
-                        table.column(colIdx).search(searchValue).draw();
+                        const searchValue = this.value === '' ? '.*' : "(^"+this.value+"$)";
+                        table.column(colIdx).search(searchValue, true, false).draw();
                         
                         // Update select-all checkbox state after filtering
                         const visibleRows = table.rows({{ search: 'applied' }}).nodes();
@@ -348,8 +402,8 @@ def render_interactive_variant_table(
             }});
             
             // Add event listener for caller count filter
-            $('#min_callers').on('change', function () {{
-                const minCallers = parseInt($('#min_callers').val());
+            $('#min_callers_{label.value}').on('change', function () {{
+                const minCallers = parseInt($('#min_callers_{label.value}').val());
                 
                 // Get the CALLER column index
                 const colIdx = $('#{table_id} thead th').filter(function () {{
@@ -376,7 +430,7 @@ def render_interactive_variant_table(
                 }}
 
                 // Apply the search and redraw
-                table.column(colIdx).data(stringData).search(searchString, {{regex: true, smart: false}}).draw();
+                table.column(colIdx).search(searchString, {{regex: true, smart: false}}).draw();
                 
                 // Update select-all checkbox state after filtering
                 const visibleRows = table.rows({{ search: 'applied' }}).nodes();
