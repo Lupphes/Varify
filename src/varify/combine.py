@@ -2,6 +2,7 @@ import os
 from typing import List, Optional
 import pandas as pd
 import json
+import numpy as np
 
 from .parser import VcfType
 
@@ -42,6 +43,7 @@ BCFTOOLS_SECTION_DESCRIPTIONS = {
 
 
 def render_stats_table(title: str, description: str, df: pd.DataFrame) -> str:
+
     table_html = df.to_html(
         classes="min-w-full table-auto text-sm text-left text-gray-700",
         border=0,
@@ -108,7 +110,7 @@ def render_interactive_variant_table(
         "SVLEN",
         "POSITION",
         "END",
-        "CALLER",
+        "PRIMARY_CALLER",
         "FILTER",
         "QUAL",
         "STRANDS",
@@ -158,7 +160,7 @@ def render_interactive_variant_table(
         .apply(lambda x: isinstance(x, list))
         .any()  # Check for lists first
         and df_to_display[col].nunique()
-        <= 30  # Only count unique values for non-list columns
+        <= 100  # Only count unique values for non-list columns
     ]
 
     # Create a mapping of column names to their unique values
@@ -198,13 +200,34 @@ def render_interactive_variant_table(
 
     filter_inputs_html = "".join(
         [
-            f"""
-        <label for="filter_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
-        <select id="filter_{col}" class="mr-4 px-2 py-1 border rounded text-sm bg-white text-gray-800">
+            (
+                f"""
+        <label for="filter_{label.value}_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
+        <div class="relative inline-block text-left mr-4">
+            <button type="button" class="px-2 py-1 border rounded text-sm bg-white text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" id="dropdown_{label.value}_{col}">All</button>
+            <div class="hidden origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" id="dropdown-menu_{label.value}_{col}">
+                <div class="py-1 max-h-60 overflow-y-auto">
+                    {"".join(f'''
+                    <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" value="{val}">
+                            <span class="ml-2">{val}</span>
+                        </label>
+                    </div>
+                    ''' for val in values)}
+                </div>
+            </div>
+        </div>
+        """
+                if col == "SUPP_CALLERS"
+                else f"""
+        <label for="filter_{label.value}_{col}" class="mr-2 text-sm font-medium text-gray-700">{col}:</label>
+        <select id="filter_{label.value}_{col}" class="mr-4 px-2 py-1 border rounded text-sm bg-white text-gray-800">
             <option value="">All</option>
             {"".join(f'<option value="{val}">{val}</option>' for val in values)}
         </select>
         """
+            )
             for col, values in categorical_values.items()
         ]
     )
@@ -217,13 +240,13 @@ def render_interactive_variant_table(
         </p>
         <div class="flex flex-wrap gap-4 mb-4 items-center">
             <div class="flex-1">
-                <input type="text" id="global-search" placeholder="Search across all columns..." 
-                       class="w-full px-3 py-1 border rounded text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="global-search-{label.value}" placeholder="Search across all columns..." 
+                       class="w-48 px-3 py-1 border rounded text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             {filter_inputs_html}
             <div class="flex items-center mt-2">
-                <label for="min_callers" class="mr-2 text-sm font-medium text-gray-700">Number of callers:</label>
-                <select id="min_callers" class="w-20 px-2 py-1 border rounded text-sm bg-white text-gray-800">
+                <label for="min_callers_{label.value}" class="mr-2 text-sm font-medium text-gray-700">Number of callers:</label>
+                <select id="min_callers_{label.value}" class="w-20 px-2 py-1 border rounded text-sm bg-white text-gray-800">
                     <option value="0">All</option>
                     <option value="1">1+</option>
                     <option value="2">2+</option>
@@ -260,7 +283,7 @@ def render_interactive_variant_table(
             }});
 
             // Add global search functionality
-            $('#global-search').on('keyup', function() {{
+            $('#global-search-{label.value}').on('keyup', function() {{
                 table.search(this.value).draw();
                 
                 // Update select-all checkbox state after searching
@@ -292,7 +315,7 @@ def render_interactive_variant_table(
             // Add event listeners for filters
             const categoricalFields = {categorical_fields};
             categoricalFields.forEach(function(colName) {{
-                if (colName === 'CALLER') {{
+                if (colName.trim() === 'SUPP_CALLERS') {{
                     const colIdx = $('#{table_id} thead th').filter(function () {{
                         return $(this).text().trim() === colName;
                     }}).index();
@@ -305,9 +328,51 @@ def render_interactive_variant_table(
                     }}
                     table.column(colIdx).data(stringData);
 
-                    $('#filter_' + colName).on('change', function () {{
-                        const searchValue = this.value;
-                        table.column(colIdx).data(stringData).search('.*' + searchValue + '.*', {{regex: true, smart: false}}).draw();
+                    // Filter out values containing commas from the select box
+                    const uniqueValues = [...new Set(stringData)].filter(val => !val.includes(','));
+                    const dropdownMenu = $('#dropdown-menu_{label.value}_' + colName);
+                    dropdownMenu.empty();
+                    uniqueValues.forEach(val => {{
+                        dropdownMenu.append(`
+                            <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" value="${{val}}">
+                                    <span class="ml-2">${{val}}</span>
+                                </label>
+                            </div>
+                        `);
+                    }});
+
+                    // Toggle dropdown menu
+                    $('#dropdown_{label.value}_' + colName).on('click', function(e) {{
+                        e.stopPropagation();
+                        $('#dropdown-menu_{label.value}_' + colName).toggleClass('hidden');
+                    }});
+
+                    // Close dropdown when clicking outside
+                    $(document).on('click', function(e) {{
+                        if (!$(e.target).closest('#dropdown_{label.value}_' + colName).length) {{
+                            $('#dropdown-menu_{label.value}_' + colName).addClass('hidden');
+                        }}
+                    }});
+
+                    // Handle checkbox changes
+                    $('#dropdown-menu_{label.value}_' + colName).on('change', 'input[type="checkbox"]', function() {{
+                        const selectedValues = $('#dropdown-menu_{label.value}_' + colName + ' input[type="checkbox"]:checked')
+                            .map(function() {{ return $(this).val(); }}).get();
+                        
+                        if (selectedValues.length === 0) {{
+                            table.column(colIdx).search('').draw();
+                        }} else {{
+                            const searchPattern = selectedValues.map(val => `(?=.*${{val}})`).join('');
+                            table.column(colIdx).search(searchPattern, true, false).draw();
+                        }}
+
+                        // Update button text
+                        const buttonText = selectedValues.length > 0 
+                            ? `${{selectedValues}}`
+                            : `All`;
+                        $('#dropdown_{label.value}_' + colName).text(buttonText);
                         
                         // Update select-all checkbox state after filtering
                         const visibleRows = table.rows({{ search: 'applied' }}).nodes();
@@ -322,9 +387,9 @@ def render_interactive_variant_table(
                         return $(this).text().trim() === colName;
                     }}).index();
 
-                    $('#filter_' + colName).on('change', function () {{
-                        const searchValue = this.value;
-                        table.column(colIdx).search(searchValue).draw();
+                    $('#filter_{label.value}_' + colName).on('change', function () {{
+                        const searchValue = this.value === '' ? '.*' : "(^"+this.value+"$)";
+                        table.column(colIdx).search(searchValue, true, false).draw();
                         
                         // Update select-all checkbox state after filtering
                         const visibleRows = table.rows({{ search: 'applied' }}).nodes();
@@ -337,12 +402,12 @@ def render_interactive_variant_table(
             }});
             
             // Add event listener for caller count filter
-            $('#min_callers').on('change', function () {{
-                const minCallers = parseInt($('#min_callers').val());
+            $('#min_callers_{label.value}').on('change', function () {{
+                const minCallers = parseInt($('#min_callers_{label.value}').val());
                 
                 // Get the CALLER column index
                 const colIdx = $('#{table_id} thead th').filter(function () {{
-                    return $(this).text().trim() === 'CALLER';
+                    return $(this).text().trim() === 'SUPP_CALLERS';
                 }}).index();
                 
                 // Convert column data to strings using DataTables API
@@ -365,7 +430,7 @@ def render_interactive_variant_table(
                 }}
 
                 // Apply the search and redraw
-                table.column(colIdx).data(stringData).search(searchString, {{regex: true, smart: false}}).draw();
+                table.column(colIdx).search(searchString, {{regex: true, smart: false}}).draw();
                 
                 // Update select-all checkbox state after filtering
                 const visibleRows = table.rows({{ search: 'applied' }}).nodes();
@@ -403,7 +468,7 @@ def render_interactive_variant_table(
                 '##INFO=<ID=PRECISE,Number=0,Type=Flag,Description="Precise structural variation">',
                 '##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">',
                 '##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">',
-                '##INFO=<ID=CALLER,Number=1,Type=String,Description="Caller that generated this variant">',
+                '##INFO=<ID=SUPP_CALLERS,Number=1,Type=String,Description="Callers that generated this variant">',
                 '##INFO=<ID=CIPOS,Number=.,Type=Integer,Description="Confidence interval for the start of the variant">',   
                 '##INFO=<ID=CIEND,Number=.,Type=Integer,Description="Confidence interval for the end of the variant">',
                 '##INFO=<ID=HOMSEQ,Number=.,Type=String,Description="Homozygous sequence for the variant">',
@@ -446,13 +511,13 @@ def render_interactive_variant_table(
                 if (row['HOMLEN']) infoParts.push(`HOMLEN=${{row['HOMLEN']}}`);
                 if (row['MATE_ID']) infoParts.push(`MATEID=${{row['MATE_ID']}}`);
                 if (row['EVENT_ID']) infoParts.push(`EVENT=${{row['EVENT_ID']}}`);
-                if (row['CALLER']) infoParts.push(`CALLER=${{row['CALLER']}}`);
+                if (row['SUPP_CALLERS']) infoParts.push(`SUPP_CALLERS=${{row['SUPP_CALLERS']}}`);
                 
                 // Add any other fields as custom INFO tags
                 Object.entries(row).forEach(([key, value]) => {{
                     if (!['CHROM', 'POSITION', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 
                            'SVTYPE', 'END', 'SVLEN', 'STRANDS', 'CIPOS', 'CIEND', 'HOMSEQ', 'HOMLEN', 
-                           'MATE_ID', 'EVENT_ID', 'CALLER'].includes(key) && value) {{
+                           'MATE_ID', 'EVENT_ID', 'SUPP_CALLERS'].includes(key) && value) {{
                         infoParts.push(`${{key}}=${{value}}`);
                     }}
                 }});
@@ -501,8 +566,8 @@ def render_interactive_variant_table(
 def generate_combined_report(
     env,
     combined_report_file,
-    bcf_html_path,
-    survivor_html_path,
+    bcf_html,
+    survivor_html,
     bcf_df,
     bcf_stats,
     survivor_df,
@@ -514,12 +579,6 @@ def generate_combined_report(
     bcf_sample_columns,
     survivor_sample_columns,
 ):
-    with open(bcf_html_path, "r") as f:
-        bcf_html = f.read()
-
-    with open(survivor_html_path, "r") as f:
-        survivor_html = f.read()
-
     bcf_summary = {
         "total_sv": len(bcf_df),
         "unique_sv": bcf_df["SVTYPE"].nunique(),
@@ -549,17 +608,21 @@ def generate_combined_report(
             df=df,
         )
         for key, df in bcf_stats.items()
+        if not (df.empty or (df.values == "0.00")[0, :].any())
     }
 
-    survivor_stats_html = render_stats_table(
-        title=f"{VcfType.SURVIVOR.value.upper()} Summary Table",
-        description=(
-            "This table summarizes structural variant types (e.g., Deletions, Duplications, Insertions, Translocations) "
-            "across different size ranges. It is derived from SURVIVOR's support file and shows how many variants "
-            "fall into each class."
-        ),
-        df=survivor_stats.reset_index(),
-    )
+    if not survivor_stats.empty:
+        survivor_stats_html = render_stats_table(
+            title=f"{VcfType.SURVIVOR.value.upper()} Summary Table",
+            description=(
+                "This table summarizes structural variant types (e.g., Deletions, Duplications, Insertions, Translocations) "
+                "across different size ranges. It is derived from SURVIVOR's support file and shows how many variants "
+                "fall into each class."
+            ),
+            df=survivor_stats.reset_index(),
+        )
+    else:
+        survivor_stats_html = ""
 
     bcf_variant_table_html = render_interactive_variant_table(
         bcf_df,
@@ -587,7 +650,7 @@ def generate_combined_report(
         generated_on=os.popen("date").read().strip(),
         BCFTOOLS_SECTION_DESCRIPTIONS=BCFTOOLS_SECTION_DESCRIPTIONS,
         profiles=profiles,
-        reference_name=os.path.basename(reference_name),
+        reference_name=reference_name,
         bcf_variant_table_html=bcf_variant_table_html,
         survivor_variant_table_html=survivor_variant_table_html,
     )

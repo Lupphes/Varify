@@ -109,6 +109,7 @@
                 </details>
 
                 <!-- BCF Stats Tables -->
+                {% if bcf_stats_html %}
                 <details class="mt-6">
                     <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
                         BCFtools Statistics
@@ -119,6 +120,7 @@
                         {% endfor %}
                     </div>
                 </details>
+                {% endif %}
             </div>
         </details>
 
@@ -183,12 +185,14 @@
                 </details>
 
                 <!-- SURVIVOR Statistics -->
+                {% if survivor_stats %}
                 <details class="mt-6">
                     <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
                         SURVIVOR Statistics
                     </summary>
                     {{ survivor_stats | safe }}
                 </details>
+                {% endif %}
             </div>
         </details>
     </div>

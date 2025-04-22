@@ -1,7 +1,7 @@
 import argparse
 import tempfile
 import json
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from jinja2 import Environment
 from igv_reports.report import create_report
 
@@ -10,7 +10,6 @@ def generate_report(
     env: Environment,
     main_vcf: str,
     second_vcf: str,
-    output_file: str,
     genome_file: str,
     bam_files: Optional[List[str]],
     title: str,
@@ -18,16 +17,22 @@ def generate_report(
     info_columns: Optional[List[str]],
     sample_columns: Optional[List[str]],
     samples: Optional[List[str]],
-) -> None:
+) -> Tuple[str, str]:
     """
     Generates an IGV report using a custom template and track configuration.
+    Returns a tuple of (temporary_file_path, html_content)
     """
     print(f"Generating IGV report for {title} with prefix='{prefix}'...")
 
     template_path = _render_template(env, prefix)
     track_config_path = _write_track_config(main_vcf, second_vcf, bam_files, prefix)
 
-    # TODO: Output file could be temporary file
+    # Create a temporary file for the report
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False
+    ) as temp_file:
+        output_file = temp_file.name
+
     args = _build_igv_args(
         main_vcf=main_vcf,
         second_vcf=second_vcf,
@@ -42,7 +47,13 @@ def generate_report(
     )
 
     create_report(args)
-    print(f"IGV report saved to {output_file}")
+    print(f"IGV report generated to temporary file: {output_file}")
+
+    # Read the generated HTML content
+    with open(output_file, "r") as f:
+        html_content = f.read()
+
+    return output_file, html_content
 
 
 def _render_template(env: Environment, prefix: str) -> str:
