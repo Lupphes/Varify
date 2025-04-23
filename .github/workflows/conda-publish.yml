@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-minor-version: [10,11,12]
+        python-minor-version: [10]
 
     steps:
       # ✅ Step 1: Checkout code
