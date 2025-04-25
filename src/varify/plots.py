@@ -180,17 +180,20 @@ def plot_qual_distribution(
         print("No data to plot.")
         return empty_plot("Quality Score Distribution", output_path, subfolder)
 
-    # Calculate the KDE (Kernel Density Estimate)
-    kde = gaussian_kde(filtered["QUAL"])
-    x_vals = np.linspace(filtered["QUAL"].min(), filtered["QUAL"].max(), 1000)
-    y_vals = kde(x_vals)
+    # Check if we have more than 1 unique QUAL value before trying KDE
+    if filtered["QUAL"].nunique() > 1:
+        # Calculate the KDE (Kernel Density Estimate)
+        kde = gaussian_kde(filtered["QUAL"])
+        x_vals = np.linspace(filtered["QUAL"].min(), filtered["QUAL"].max(), 1000)
+        y_vals = kde(x_vals)
 
-    # Normalize the KDE to match the histogram's total count
-    bin_width = (
-        filtered["QUAL"].max() - filtered["QUAL"].min()
-    ) / 50  # Number of bins (same as in the histogram)
-    kde_area = np.sum(y_vals) * bin_width  # This gives the area under the KDE curve
-    y_vals_normalized = y_vals / kde_area  # Normalize the KDE
+        # Normalize the KDE to match the histogram's total count
+        bin_width = (filtered["QUAL"].max() - filtered["QUAL"].min()) / 50
+        kde_area = np.sum(y_vals) * bin_width
+        y_vals_normalized = y_vals / kde_area
+
+        # Scale the KDE to the same percentage range as the histogram
+        y_vals_normalized_percent = y_vals_normalized * 100  # Scale to percentage
 
     # Plotting the histogram as percentages
     fig = px.histogram(
@@ -202,20 +205,17 @@ def plot_qual_distribution(
         labels={"QUAL": "Quality Score"},
     )
 
-    # Scale the KDE to the same percentage range as the histogram
-    y_vals_normalized_percent = y_vals_normalized * 100  # Scale to percentage
-
-    # Adding the KDE line
-    fig.add_trace(
-        go.Scatter(
-            x=x_vals,
-            y=y_vals_normalized_percent
-            * len(filtered),  # Scale the KDE to match the histogram's total count
-            mode="lines",
-            name="KDE",
-            line=dict(color="red", width=2),
+    # Add KDE line only if we calculated it
+    if filtered["QUAL"].nunique() > 1:
+        fig.add_trace(
+            go.Scatter(
+                x=x_vals,
+                y=y_vals_normalized_percent * len(filtered),
+                mode="lines",
+                name="KDE",
+                line=dict(color="red", width=2),
+            )
         )
-    )
 
     # Update the layout with titles and axis labels
     fig.update_layout(
