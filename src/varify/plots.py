@@ -54,18 +54,18 @@ def empty_plot(
     return _wrap_output(output_path, title, subfolder)
 
 
-def extract_callers_with_duplicates(id_field: Optional[str]) -> list[str]:
-
-    if isinstance(id_field, list):
-        id_field = ",".join(map(str, id_field))
-    if not isinstance(id_field, str) or not id_field:
+def extract_callers_with_duplicates(callers: Optional[str]) -> list[str]:
+    if not callers:
         return []
 
-    callers = []
-    for part in id_field.split(","):
-        if "_" in part:
-            callers.append(part.strip().split("_")[0])
-    return callers
+    # Ensure input is a string
+    callers_str = ",".join(map(str, callers)) if isinstance(callers, list) else str(callers)
+
+    result = []
+    for part in callers_str.split(","):
+            result.append(part.strip())  # fallback for entries without "_"
+
+    return result
 
 
 def plot_sv_callers(
@@ -74,7 +74,7 @@ def plot_sv_callers(
     if df.empty:
         print("No data to plot.")
         return empty_plot("Structural Variant Callers", output_path, subfolder)
-    # Extract unique callers from SUPP_CALLERS column
+
     df["caller_list"] = (
         df["SUPP_CALLERS"]
         .fillna("")
@@ -392,7 +392,7 @@ def plot_bcf_exact_instance_combinations(
         )
 
     df = df.copy()
-    df["caller_list_raw"] = df["ID"].apply(extract_callers_with_duplicates)
+    df["caller_list_raw"] = df["SUPP_CALLERS"].apply(extract_callers_with_duplicates)
 
     # Count the number of callers per SV
     df["num_callers"] = df["caller_list_raw"].apply(lambda x: len(x))
@@ -529,7 +529,7 @@ def plot_survivor_exact_instance_combinations(
         )
 
     df = df.copy()
-    df["caller_list_raw"] = df["ID"].apply(extract_callers_with_duplicates)
+    df["caller_list_raw"] = df["SUPP_CALLERS"].apply(extract_callers_with_duplicates)
 
     # Count the number of callers per SV
     df["num_callers"] = df["caller_list_raw"].apply(lambda x: len(x))
@@ -667,7 +667,7 @@ def plot_sv_types_by_caller(
 
     # Split callers and explode the dataframe
     df = df.copy()
-    df["SUPP_CALLERS"] = df["SUPP_CALLERS"].str.split(", ")
+    df["SUPP_CALLERS"] = df["SUPP_CALLERS"].str.split(",")
     exploded = df.explode("SUPP_CALLERS")
 
     # Count SV types per caller

@@ -39,14 +39,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bam-files", nargs="+", help="BAM files for IGV")
     parser.add_argument("--fasta-file", required=True, help="Reference FASTA")
     parser.add_argument(
-        "--bcf-stats-file", required=True, help="bcftools stats for BCF merged VCF"
+        "--bcf-stats-file", required=False, help="bcftools stats for BCF merged VCF"
     )
     parser.add_argument("--survivor-stats-file", required=True, help="SURVIVOR stats")
     parser.add_argument(
-        "--report-file", required=True, help="Path to save the combined HTML report"
+        "--report-file", required=False, help="Path to save the combined HTML report"
     )
     parser.add_argument(
         "--profile", default="default", help="Profile run from the pipeline"
+    )
+    parser.add_argument(
+        "--disable-igv", action="store_true", default=False, help="Disable IGV for optimalization purposes"
     )
 
     return parser.parse_args()
@@ -114,6 +117,7 @@ def process_vcf_and_generate_report(
     fasta: str,
     bam_files: Optional[List[str]],
     output_dir: str,
+    disable_igv
 ) -> Tuple[pd.DataFrame, str]:
     """Process VCF file and generate report. Returns DataFrame and HTML content."""
     if not os.path.exists(vcf_path):
@@ -127,27 +131,29 @@ def process_vcf_and_generate_report(
 
     os.makedirs(output_dir, exist_ok=True)
 
-    temp_file_path, html_content = generate_report(
-        env=env,
-        main_vcf=vcf_path,
-        second_vcf=alt_vcf_path,
-        genome_file=fasta,
-        bam_files=bam_files,
-        title=f"{label.value.upper()} Merge Report",
-        prefix=label.value,
-        info_columns=non_empty_info_columns,
-        sample_columns=None,
-        samples=None,
-    )
+    if not disable_igv:
+        temp_file_path, html_content = generate_report(
+            env=env,
+            main_vcf=vcf_path,
+            second_vcf=alt_vcf_path,
+            genome_file=fasta,
+            bam_files=bam_files,
+            title=f"{label.value.upper()} Merge Report",
+            prefix=label.value,
+            info_columns=non_empty_info_columns,
+            sample_columns=None,
+            samples=None,
+        )
 
-    # Clean up the temporary file
-    try:
-        os.unlink(temp_file_path)
-    except Exception as e:
-        print(f"Warning: Could not delete temporary file {temp_file_path}: {e}")
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_file_path)
+        except Exception as e:
+            print(f"Warning: Could not delete temporary file {temp_file_path}: {e}")
 
-    return df, html_content
+        return df, html_content
 
+    return df, ""
 
 def main() -> None:
     args = parse_args()
@@ -166,6 +172,7 @@ def main() -> None:
         args.fasta_file,
         args.bam_files,
         args.output_dir,
+        args.disable_igv
     )
     bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
     bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
@@ -178,6 +185,7 @@ def main() -> None:
         args.fasta_file,
         args.bam_files,
         args.output_dir,
+        args.disable_igv
     )
     survivor_stats = parse_survivor_stats(args.survivor_stats_file)
 
@@ -247,6 +255,7 @@ def main() -> None:
             "SR",
             "GQ",
         ],
+        disable_igv=args.disable_igv
     )
 
     print("\n--- Report Generation Complete ---\n")

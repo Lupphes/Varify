@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="varify",
-    version="0.2.5",
+    version="0.2.6",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,

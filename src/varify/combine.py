@@ -578,6 +578,7 @@ def generate_combined_report(
     reference_name,
     bcf_sample_columns,
     survivor_sample_columns,
+    disable_igv
 ):
     bcf_summary = {
         "total_sv": len(bcf_df),
@@ -653,6 +654,7 @@ def generate_combined_report(
         reference_name=reference_name,
         bcf_variant_table_html=bcf_variant_table_html,
         survivor_variant_table_html=survivor_variant_table_html,
+        disable_igv=disable_igv
     )
 
     with open(combined_report_file, "w") as f:

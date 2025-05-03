@@ -8,21 +8,6 @@ class VcfType(Enum):
     BCF = "bcf"
     SURVIVOR = "survivor"
 
-
-def clean_sample_name(sample):
-    # Match the pattern inside square brackets and capture the part before '_sas_' and the algorithm after it
-    match = re.match(r"\[([^\]]*?_sas_)([^]]+)\]", sample)
-    if match:
-        # Remove duplicate algorithm name and add an underscore between the name and the algorithm
-        base_name = match.group(1).replace("_sas_", "")  # Remove '_sas_'
-        algorithm = match.group(2).split("_")[
-            0
-        ]  # Take the first part of the algorithm to remove duplication
-        new_name = f"[{base_name}_{algorithm}]{sample[match.end():]}"
-        return new_name
-    return sample
-
-
 def calculate_confidence_intervals(info, record):
     """Calculate confidence intervals for variant positions.
 
@@ -142,25 +127,6 @@ def parse_vcf(file_path, label=VcfType.BCF):
     """
     reader = vcfpy.Reader.from_path(file_path)
 
-    # Extract all INFO field IDs from header
-    info_ids = {
-        line.id
-        for line in reader.header.lines
-        if isinstance(line, vcfpy.header.InfoHeaderLine)
-    }
-
-    # Find required fields explicitly
-    svtype_field = next(
-        (field for field in info_ids if "SVTYPE" in field.upper()), None
-    )
-    end_field = next((field for field in info_ids if "END" in field.upper()), None)
-    caller_field = next(
-        (field for field in info_ids if "CALLER" in field.upper()), None
-    )
-
-    if not svtype_field:
-        raise ValueError("Required field SVTYPE not found in VCF header.")
-
     # Extract header columns
     info_columns = [
         line.id
@@ -169,32 +135,27 @@ def parse_vcf(file_path, label=VcfType.BCF):
     ]
 
     raw_samples = reader.header.samples.names
-    cleaned_samples = [clean_sample_name(s) for s in raw_samples]
 
     records = []
     total_records = 0
     excluded_records = 0
     invalid_svlen_records = 0
 
-    for idx, record in enumerate(reader, start=1):
+    for idx, record in enumerate(reader, start=0):
         total_records += 1
         info = record.INFO
 
         # Extract core SV information
-        svtype = info.get(svtype_field)
-        end = info.get(end_field)
-
-        # Extract caller information
-        id_value = None
-        callers = None
-        primary_caller = None
-        caller_list_raw = None
-
-        # Get SV length directly from INFO
+        svtype = info.get("SVTYPE")
         svlen = info.get("SVLEN")
-        if svlen is None:
+        end = info.get("END")
+        id_value = record.ID[0]
+        primary_caller = None
+        callers = None
+
+        if svlen is None or svtype is None:
             excluded_records += 1
-            continue  # Skip records without SVLEN in INFO
+            continue
 
         # Convert SV length to absolute value
         try:
@@ -203,40 +164,37 @@ def parse_vcf(file_path, label=VcfType.BCF):
             svlen = abs(int(svlen))
         except (ValueError, TypeError):
             invalid_svlen_records += 1
-            continue  # Skip records with invalid SVLEN values
-        if label == VcfType.BCF:
-
-            # Count unique values in ID field and extract algorithm names
-            id_value = record.ID
-
-            # For BCF files, count unique values in ID field
-            callers = ", ".join(set([e.split("_")[0] for e in id_value]))
-            primary_caller = callers.split(",")[0]
-        elif label == VcfType.SURVIVOR:
-            primary_caller = record.ID[0].split("_")[0]
-            id_value = list(set(re.findall(r"[a-z]+_..._[0-9]+", str(record.calls))))
-
-            # If id_value is empty, reconstruct it from PRIMARY_CALLER, SVTYPE, and SVLEN
-            if not id_value:
-                id_value = [f"{primary_caller}_{svtype}_{svlen}"]
-
-            callers = ", ".join(set([e.split("_")[0] for e in id_value]))
+            continue
 
         # Calculate confidence intervals
         cipos, ciend = calculate_confidence_intervals(info, record)
+
+        if label == VcfType.BCF:
+            primary_caller = info.get("EUK_CALLER")
+            
+        elif label == VcfType.SURVIVOR:
+            primary_caller = id_value.split("_")[0]
+
+            callers_sorted = sorted({
+                call.data.get("ID", "").split("_")[0]
+                for call in record.calls
+                if "ID" in call.data and "_" in call.data["ID"]
+            })
+            callers = ", ".join(callers_sorted)
+
+            svtype = id_value.split("_")[1]
 
         # Base record data
         record_data = {
             "unique_id": idx,
             "CHROM": record.CHROM,
             "POSITION": record.POS,
-            "ID": ", ".join(id_value),
+            "ID": id_value,
             "REF": record.REF,
             "ALT": ",".join(str(alt) for alt in record.ALT) if record.ALT else None,
             "QUAL": record.QUAL,
             "FILTER": ";".join(record.FILTER) if record.FILTER else None,
             "SVTYPE": svtype,
-            "SUPP_CALLERS": callers,
             "PRIMARY_CALLER": primary_caller,
             "END": end,
             "SVLEN": svlen,
@@ -255,6 +213,7 @@ def parse_vcf(file_path, label=VcfType.BCF):
             record_data["SUPP_VEC"] = info.get("SUPP_VEC")
             record_data["STRANDS"] = info.get("STRANDS")
             record_data["SVMETHOD"] = info.get("SVMETHOD")
+            record_data["SUPP_CALLERS"] = callers
 
         # Add specific format fields to record_data
         format_fields = record.FORMAT  # Use the full FORMAT list
@@ -300,50 +259,62 @@ def parse_vcf(file_path, label=VcfType.BCF):
 
         records.append(record_data)
 
+    result = pd.DataFrame(records)
+    result = result[result["SVTYPE"].notna()].copy()
+
+    if label == VcfType.BCF:
+        grouped = result.groupby(["CHROM", "POSITION", "SVTYPE"])
+        callers_per_variant = grouped["PRIMARY_CALLER"].agg(lambda x: ",".join(sorted(set(x))))
+        result = result.merge(
+            callers_per_variant.rename("SUPP_CALLERS"),
+            on=["CHROM", "POSITION", "SVTYPE"],
+            how="left"
+        )
+
     print("\nSVLEN Statistics:")
     print(f"Total records processed: {total_records}")
     print(f"Records excluded (no SVLEN): {excluded_records}")
     print(f"Records excluded (invalid SVLEN): {invalid_svlen_records}")
     print(f"Records kept: {len(records)}")
+    multi_caller_count = result["SUPP_CALLERS"].apply(lambda x: len(set(x.split(","))) >= 2).sum()
+    print(f"Variants supported by ≥2 callers: {multi_caller_count}")
 
-    if len(records) > 0:
-        return pd.DataFrame(records), info_columns
-    else:
-        return (
-            pd.DataFrame(
-                columns=[
-                    "unique_id",
-                    "CHROM",
-                    "POSITION",
-                    "ID",
-                    "REF",
-                    "ALT",
-                    "QUAL",
-                    "FILTER",
-                    "SVTYPE",
-                    "CALLER",
-                    "END",
-                    "SVLEN",
-                    "IMPRECISE",
-                    "PRECISE",
-                    "CHROM2",
-                    "MATE_ID",
-                    "CIPOS",
-                    "CIEND",
-                    "HOMLEN",
-                    "HOMSEQ",
-                    "caller_list_raw",
-                ]
-            ),
-            info_columns,
+    if len(result) == 0:
+        empty_df = pd.DataFrame(
+            columns=[
+                "unique_id",
+                "CHROM",
+                "POSITION",
+                "ID",
+                "REF",
+                "ALT",
+                "QUAL",
+                "FILTER",
+                "SVTYPE",
+                "SUPP_CALLERS",
+                "PRIMARY_CALLER",
+                "END",
+                "SVLEN",
+                "IMPRECISE",
+                "PRECISE",
+                "CHROM2",
+                "MATE_ID",
+                "CIPOS",
+                "CIEND",
+                "HOMLEN",
+                "HOMSEQ",
+            ]
         )
+        return empty_df, info_columns
+
+    return result, info_columns
 
 
-# TODO: Veryfy parsing and remove if empty, maybe create chart out of this
+# TODO: Verify parsing and remove if empty, maybe create chart out of this
 def parse_survivor_stats(file_path):
     return pd.read_csv(file_path, sep="\t", index_col=0)
 
-# TODO: Veryfy parsing and remove tables on empty
+# TODO: Verify parsing and remove tables on empty
 def parse_bcftools_stats(file_path):
     # Initialize empty containers for each section
     sections = {
