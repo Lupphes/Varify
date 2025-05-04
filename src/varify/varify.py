@@ -28,10 +28,12 @@ from .plots import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate structural variant reports.")
 
-    parser.add_argument("--output-dir", required=True, help="Output directory")
-    parser.add_argument("--bcf-vcf-file", required=True, help="BCF merged VCF")
     parser.add_argument(
-        "--survivor-vcf-file", required=True, help="SURVIVOR merged VCF"
+        "--output-dir", required=False, default="out/", help="Output directory"
+    )
+    parser.add_argument("--bcf-vcf-file", required=False, help="BCF merged VCF")
+    parser.add_argument(
+        "--survivor-vcf-file", required=False, help="SURVIVOR merged VCF"
     )
     parser.add_argument(
         "--sample-vcf-files", nargs="+", help="Optional additional sample VCFs"
@@ -41,15 +43,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--bcf-stats-file", required=False, help="bcftools stats for BCF merged VCF"
     )
-    parser.add_argument("--survivor-stats-file", required=True, help="SURVIVOR stats")
+    parser.add_argument("--survivor-stats-file", required=False, help="SURVIVOR stats")
     parser.add_argument(
-        "--report-file", required=False, help="Path to save the combined HTML report"
+        "--report-file",
+        required=False,
+        default="out/",
+        help="Path to save the combined HTML report",
     )
     parser.add_argument(
         "--profile", default="default", help="Profile run from the pipeline"
     )
     parser.add_argument(
-        "--disable-igv", action="store_true", default=False, help="Disable IGV for optimalization purposes"
+        "--disable-igv",
+        action="store_true",
+        default=False,
+        help="Disable IGV for optimalization purposes",
     )
 
     return parser.parse_args()
@@ -117,7 +125,7 @@ def process_vcf_and_generate_report(
     fasta: str,
     bam_files: Optional[List[str]],
     output_dir: str,
-    disable_igv
+    disable_igv,
 ) -> Tuple[pd.DataFrame, str]:
     """Process VCF file and generate report. Returns DataFrame and HTML content."""
     if not os.path.exists(vcf_path):
@@ -155,6 +163,7 @@ def process_vcf_and_generate_report(
 
     return df, ""
 
+
 def main() -> None:
     args = parse_args()
 
@@ -164,34 +173,39 @@ def main() -> None:
         loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates"))
     )
 
-    bcf_df, bcf_html = process_vcf_and_generate_report(
-        env,
-        VcfType.BCF,
-        args.bcf_vcf_file,
-        args.survivor_vcf_file,
-        args.fasta_file,
-        args.bam_files,
-        args.output_dir,
-        args.disable_igv
-    )
-    bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
-    bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
+    # Initialize defaults
+    bcf_df, bcf_html, bcf_stats, bcf_plots = None, None, None, None
+    survivor_df, survivor_html, survivor_stats, survivor_plots = None, None, None, None
 
-    survivor_df, survivor_html = process_vcf_and_generate_report(
-        env,
-        VcfType.SURVIVOR,
-        args.survivor_vcf_file,
-        args.bcf_vcf_file,
-        args.fasta_file,
-        args.bam_files,
-        args.output_dir,
-        args.disable_igv
-    )
-    survivor_stats = parse_survivor_stats(args.survivor_stats_file)
+    if args.bcf_vcf_file:
+        bcf_df, bcf_html = process_vcf_and_generate_report(
+            env,
+            VcfType.BCF,
+            args.bcf_vcf_file,
+            args.survivor_vcf_file,
+            args.fasta_file,
+            args.bam_files,
+            args.output_dir,
+            args.disable_igv,
+        )
+        bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
+        bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
 
-    survivor_plots = generate_plots(
-        survivor_df, "survivor", args.output_dir, label=VcfType.SURVIVOR
-    )
+    if args.survivor_vcf_file:
+        survivor_df, survivor_html = process_vcf_and_generate_report(
+            env,
+            VcfType.SURVIVOR,
+            args.survivor_vcf_file,
+            args.bcf_vcf_file,
+            args.fasta_file,
+            args.bam_files,
+            args.output_dir,
+            args.disable_igv,
+        )
+        survivor_stats = parse_survivor_stats(args.survivor_stats_file)
+        survivor_plots = generate_plots(
+            survivor_df, "survivor", args.output_dir, label=VcfType.SURVIVOR
+        )
 
     generate_combined_report(
         env=env,
@@ -206,56 +220,64 @@ def main() -> None:
         survivor_plots=survivor_plots,
         profiles=args.profile,
         reference_name=args.fasta_file,
-        bcf_sample_columns=[
-            "unique_id",
-            "CHROM",
-            "POSITION",
-            "ID",
-            "SUPP_CALLERS",
-            "REF",
-            "QUAL",
-            "FILTER",
-            "SVTYPE",
-            "PRIMARY_CALLER",
-            "END",
-            "SVLEN",
-            "CHROM2",
-            "MATE_ID",
-            "CIPOS",
-            "CIEND",
-            "HOMSEQ",
-            "HOMLEN",
-            "GT",
-            "PR",
-            "SR",
-            "GQ",
-        ],
-        survivor_sample_columns=[
-            "unique_id",
-            "CHROM",
-            "POSITION",
-            "ID",
-            "SUPP_CALLERS",
-            "REF",
-            "QUAL",
-            "FILTER",
-            "SVTYPE",
-            "PRIMARY_CALLER",
-            "END",
-            "SVLEN",
-            "CHROM2",
-            "STRANDS",
-            "CIPOS",
-            "CIEND",
-            "HOMSEQ",
-            "HOMLEN",
-            "SVMETHOD",
-            "GT",
-            "PR",
-            "SR",
-            "GQ",
-        ],
-        disable_igv=args.disable_igv
+        bcf_sample_columns=(
+            [
+                "unique_id",
+                "CHROM",
+                "POSITION",
+                "ID",
+                "SUPP_CALLERS",
+                "REF",
+                "QUAL",
+                "FILTER",
+                "SVTYPE",
+                "PRIMARY_CALLER",
+                "END",
+                "SVLEN",
+                "CHROM2",
+                "MATE_ID",
+                "CIPOS",
+                "CIEND",
+                "HOMSEQ",
+                "HOMLEN",
+                "GT",
+                "PR",
+                "SR",
+                "GQ",
+            ]
+            if bcf_df is not None
+            else []
+        ),
+        survivor_sample_columns=(
+            [
+                "unique_id",
+                "CHROM",
+                "POSITION",
+                "ID",
+                "SUPP_CALLERS",
+                "REF",
+                "QUAL",
+                "FILTER",
+                "SVTYPE",
+                "PRIMARY_CALLER",
+                "END",
+                "SVLEN",
+                "CHROM2",
+                "STRANDS",
+                "CIPOS",
+                "CIEND",
+                "HOMSEQ",
+                "HOMLEN",
+                "SVMETHOD",
+                "GT",
+                "PR",
+                "SR",
+                "GQ",
+            ]
+            if survivor_df is not None
+            else []
+        ),
+        disable_igv=args.disable_igv,
     )
 
     print("\n--- Report Generation Complete ---\n")

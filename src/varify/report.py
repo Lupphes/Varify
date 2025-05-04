@@ -9,7 +9,7 @@ from igv_reports.report import create_report
 def generate_report(
     env: Environment,
     main_vcf: str,
-    second_vcf: str,
+    second_vcf: Optional[str],
     genome_file: str,
     bam_files: Optional[List[str]],
     title: str,
@@ -35,7 +35,7 @@ def generate_report(
 
     args = _build_igv_args(
         main_vcf=main_vcf,
-        second_vcf=second_vcf,
+        second_vcf=second_vcf if second_vcf else None,
         genome_file=genome_file,
         output_file=output_file,
         title=title,
@@ -65,16 +65,24 @@ def _render_template(env: Environment, prefix: str) -> str:
 
 
 def _write_track_config(
-    main_vcf: str, second_vcf: str, bam_files: Optional[List[str]], prefix: str
+    main_vcf: str,
+    second_vcf: Optional[str],
+    bam_files: Optional[List[str]],
+    prefix: str,
 ) -> str:
     config = [
         {"url": main_vcf, "format": "vcf", "name": f"{prefix.upper()} VCF"},
-        {
-            "url": second_vcf,
-            "format": "vcf",
-            "name": "SURVIVOR VCF" if prefix == "bcf" else "BCF VCF",
-        },
     ]
+
+    if second_vcf:
+        config.append(
+            {
+                "url": second_vcf,
+                "format": "vcf",
+                "name": "SURVIVOR VCF" if prefix == "bcf" else "BCF VCF",
+            }
+        )
+
     if bam_files:
         config.extend(
             {"url": bam, "format": "bam", "name": f"Alignment {i+1}"}
@@ -106,7 +114,7 @@ def _build_igv_args(
         ideogram=None,
         tracks=None,
         track_config=[track_config_path],
-        roi=[main_vcf, second_vcf],
+        roi=[main_vcf, *([second_vcf] if second_vcf else [])],
         sort="INSERT_SIZE",
         template=template_path,
         output=output_file,

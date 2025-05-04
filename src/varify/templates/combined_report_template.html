@@ -49,20 +49,24 @@
     <!-- Main Content -->
     <div class="max-w-screen-xl mx-auto px-6">
         <!-- BCF Report -->
-        <details open class="mb-12 border border-gray-300 rounded-lg shadow-md">
+        {% if bcf_summary %}
+        <div class="mb-4 mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-gray-700">BCFtools Summary</h3>
+            <ul class="list-disc ml-6 mt-2 text-gray-600">
+                <li><strong>Total Variants:</strong> {{ bcf_summary['total_sv'] }}</li>
+                <li><strong>Unique SV Types:</strong> {{ bcf_summary['unique_sv'] }}</li>
+                <li><strong>Median Quality Score:</strong> {{ bcf_summary['mqs'] }}</li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- BCF Report Collapsible -->
+        {% if bcf_summary %}
+        <details class="mb-12 border border-gray-300 rounded-lg shadow-md">
             <summary class="cursor-pointer bg-gray-100 px-4 py-3 text-lg font-semibold text-gray-900">
-                bcftools Concat Report
+                BCFtools Concat Report (details)
             </summary>
             <div class="px-4 py-3">
-                <!-- BCF Summary -->
-                <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-lg font-medium text-gray-700">Summary</h3>
-                    <ul class="list-disc ml-6 mt-2 text-gray-600">
-                        <li><strong>Total Variants:</strong> {{ bcf_summary['total_sv'] }}</li>
-                        <li><strong>Unique SV Types:</strong> {{ bcf_summary['unique_sv'] }}</li>
-                        <li><strong>Median Quality Score:</strong> {{ bcf_summary['mqs'] }}</li>
-                    </ul>
-                </div>
 
                 <!-- Plots -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -125,22 +129,27 @@
                 {% endif %}
             </div>
         </details>
+        {% endif %}
 
         <!-- SURVIVOR Report -->
+        {% if survivor_summary %}
+        <div class="mb-4 mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-gray-700">SURVIVOR Summary</h3>
+            <ul class="list-disc ml-6 mt-2 text-gray-600">
+                <li><strong>Total Variants:</strong> {{ survivor_summary['total_sv'] }}</li>
+                <li><strong>Unique SV Types:</strong> {{ survivor_summary['unique_sv'] }}</li>
+                <li><strong>Median Quality Score:</strong> {{ survivor_summary['mqs'] }}</li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- SURVIVOR Report Collapsible -->
+        {% if survivor_summary %}
         <details class="mb-12 border border-gray-300 rounded-lg shadow-md">
             <summary class="cursor-pointer bg-gray-100 px-4 py-3 text-lg font-semibold text-gray-900">
-                SURVIVOR Merge Report
+                SURVIVOR Merge Report (details)
             </summary>
             <div class="px-4 py-3">
-                <!-- SURVIVOR Summary -->
-                <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-lg font-medium text-gray-700">Summary</h3>
-                    <ul class="list-disc ml-6 mt-2 text-gray-600">
-                        <li><strong>Total Variants:</strong> {{ survivor_summary['total_sv'] }}</li>
-                        <li><strong>Unique SV Types:</strong> {{ survivor_summary['unique_sv'] }}</li>
-                        <li><strong>Median Quality Score:</strong> {{ survivor_summary['mqs'] }}</li>
-                    </ul>
-                </div>
 
                 <!-- Plots -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -199,6 +208,14 @@
                 {% endif %}
             </div>
         </details>
+        {% endif %}
+
+        {% if not bcf_summary and not survivor_summary %}
+        <div class="bg-yellow-100 text-yellow-800 p-4 rounded-md border border-yellow-300">
+            <p class="font-medium">No VCF input files were provided.</p>
+            <p class="text-sm mt-1">The report was generated, but no variant data is available for display.</p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Footer -->

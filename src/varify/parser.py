@@ -8,6 +8,7 @@ class VcfType(Enum):
     BCF = "bcf"
     SURVIVOR = "survivor"
 
+
 def calculate_confidence_intervals(info, record):
     """Calculate confidence intervals for variant positions.
 
@@ -171,15 +172,17 @@ def parse_vcf(file_path, label=VcfType.BCF):
 
         if label == VcfType.BCF:
             primary_caller = info.get("EUK_CALLER")
-            
+
         elif label == VcfType.SURVIVOR:
             primary_caller = id_value.split("_")[0]
 
-            callers_sorted = sorted({
-                call.data.get("ID", "").split("_")[0]
-                for call in record.calls
-                if "ID" in call.data and "_" in call.data["ID"]
-            })
+            callers_sorted = sorted(
+                {
+                    call.data.get("ID", "").split("_")[0]
+                    for call in record.calls
+                    if "ID" in call.data and "_" in call.data["ID"]
+                }
+            )
             callers = ", ".join(callers_sorted)
 
             svtype = id_value.split("_")[1]
@@ -260,25 +263,6 @@ def parse_vcf(file_path, label=VcfType.BCF):
         records.append(record_data)
 
     result = pd.DataFrame(records)
-    result = result[result["SVTYPE"].notna()].copy()
-
-    if label == VcfType.BCF:
-        grouped = result.groupby(["CHROM", "POSITION", "SVTYPE"])
-        callers_per_variant = grouped["PRIMARY_CALLER"].agg(lambda x: ",".join(sorted(set(x))))
-        result = result.merge(
-            callers_per_variant.rename("SUPP_CALLERS"),
-            on=["CHROM", "POSITION", "SVTYPE"],
-            how="left"
-        )
-
-    print("\nSVLEN Statistics:")
-    print(f"Total records processed: {total_records}")
-    print(f"Records excluded (no SVLEN): {excluded_records}")
-    print(f"Records excluded (invalid SVLEN): {invalid_svlen_records}")
-    print(f"Records kept: {len(records)}")
-    multi_caller_count = result["SUPP_CALLERS"].apply(lambda x: len(set(x.split(","))) >= 2).sum()
-    print(f"Variants supported by ≥2 callers: {multi_caller_count}")
-
     if len(result) == 0:
         empty_df = pd.DataFrame(
             columns=[
@@ -307,12 +291,36 @@ def parse_vcf(file_path, label=VcfType.BCF):
         )
         return empty_df, info_columns
 
+    result = result[result["SVTYPE"].notna()].copy()
+
+    if label == VcfType.BCF:
+        grouped = result.groupby(["CHROM", "POSITION", "SVTYPE"])
+        callers_per_variant = grouped["PRIMARY_CALLER"].agg(
+            lambda x: ",".join(sorted(set(x)))
+        )
+        result = result.merge(
+            callers_per_variant.rename("SUPP_CALLERS"),
+            on=["CHROM", "POSITION", "SVTYPE"],
+            how="left",
+        )
+
+    print("\nSVLEN Statistics:")
+    print(f"Total records processed: {total_records}")
+    print(f"Records excluded (no SVLEN): {excluded_records}")
+    print(f"Records excluded (invalid SVLEN): {invalid_svlen_records}")
+    print(f"Records kept: {len(records)}")
+    multi_caller_count = (
+        result["SUPP_CALLERS"].apply(lambda x: len(set(x.split(","))) >= 2).sum()
+    )
+    print(f"Variants supported by ≥2 callers: {multi_caller_count}")
+
     return result, info_columns
 
 
 # TODO: Verify parsing and remove if empty, maybe create chart out of this
 def parse_survivor_stats(file_path):
     return pd.read_csv(file_path, sep="\t", index_col=0)
+
 
 # TODO: Verify parsing and remove tables on empty
 def parse_bcftools_stats(file_path):

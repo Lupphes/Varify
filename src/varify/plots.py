@@ -59,11 +59,13 @@ def extract_callers_with_duplicates(callers: Optional[str]) -> list[str]:
         return []
 
     # Ensure input is a string
-    callers_str = ",".join(map(str, callers)) if isinstance(callers, list) else str(callers)
+    callers_str = (
+        ",".join(map(str, callers)) if isinstance(callers, list) else str(callers)
+    )
 
     result = []
     for part in callers_str.split(","):
-            result.append(part.strip())  # fallback for entries without "_"
+        result.append(part.strip())  # fallback for entries without "_"
 
     return result
 

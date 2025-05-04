@@ -578,42 +578,54 @@ def generate_combined_report(
     reference_name,
     bcf_sample_columns,
     survivor_sample_columns,
-    disable_igv
+    disable_igv,
 ):
-    bcf_summary = {
-        "total_sv": len(bcf_df),
-        "unique_sv": bcf_df["SVTYPE"].nunique(),
-        "mqs": (
-            round(bcf_df["QUAL"].median(), 2)
-            if not bcf_df["QUAL"].isna().all()
-            else "N/A"
-        ),
-    }
-
-    survivor_summary = {
-        "total_sv": len(survivor_df),
-        "unique_sv": survivor_df["SVTYPE"].nunique(),
-        "mqs": (
-            round(survivor_df["QUAL"].median(), 2)
-            if not survivor_df["QUAL"].isna().all()
-            else "N/A"
-        ),
-    }
-
-    bcf_stats_html = {
-        key: render_stats_table(
-            title=f"{VcfType.BCF.value.upper()} - {key} Section",
-            description=BCFTOOLS_SECTION_DESCRIPTIONS.get(
-                key, "No description available."
+    bcf_summary = (
+        {
+            "total_sv": len(bcf_df),
+            "unique_sv": bcf_df["SVTYPE"].nunique(),
+            "mqs": (
+                round(bcf_df["QUAL"].median(), 2)
+                if not bcf_df["QUAL"].isna().all()
+                else "N/A"
             ),
-            df=df,
-        )
-        for key, df in bcf_stats.items()
-        if not (df.empty or (df.values == "0.00")[0, :].any())
-    }
+        }
+        if bcf_df is not None
+        else None
+    )
 
-    if not survivor_stats.empty:
-        survivor_stats_html = render_stats_table(
+    survivor_summary = (
+        {
+            "total_sv": len(survivor_df),
+            "unique_sv": survivor_df["SVTYPE"].nunique(),
+            "mqs": (
+                round(survivor_df["QUAL"].median(), 2)
+                if not survivor_df["QUAL"].isna().all()
+                else "N/A"
+            ),
+        }
+        if survivor_df is not None
+        else None
+    )
+
+    bcf_stats_html = (
+        {
+            key: render_stats_table(
+                title=f"{VcfType.BCF.value.upper()} - {key} Section",
+                description=BCFTOOLS_SECTION_DESCRIPTIONS.get(
+                    key, "No description available."
+                ),
+                df=df,
+            )
+            for key, df in bcf_stats.items()
+            if not (df.empty or (df.values == "0.00")[0, :].any())
+        }
+        if bcf_stats is not None
+        else {}
+    )
+
+    survivor_stats_html = (
+        render_stats_table(
             title=f"{VcfType.SURVIVOR.value.upper()} Summary Table",
             description=(
                 "This table summarizes structural variant types (e.g., Deletions, Duplications, Insertions, Translocations) "
@@ -622,20 +634,30 @@ def generate_combined_report(
             ),
             df=survivor_stats.reset_index(),
         )
-    else:
-        survivor_stats_html = ""
-
-    bcf_variant_table_html = render_interactive_variant_table(
-        bcf_df,
-        table_id="bcf_variant_table",
-        label=VcfType.BCF,
-        columns_to_display=bcf_sample_columns,
+        if survivor_stats is not None and not survivor_stats.empty
+        else ""
     )
-    survivor_variant_table_html = render_interactive_variant_table(
-        survivor_df,
-        table_id="survivor_variant_table",
-        label=VcfType.SURVIVOR,
-        columns_to_display=survivor_sample_columns,
+
+    bcf_variant_table_html = (
+        render_interactive_variant_table(
+            bcf_df,
+            table_id="bcf_variant_table",
+            label=VcfType.BCF,
+            columns_to_display=bcf_sample_columns,
+        )
+        if bcf_df is not None
+        else ""
+    )
+
+    survivor_variant_table_html = (
+        render_interactive_variant_table(
+            survivor_df,
+            table_id="survivor_variant_table",
+            label=VcfType.SURVIVOR,
+            columns_to_display=survivor_sample_columns,
+        )
+        if survivor_df is not None
+        else ""
     )
 
     template = env.get_template("combined_report_template.html")
@@ -654,7 +676,7 @@ def generate_combined_report(
         reference_name=reference_name,
         bcf_variant_table_html=bcf_variant_table_html,
         survivor_variant_table_html=survivor_variant_table_html,
-        disable_igv=disable_igv
+        disable_igv=disable_igv,
     )
 
     with open(combined_report_file, "w") as f:
