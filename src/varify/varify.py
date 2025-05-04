@@ -21,7 +21,7 @@ from .plots import (
     plot_bcf_exact_instance_combinations,
     plot_survivor_exact_instance_combinations,
     plot_sv_types_by_caller,
-    plot_quality_by_primary_caller,
+    plot_quality_by_caller,
 )
 
 
@@ -111,7 +111,7 @@ def generate_plots(
             df, out("cumulative_sv_length")
         ),
         "sv_types_by_caller": plot_sv_types_by_caller(df, out("sv_types_by_caller")),
-        "quality_by_primary_caller": plot_quality_by_primary_caller(
+        "quality_by_primary_caller": plot_quality_by_caller(
             df, out("quality_by_primary_caller")
         ),
     }

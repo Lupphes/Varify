@@ -7,8 +7,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from scipy.stats import gaussian_kde
 
-from .parser import VcfType
-
 
 def save_fig(fig: go.Figure, output_path: str) -> None:
     fig.write_html(
@@ -70,134 +68,119 @@ def extract_callers_with_duplicates(callers: Optional[str]) -> list[str]:
     return result
 
 
-def plot_sv_callers(
-    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
-) -> Optional[Dict[str, str]]:
-    if df.empty:
-        print("No data to plot.")
-        return empty_plot("Structural Variant Callers", output_path, subfolder)
-
+def extract_callers(df: pd.DataFrame, column: str = "SUPP_CALLERS") -> pd.DataFrame:
+    """Explodes the given caller column into a 'Caller' column for grouped analysis."""
+    df = df.copy()
     df["caller_list"] = (
-        df["SUPP_CALLERS"]
+        df[column]
         .fillna("")
         .str.split(",")
         .apply(lambda x: [caller.strip() for caller in x if caller.strip()])
     )
+    return df.explode("caller_list").rename(columns={"caller_list": "Caller"})
 
-    # Get sorted list of unique callers
-    callers = sorted(
-        set([caller for sublist in df["caller_list"] for caller in sublist if caller]),
-        key=lambda x: df["caller_list"].apply(lambda y: x in y).sum(),
-        reverse=True,
-    )
 
-    # Create binary columns for each caller
-    for caller in callers:
-        df[caller] = df["caller_list"].apply(lambda x: int(caller in x))
+def plot_sv_callers(
+    df: pd.DataFrame, output_path: str, subfolder: str = "plots"
+) -> Optional[Dict[str, str]]:
+    title = "Structural Variant Callers"
 
-    df_counts = df[callers].sum().reset_index()
-    df_counts.columns = ["Caller", "Count"]
+    if df.empty:
+        print("No data to plot.")
+        return empty_plot(title, output_path, subfolder)
 
-    fig = px.bar(df_counts, x="Caller", y="Count", color="Caller")
-    standard_layout(fig, "Structural Variant Callers")
+    exploded = extract_callers(df)  # Uses SUPP_CALLERS by default
+
+    # Count the number of times each caller appears
+    caller_counts = exploded["Caller"].value_counts().reset_index()
+    caller_counts.columns = ["Caller", "Count"]
+
+    fig = px.bar(caller_counts, x="Caller", y="Count", color="Caller", title=title)
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "Structural Variant Callers", subfolder)
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_sv_primary_callers(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
-    if "SUPP_CALLERS" not in df.columns:
-        print("No 'SUPP_CALLERS' column found in the data.")
-        return empty_plot("Structural Variant Primary Callers", output_path, subfolder)
-    if df.empty:
-        print("No data to plot.")
-        return empty_plot("Structural Variant Primary Callers", output_path, subfolder)
+    title = "Primary Structural Variant Callers"
+
+    if df.empty or "PRIMARY_CALLER" not in df.columns:
+        print("No data or 'PRIMARY_CALLER' column found.")
+        return empty_plot(title, output_path, subfolder)
 
     df_counts = df["PRIMARY_CALLER"].value_counts().reset_index()
     df_counts.columns = ["Caller", "Count"]
 
-    fig = px.bar(df_counts, x="Caller", y="Count", color="Caller")
-    standard_layout(fig, "Structural Variant Primary Callers")
+    fig = px.bar(df_counts, x="Caller", y="Count", color="Caller", title=title)
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "Structural Variant Primary Callers", subfolder)
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_sv_type_distribution(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
+    title = "Structural Variant Type Distribution"
+
     filtered = df.dropna(subset=["SVTYPE"])
     if filtered.empty:
         print("No data to plot.")
-        return empty_plot("SV Type Distribution", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
-    # Sort filtered alphabetically by SVTYPE
-    filtered = filtered.sort_values(by="SVTYPE")
-
-    fig = px.histogram(filtered, x="SVTYPE", color="SVTYPE")
-    standard_layout(fig, "SV Type Distribution")
+    fig = px.histogram(
+        filtered.sort_values("SVTYPE"), x="SVTYPE", color="SVTYPE", title=title
+    )
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "SV Type Distribution", subfolder)
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_sv_size_distribution(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
-    df_copy = df.copy()
+    title = "Structural Variant Size Distribution (5th–95th percentile)"
 
-    # Filter out rows with SVLEN of 0 and SVTYPE of 'TRA'
-    df_copy = df_copy[~((df_copy["SVLEN"] == 0) & (df_copy["SVTYPE"] == "TRA"))]
+    # Filter: remove SVLEN == 0 for translocations
+    df_filtered = df[~((df["SVLEN"] == 0) & (df["SVTYPE"] == "TRA"))]
 
-    lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
-    filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
-    if filtered.empty:
+    # Percentile filter
+    lower, upper = df_filtered["SVLEN"].quantile([0.05, 0.95])
+    df_filtered = df_filtered[df_filtered["SVLEN"].between(lower, upper)]
+
+    if df_filtered.empty:
         print("No data to plot.")
-        return empty_plot("SV Size Distribution", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
-    # Calculate number of bins using Sturge's rule: k = 1 + 3.322 * log10(n)
-    n_bins = int(1 + np.log2(len(filtered)))
+    # Plot histogram
     fig = px.histogram(
-        filtered,
+        df_filtered,
         x="SVLEN",
         nbins=50,
         histnorm="percent",
         labels={"SVLEN": "SV Length (bp)"},
         range_y=[0, 100],
+        title=title,
     )
-    standard_layout(fig, "SV Size Distribution (5th–95th percentile)")
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(
-        output_path, "SV Size Distribution (5th–95th percentile)", subfolder
-    )
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_qual_distribution(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
-    # Filter out values outside the 5th to 95th percentile
+    title = "Quality Score Distribution (5th–95th percentile)"
+
+    # Filter QUAL within 5th–95th percentile
     lower, upper = df["QUAL"].quantile([0.05, 0.95])
-    filtered = df[(df["QUAL"] >= lower) & (df["QUAL"] <= upper)]
+    filtered = df[df["QUAL"].between(lower, upper)]
 
     if filtered.empty:
         print("No data to plot.")
-        return empty_plot("Quality Score Distribution", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
-    # Check if we have more than 1 unique QUAL value before trying KDE
-    if filtered["QUAL"].nunique() > 1:
-        # Calculate the KDE (Kernel Density Estimate)
-        kde = gaussian_kde(filtered["QUAL"])
-        x_vals = np.linspace(filtered["QUAL"].min(), filtered["QUAL"].max(), 1000)
-        y_vals = kde(x_vals)
-
-        # Normalize the KDE to match the histogram's total count
-        bin_width = (filtered["QUAL"].max() - filtered["QUAL"].min()) / 50
-        kde_area = np.sum(y_vals) * bin_width
-        y_vals_normalized = y_vals / kde_area
-
-        # Scale the KDE to the same percentage range as the histogram
-        y_vals_normalized_percent = y_vals_normalized * 100  # Scale to percentage
-
-    # Plotting the histogram as percentages
     fig = px.histogram(
         filtered,
         x="QUAL",
@@ -205,23 +188,30 @@ def plot_qual_distribution(
         nbins=50,
         opacity=0.8,
         labels={"QUAL": "Quality Score"},
+        title=title,
     )
 
-    # Add KDE line only if we calculated it
+    # Overlay KDE if enough variation
     if filtered["QUAL"].nunique() > 1:
+        kde = gaussian_kde(filtered["QUAL"])
+        x_vals = np.linspace(filtered["QUAL"].min(), filtered["QUAL"].max(), 1000)
+        y_vals = kde(x_vals)
+
+        # Normalize to percentage scale
+        bin_width = (x_vals.max() - x_vals.min()) / 50
+        y_vals_percent = (y_vals / (np.sum(y_vals) * bin_width)) * 100 * len(filtered)
+
         fig.add_trace(
             go.Scatter(
                 x=x_vals,
-                y=y_vals_normalized_percent * len(filtered),
+                y=y_vals_percent,
                 mode="lines",
                 name="KDE",
                 line=dict(color="red", width=2),
             )
         )
 
-    # Update the layout with titles and axis labels
     fig.update_layout(
-        title="Quality Score Distribution (5th–95th percentile)",
         template="plotly_white",
         margin=dict(l=40, r=40, t=60, b=60),
         xaxis_title="Quality Score",
@@ -229,111 +219,87 @@ def plot_qual_distribution(
     )
 
     save_fig(fig, output_path)
-    return _wrap_output(
-        output_path, "Quality Score Distribution (5th–95th percentile)", subfolder
-    )
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_sv_type_vs_size(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
-    # Normalize SVLEN values to absolute before plotting
-    df_copy = df.copy()
+    title = "Structural Variant Type vs Size Distribution (5th–95th percentile)"
 
-    # Explicitly calculate the quantiles on the absolute values
-    df_copy["SVLEN"] = df_copy[
-        "SVLEN"
-    ].abs()  # Ensure absolute values are used for calculations
+    # Use absolute SVLEN and filter 5th–95th percentiles
+    df_filtered = df.copy()
+    df_filtered["SVLEN"] = df_filtered["SVLEN"].abs()
+    lower, upper = df_filtered["SVLEN"].quantile([0.05, 0.95])
+    df_filtered = df_filtered[df_filtered["SVLEN"].between(lower, upper)]
 
-    # Filter using absolute quantiles for whiskers
-    lower, upper = df_copy["SVLEN"].quantile([0.05, 0.95])
-    filtered = df_copy[(df_copy["SVLEN"] >= lower) & (df_copy["SVLEN"] <= upper)]
-
-    if filtered.empty:
+    if df_filtered.empty:
         print("No data to plot.")
-        return empty_plot("SV Type vs Size Distribution", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
-    # Sort filtered alphabetically by SVTYPE
-    filtered = filtered.sort_values(by="SVTYPE")
-
-    # Plotting the violin plot
+    # Create violin plot
     fig = px.violin(
-        filtered,
+        df_filtered.sort_values("SVTYPE"),
         x="SVTYPE",
         y="SVLEN",
         box=True,
-        points="all",  # Show all points, not just outliers
-        color="SVTYPE",  # Color by SVTYPE for better distinction
+        points="all",
+        color="SVTYPE",
         labels={"SVLEN": "SV Length (bp)", "SVTYPE": "SV Type"},
+        title=title,
     )
 
-    # Adjust the layout and axis to ensure readability
-    fig.update_layout(
-        title="SV Type vs Size Distribution (5th–95th percentile)",
-        template="plotly_white",
-        margin=dict(l=40, r=40, t=60, b=60),
-        xaxis_title="SV Type",
-        yaxis_title="SV Length (bp)",
-    )
-
-    # Apply standard layout
-    standard_layout(fig, "SV Type vs Size Distribution (5th–95th percentile)")
-
-    # Save the figure
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-
-    return _wrap_output(
-        output_path, "SV Type vs Size Distribution (5th–95th percentile)", subfolder
-    )
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_sv_size_vs_quality(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
-    df_copy = df.copy()
+    title = "SV Size vs Quality Score (5th–95th percentile)"
 
-    # Filter out rows with SVLEN of 0 and SVTYPE of 'TR'
-    df_copy = df_copy[~((df_copy["SVLEN"] == 0) & (df_copy["SVTYPE"] == "TRA"))]
+    # Filter out rows where SVLEN == 0 and SVTYPE == 'TRA'
+    df_filtered = df[~((df["SVLEN"] == 0) & (df["SVTYPE"] == "TRA"))]
 
-    bounds = df_copy[["SVLEN", "QUAL"]].quantile([0.05, 0.95])
-    filtered = df_copy[
-        (df_copy["SVLEN"] >= bounds.loc[0.05, "SVLEN"])
-        & (df_copy["SVLEN"] <= bounds.loc[0.95, "SVLEN"])
-        & (df_copy["QUAL"] >= bounds.loc[0.05, "QUAL"])
-        & (df_copy["QUAL"] <= bounds.loc[0.95, "QUAL"])
+    # Filter 5th–95th percentiles for SVLEN and QUAL
+    bounds = df_filtered[["SVLEN", "QUAL"]].quantile([0.05, 0.95])
+    df_filtered = df_filtered[
+        df_filtered["SVLEN"].between(
+            bounds.loc[0.05, "SVLEN"], bounds.loc[0.95, "SVLEN"]
+        )
+        & df_filtered["QUAL"].between(
+            bounds.loc[0.05, "QUAL"], bounds.loc[0.95, "QUAL"]
+        )
     ]
 
-    if filtered.empty:
+    if df_filtered.empty:
         print("No data to plot.")
-        return empty_plot(
-            "SV Size vs Quality Score Distribution", output_path, subfolder
-        )
-
-    # Sort filtered alphabetically by SVTYPE
-    filtered = filtered.sort_values(by="SVTYPE")
+        return empty_plot(title, output_path, subfolder)
 
     fig = px.scatter(
-        filtered,
+        df_filtered.sort_values("SVTYPE"),
         x="SVLEN",
         y="QUAL",
         color="SVTYPE",
         labels={"SVLEN": "SV Length (bp)", "QUAL": "Quality Score"},
+        title=title,
     )
-    standard_layout(fig, "SV Size vs Quality Score (5th–95th percentile)")
+
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(
-        output_path, "SV Size vs Quality Score (5th–95th percentile)", subfolder
-    )
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_sv_type_heatmap(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
-    sv_by_chrom = df.groupby(["CHROM", "SVTYPE"]).size().unstack().fillna(0)
+    title = "Structural Variant Type Heatmap by Chromosome"
 
+    sv_by_chrom = df.groupby(["CHROM", "SVTYPE"]).size().unstack(fill_value=0)
     if sv_by_chrom.empty:
         print("No data to plot.")
-        return empty_plot("SV Type Heatmap by Chromosome", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
     fig = go.Figure(
         data=go.Heatmap(
@@ -344,31 +310,38 @@ def plot_sv_type_heatmap(
             hoverongaps=False,
         )
     )
+
     fig.update_layout(
-        title="SV Type Heatmap by Chromosome",
+        title=title,
         xaxis_title="SV Type",
         yaxis_title="Chromosome",
         template="plotly_white",
         margin=dict(l=40, r=40, t=60, b=60),
     )
+
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "SV Type Heatmap by Chromosome", subfolder)
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_cumulative_sv_length(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
+    title = "Cumulative Structural Variant Length per Chromosome"
+
     if not {"SVLEN", "CHROM"}.issubset(df.columns):
         raise ValueError("Missing 'SVLEN' or 'CHROM' column in input DataFrame")
 
-    df_copy = df.copy()
-    sv_length = df_copy.groupby("CHROM")["SVLEN"].sum().reset_index()
-    sv_length.replace([np.inf, -np.inf], np.nan, inplace=True)
-    sv_length.dropna(subset=["SVLEN"], inplace=True)
+    sv_length = (
+        df.groupby("CHROM")["SVLEN"]
+        .sum()
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+        .reset_index()
+    )
 
     if sv_length.empty:
         print("No data to plot.")
-        return empty_plot("Cumulative SV Length per Chromosome", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
     fig = px.bar(
         sv_length,
@@ -376,12 +349,13 @@ def plot_cumulative_sv_length(
         y="SVLEN",
         labels={"CHROM": "Chromosome", "SVLEN": "Cumulative SV Length (bp)"},
         color="CHROM",
+        title=title,
     )
     fig.update_layout(
         template="plotly_white", showlegend=False, margin=dict(l=40, r=40, t=60, b=60)
     )
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "Cumulative SV Length per Chromosome", subfolder)
+    return _wrap_output(output_path, title, subfolder)
 
 
 def plot_bcf_exact_instance_combinations(
@@ -390,7 +364,7 @@ def plot_bcf_exact_instance_combinations(
     if df.empty:
         print("No data to plot.")
         return empty_plot(
-            "BCF Exact Caller Instance Combinations", output_path, subfolder
+            "Structural Variant Caller Distribution", output_path, subfolder
         )
 
     df = df.copy()
@@ -421,7 +395,7 @@ def plot_bcf_exact_instance_combinations(
         counts,
         x=counts.index,
         y=counts.columns,
-        title="SV Callers Distribution Across Different Number of Callers",
+        title="Structural Variant Caller Distribution",
         labels={
             "x": "Number of Callers per SV",
             "y": "Count of SVs",
@@ -518,7 +492,7 @@ def plot_bcf_exact_instance_combinations(
 
     # Save the figure
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "SV Callers Distribution", subfolder)
+    return _wrap_output(output_path, "Structural Variant Caller Distribution", subfolder)
 
 
 def plot_survivor_exact_instance_combinations(
@@ -527,7 +501,7 @@ def plot_survivor_exact_instance_combinations(
     if df.empty:
         print("No data to plot.")
         return empty_plot(
-            "Survivor Exact Caller Instance Combinations", output_path, subfolder
+            "Structural Variant Caller Distribution", output_path, subfolder
         )
 
     df = df.copy()
@@ -558,7 +532,7 @@ def plot_survivor_exact_instance_combinations(
         counts,
         x=counts.index,
         y=counts.columns,
-        title="Survivor Exact Caller Instance Combinations (Decoded)",
+        title="Structural Variant Caller Distribution",
         labels={
             "x": "Number of Callers per SV",
             "y": "Count of SVs",
@@ -656,75 +630,69 @@ def plot_survivor_exact_instance_combinations(
     # Save the figure
     save_fig(fig, output_path)
     return _wrap_output(
-        output_path, "Survivor Exact Caller Instance Combinations", subfolder
+        output_path, "Structural Variant Caller Distribution", subfolder
     )
 
 
 def plot_sv_types_by_caller(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
+    title = "Types Reported by Caller"
+
     if df.empty:
         print("No data to plot.")
-        return empty_plot("Types reported by each caller", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
-    # Split callers and explode the dataframe
-    df = df.copy()
-    df["SUPP_CALLERS"] = df["SUPP_CALLERS"].str.split(",")
-    exploded = df.explode("SUPP_CALLERS")
+    exploded = extract_callers(df)
 
-    # Count SV types per caller
-    counts = pd.crosstab(exploded["SUPP_CALLERS"], exploded["SVTYPE"])
-
+    counts = pd.crosstab(exploded["Caller"], exploded["SVTYPE"])
     if counts.empty:
         print("No data to plot.")
-        return empty_plot("Types reported by each caller", output_path, subfolder)
+        return empty_plot(title, output_path, subfolder)
 
-    # sort the rows by total count
     counts = counts.loc[counts.sum(axis=1).sort_values(ascending=False).index]
 
     fig = px.bar(
         counts,
-        title="Types reported by each caller",
-        labels={"value": "Count", "SUPP_CALLERS": "Caller", "SVTYPE": "SV Type"},
+        title=title,
+        labels={"value": "Count", "Caller": "Caller", "SVTYPE": "SV Type"},
         barmode="stack",
     )
 
-    standard_layout(fig, "Types reported by each caller")
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(output_path, "Types reported by each caller", subfolder)
+    return _wrap_output(output_path, title, subfolder)
 
 
-def plot_quality_by_primary_caller(
+def plot_quality_by_caller(
     df: pd.DataFrame, output_path: str, subfolder: str = "plots"
 ) -> Dict[str, str]:
+    title = "Quality Spread of Structural Variants by Supporting Callers (5th–95th percentile)"
+
     if df.empty:
         print("No data to plot.")
-        return empty_plot(
-            "Quality spread of SVs found by primary callers", output_path, subfolder
-        )
+        return empty_plot(title, output_path, subfolder)
 
-    # Filter out extreme values (5th-95th percentile)
+    # Filter QUAL between 5th and 95th percentiles
     lower, upper = df["QUAL"].quantile([0.05, 0.95])
-    filtered = df[(df["QUAL"] >= lower) & (df["QUAL"] <= upper)]
+    df = df[df["QUAL"].between(lower, upper)]
 
-    if filtered.empty:
+    if df.empty:
         print("No data to plot.")
-        return empty_plot(
-            "Quality spread of SVs found by primary callers", output_path, subfolder
-        )
+        return empty_plot(title, output_path, subfolder)
+
+    exploded = extract_callers(df)
 
     fig = px.violin(
-        filtered,
-        x="PRIMARY_CALLER",
+        exploded,
+        x="Caller",
         y="QUAL",
         box=True,
         points="all",
-        title="Quality spread of SVs found by primary callers",
-        labels={"QUAL": "Quality Score", "PRIMARY_CALLER": "Primary Caller"},
+        title=title,
+        labels={"QUAL": "Quality Score", "Caller": "Caller"},
     )
 
-    standard_layout(fig, "Quality spread of SVs found by primary callers")
+    standard_layout(fig, title)
     save_fig(fig, output_path)
-    return _wrap_output(
-        output_path, "Quality spread of SVs found by primary callers", subfolder
-    )
+    return _wrap_output(output_path, title, subfolder)
