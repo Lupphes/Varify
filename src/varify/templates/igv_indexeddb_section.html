@@ -1,0 +1,1351 @@
+<!-- IGV.js with IndexedDB Integration Section -->
+{% if not disable_igv and fasta_filename %}
+<script src="https://cdn.jsdelivr.net/npm/igv@3.0.5/dist/igv.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+
+<!-- Embed IndexedDB JavaScript files -->
+<script>
+// IndexedDB Manager
+{{ indexeddb_manager_js }}
+</script>
+
+<script>
+// IGV IndexedDB Loader
+{{ igv_loader_js }}
+</script>
+
+<script>
+// File Upload UI
+{{ file_upload_ui_js }}
+</script>
+
+<script>
+// VCF Parser
+{{ vcf_parser_js }}
+</script>
+
+<!-- IGV Container and Initialization -->
+<script>
+// Report version (based on genome file metadata)
+window.REPORT_VERSION = '{{ file_version }}';
+
+// Variant Data (loaded dynamically from IndexedDB VCF files)
+let bcfVariants = [];
+let survivorVariants = [];
+let variantsLoaded = false;
+let bcfHeader = null;  // Store BCF VCF header separately
+let survivorHeader = null;  // Store SURVIVOR VCF header separately
+
+// Required Files Configuration
+const requiredFiles = {
+    fasta: '{{ fasta_filename }}',
+    vcf: [
+        {% if bcf_vcf_filename %}
+        {% if bcf_vcf_filename.endswith('.gz') %}
+        '{{ bcf_vcf_filename[:-3] }}',  // Use uncompressed version (decompressed during report generation)
+        {% else %}
+        '{{ bcf_vcf_filename }}',
+        {% endif %}
+        {% endif %}
+        {% if survivor_vcf_filename %}'{{ survivor_vcf_filename }}'{% endif %}
+    ].filter(Boolean),
+    bam: [] // BAM files are optional
+};
+
+// IGV Browser instances
+let bcfIGVBrowser = null;
+let survivorIGVBrowser = null;
+
+// Loading indicator helpers
+function showLoadingIndicator(message) {
+    const indicator = document.getElementById('loading-indicator');
+    const text = document.getElementById('loading-text');
+    if (indicator && text) {
+        text.textContent = message;
+        indicator.style.display = 'flex';
+    }
+}
+
+function hideLoadingIndicator() {
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+        // Fade out with transition
+        indicator.style.opacity = '0';
+        setTimeout(() => {
+            indicator.style.display = 'none';
+            indicator.style.opacity = '1'; // Reset for next use
+        }, 300);
+    }
+}
+
+// Update component loading status
+function updateComponentStatus(componentId, status, timeText = '') {
+    const statusEl = document.getElementById(`${componentId}-component-status`);
+    const timeEl = document.getElementById(`${componentId}-component-time`);
+
+    if (statusEl) {
+        statusEl.textContent = status;
+    }
+    if (timeEl) {
+        timeEl.textContent = timeText;
+    }
+}
+
+// Start a heartbeat timer with progress estimation
+// estimatedDuration: how long we expect this operation to take (in seconds)
+// startPercentage: starting percentage (e.g., 35)
+// endPercentage: ending percentage (e.g., 70)
+function startProgressHeartbeat(componentId, startTime, startPercentage, endPercentage, statusText, estimatedDuration = 10) {
+    let currentPercentage = startPercentage;
+    const percentageRange = endPercentage - startPercentage;
+
+    const intervalId = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+
+        // Calculate progress based on elapsed time vs estimated duration
+        const progress = Math.min(elapsed / estimatedDuration, 0.95); // Cap at 95% until actually done
+        currentPercentage = Math.floor(startPercentage + (percentageRange * progress));
+
+        // Calculate estimated remaining time
+        if (progress < 0.95) {
+            const remainingTime = Math.ceil(estimatedDuration - elapsed);
+            const timeText = remainingTime > 0
+                ? `${currentPercentage}% • ${elapsed.toFixed(1)}s elapsed • ~${remainingTime}s remaining`
+                : `${currentPercentage}% • ${elapsed.toFixed(1)}s elapsed`;
+            updateComponentStatus(componentId, statusText, timeText);
+        } else {
+            // Close to completion, just show elapsed
+            updateComponentStatus(componentId, statusText, `${currentPercentage}% • ${elapsed.toFixed(1)}s elapsed`);
+        }
+    }, 500);
+
+    return intervalId;
+}
+
+// Stop heartbeat timer
+function stopProgressHeartbeat(intervalId) {
+    if (intervalId) {
+        clearInterval(intervalId);
+    }
+}
+
+// Hide component loading overlay
+function hideComponentLoading(componentId) {
+    const componentLoading = document.getElementById(`${componentId}-component-loading`);
+    if (componentLoading) {
+        componentLoading.style.opacity = '0';
+        setTimeout(() => componentLoading.remove(), 300);
+    }
+}
+
+// Calculate estimated time for IGV browser creation based on file sizes
+async function calculateIGVEstimate() {
+    try {
+        // Get file sizes from IndexedDB
+        const fastaFile = await genomeDBManager.getFile(requiredFiles.fasta);
+        const fastaSize = fastaFile.byteLength || fastaFile.size || 0;
+
+        // Estimate based on file size:
+        // Small genomes (<10MB): ~3-5 seconds
+        // Medium genomes (10-50MB): ~5-10 seconds
+        // Large genomes (50-200MB): ~10-20 seconds
+        // Very large genomes (>200MB): ~20-40 seconds
+        const sizeMB = fastaSize / (1024 * 1024);
+
+        let estimate;
+        if (sizeMB < 10) {
+            estimate = 3 + (sizeMB / 10) * 2; // 3-5 seconds
+        } else if (sizeMB < 50) {
+            estimate = 5 + ((sizeMB - 10) / 40) * 5; // 5-10 seconds
+        } else if (sizeMB < 200) {
+            estimate = 10 + ((sizeMB - 50) / 150) * 10; // 10-20 seconds
+        } else {
+            estimate = 20 + Math.min((sizeMB - 200) / 50, 20); // 20-40 seconds
+        }
+
+        console.log(`Genome size: ${sizeMB.toFixed(2)} MB, estimated IGV load time: ${estimate.toFixed(1)}s`);
+        return Math.ceil(estimate);
+    } catch (error) {
+        console.warn('Could not calculate IGV estimate, using default:', error);
+        return 10; // Default fallback
+    }
+}
+
+// Calculate estimated time for DataTable creation based on variant count
+function calculateTableEstimate(variantCount) {
+    // Estimate based on variant count:
+    // < 500 variants: ~1-2 seconds
+    // 500-2000 variants: ~2-5 seconds
+    // 2000-5000 variants: ~5-10 seconds
+    // > 5000 variants: ~10-20 seconds
+
+    let estimate;
+    if (variantCount < 500) {
+        estimate = 1 + (variantCount / 500) * 1; // 1-2 seconds
+    } else if (variantCount < 2000) {
+        estimate = 2 + ((variantCount - 500) / 1500) * 3; // 2-5 seconds
+    } else if (variantCount < 5000) {
+        estimate = 5 + ((variantCount - 2000) / 3000) * 5; // 5-10 seconds
+    } else {
+        estimate = 10 + Math.min((variantCount - 5000) / 500, 10); // 10-20 seconds
+    }
+
+    console.log(`Variant count: ${variantCount}, estimated table build time: ${estimate.toFixed(1)}s`);
+    return Math.ceil(estimate);
+}
+
+// Load and parse VCF files from IndexedDB
+async function loadAndParseVCFs() {
+    if (variantsLoaded) {
+        console.log('Variants already loaded');
+        return { bcfVariants, survivorVariants };
+    }
+
+    try {
+        // Load and parse BCF VCF
+        {% if bcf_vcf_filename %}
+        showLoadingIndicator('Loading BCF VCF from IndexedDB...');
+
+        // For .gz files, try to load uncompressed version first (BGZF not fully supported by pako)
+        {% if bcf_vcf_filename.endswith('.gz') %}
+        const uncompressedName = '{{ bcf_vcf_filename }}'.replace('.gz', '');
+        let bcfData;
+        let useCompressed = false;
+
+        // Try uncompressed first
+        bcfData = await genomeDBManager.getFile(uncompressedName);
+
+        if (bcfData) {
+            console.log(`Using uncompressed VCF for table parsing: ${uncompressedName}`);
+            useCompressed = false;
+        } else {
+            console.log(`Uncompressed VCF not found, using compressed: {{ bcf_vcf_filename }}`);
+            bcfData = await genomeDBManager.getFile('{{ bcf_vcf_filename }}');
+            useCompressed = true;
+        }
+
+        showLoadingIndicator('Parsing BCF variants (this may take a moment)...');
+        if (useCompressed) {
+            bcfVariants = await vcfParser.parseCompressedVCF(bcfData, 10000);
+        } else {
+            bcfVariants = await vcfParser.parseVCF(bcfData, 10000);
+        }
+        {% else %}
+        const bcfData = await genomeDBManager.getFile('{{ bcf_vcf_filename }}');
+        showLoadingIndicator('Parsing BCF variants (this may take a moment)...');
+        bcfVariants = await vcfParser.parseVCF(bcfData, 10000);
+        {% endif %}
+
+        // Add index for table display
+        bcfVariants.forEach((v, i) => v.index = i + 1);
+        console.log(`Parsed ${bcfVariants.length} BCF variants`);
+
+        // Save BCF header before parsing SURVIVOR (to prevent overwriting)
+        bcfHeader = { meta: [...vcfParser.header.meta], columns: vcfParser.header.columns };
+        {% endif %}
+
+        // Load and parse SURVIVOR VCF
+        {% if survivor_vcf_filename %}
+        showLoadingIndicator('Loading SURVIVOR VCF from IndexedDB...');
+        const survivorData = await genomeDBManager.getFile('{{ survivor_vcf_filename }}');
+
+        showLoadingIndicator('Parsing SURVIVOR variants (this may take a moment)...');
+        {% if survivor_vcf_filename.endswith('.gz') %}
+        survivorVariants = await vcfParser.parseCompressedVCF(survivorData, 10000);
+        {% else %}
+        survivorVariants = await vcfParser.parseVCF(survivorData, 10000);
+        {% endif %}
+
+        // Add index for table display
+        survivorVariants.forEach((v, i) => v.index = i + 1);
+        console.log(`Parsed ${survivorVariants.length} SURVIVOR variants`);
+
+        // Save SURVIVOR header
+        survivorHeader = { meta: [...vcfParser.header.meta], columns: vcfParser.header.columns };
+        {% endif %}
+
+        hideLoadingIndicator();
+        variantsLoaded = true;
+        return { bcfVariants, survivorVariants };
+
+    } catch (error) {
+        hideLoadingIndicator();
+        console.error('VCF parsing error:', error);
+        throw new Error(`Failed to parse VCF files: ${error.message}`);
+    }
+}
+
+// Initialize IGV browsers
+async function initializeIGV() {
+    try {
+        showLoadingIndicator('Initializing IndexedDB...');
+        await genomeDBManager.init();
+
+        // Check if files exist, show upload modal if needed
+        showLoadingIndicator('Checking for required files in IndexedDB...');
+        const uploadUI = new FileUploadUI(genomeDBManager, requiredFiles);
+
+        // Hide loading indicator before showing upload modal
+        hideLoadingIndicator();
+
+        const filesReady = await uploadUI.showModal(window.REPORT_VERSION);
+
+        if (!filesReady) {
+            console.error('Files not uploaded');
+            return;
+        }
+
+        console.log('All files ready in IndexedDB');
+
+        // Load and parse VCF files
+        await loadAndParseVCFs();
+
+        // Initialize BCF IGV Browser
+        if (bcfVariants.length > 0 && document.getElementById('bcf-igv-div')) {
+            await initializeBCFIGV();
+        }
+
+        // Initialize SURVIVOR IGV Browser
+        if (survivorVariants.length > 0 && document.getElementById('survivor-igv-div')) {
+            await initializeSURVIVORIGV();
+        }
+
+        hideLoadingIndicator();
+
+    } catch (error) {
+        hideLoadingIndicator();
+        console.error('IGV initialization error:', error);
+        alert(`Failed to initialize IGV: ${error.message}`);
+    }
+}
+
+// Initialize BCF IGV Browser
+async function initializeBCFIGV() {
+    const startTime = Date.now();
+    let heartbeatInterval = null;
+    let currentPhase = { status: '', percentage: 0 };
+
+    try {
+        console.log('Initializing BCF IGV browser...');
+
+        // Start continuous heartbeat that shows elapsed time throughout entire process
+        const continuousHeartbeat = setInterval(() => {
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            updateComponentStatus('bcf', currentPhase.status, `${currentPhase.percentage}% • ${elapsed}s elapsed`);
+        }, 500);
+
+        // Step 1: Loading files from IndexedDB (0-15%)
+        currentPhase = { status: 'Loading genome files from IndexedDB...', percentage: 0 };
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Step 2: Preparing configuration (15-25%)
+        currentPhase = { status: 'Preparing IGV configuration...', percentage: 15 };
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const vcfFiles = requiredFiles.vcf.filter(f => f); // Filter out empty
+
+        // Step 3: Creating IGV configuration (25-35%)
+        currentPhase = { status: 'Creating IGV configuration...', percentage: 25 };
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const config = await igvLoader.createIGVConfig({
+            fastaFile: requiredFiles.fasta,
+            vcfFiles: vcfFiles,
+            bamFiles: [],
+            locus: bcfVariants[0] ? bcfVariants[0].locus : undefined
+        });
+
+        // Step 4-6: Creating IGV browser (35-70%) - with estimated remaining time
+        const igvEstimate = await calculateIGVEstimate();
+        currentPhase = { status: 'Creating IGV browser (loading genome)...', percentage: 35 };
+
+        // Add remaining time calculation for this phase
+        heartbeatInterval = startProgressHeartbeat('bcf', startTime, 35, 70, 'Creating IGV browser (loading genome)...', igvEstimate);
+
+        bcfIGVBrowser = await igv.createBrowser(document.getElementById('bcf-igv-div'), config);
+        stopProgressHeartbeat(heartbeatInterval);
+        console.log('BCF IGV browser initialized');
+
+        // Step 7: Building variant table (70-95%) - with estimated remaining time
+        const tableEstimate = calculateTableEstimate(bcfVariants.length);
+        currentPhase = { status: `Building table with ${bcfVariants.length} variants...`, percentage: 70 };
+        heartbeatInterval = startProgressHeartbeat('bcf', startTime, 70, 95, `Building table with ${bcfVariants.length} variants...`, tableEstimate);
+
+        // Create variant table for BCF
+        createVariantTable('bcf', bcfVariants, bcfIGVBrowser);
+        stopProgressHeartbeat(heartbeatInterval);
+
+        // Step 8: Finalizing (95-100%)
+        currentPhase = { status: 'Finalizing...', percentage: 95 };
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Show completion time
+        clearInterval(continuousHeartbeat);
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+        updateComponentStatus('bcf', 'Ready!', `100% • Loaded in ${totalTime}s`);
+
+        // Hide component loading overlay after brief delay
+        setTimeout(() => hideComponentLoading('bcf'), 500);
+
+    } catch (error) {
+        stopProgressHeartbeat(heartbeatInterval);
+        console.error('BCF IGV initialization error:', error);
+        hideComponentLoading('bcf');
+        document.getElementById('bcf-igv-div').innerHTML = `
+            <div style="color: #e53e3e; padding: 20px; text-align: center;">
+                <strong>Error loading BCF IGV browser:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Initialize SURVIVOR IGV Browser
+async function initializeSURVIVORIGV() {
+    const startTime = Date.now();
+    let heartbeatInterval = null;
+    let currentPhase = { status: '', percentage: 0 };
+
+    try {
+        console.log('Initializing SURVIVOR IGV browser...');
+
+        // Start continuous heartbeat that shows elapsed time throughout entire process
+        const continuousHeartbeat = setInterval(() => {
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            updateComponentStatus('survivor', currentPhase.status, `${currentPhase.percentage}% • ${elapsed}s elapsed`);
+        }, 500);
+
+        // Step 1: Loading files from IndexedDB (0-15%)
+        currentPhase = { status: 'Loading genome files from IndexedDB...', percentage: 0 };
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Step 2: Preparing configuration (15-25%)
+        currentPhase = { status: 'Preparing IGV configuration...', percentage: 15 };
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const vcfFiles = requiredFiles.vcf.filter(f => f);
+
+        // Step 3: Creating IGV configuration (25-35%)
+        currentPhase = { status: 'Creating IGV configuration...', percentage: 25 };
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const config = await igvLoader.createIGVConfig({
+            fastaFile: requiredFiles.fasta,
+            vcfFiles: vcfFiles,
+            bamFiles: [],
+            locus: survivorVariants[0] ? survivorVariants[0].locus : undefined
+        });
+
+        // Step 4-6: Creating IGV browser (35-70%) - with estimated remaining time
+        const igvEstimate = await calculateIGVEstimate();
+        currentPhase = { status: 'Creating IGV browser (loading genome)...', percentage: 35 };
+
+        // Add remaining time calculation for this phase
+        heartbeatInterval = startProgressHeartbeat('survivor', startTime, 35, 70, 'Creating IGV browser (loading genome)...', igvEstimate);
+
+        survivorIGVBrowser = await igv.createBrowser(document.getElementById('survivor-igv-div'), config);
+        stopProgressHeartbeat(heartbeatInterval);
+        console.log('SURVIVOR IGV browser initialized');
+
+        // Step 7: Building variant table (70-95%) - with estimated remaining time
+        const tableEstimate = calculateTableEstimate(survivorVariants.length);
+        currentPhase = { status: `Building table with ${survivorVariants.length} variants...`, percentage: 70 };
+        heartbeatInterval = startProgressHeartbeat('survivor', startTime, 70, 95, `Building table with ${survivorVariants.length} variants...`, tableEstimate);
+
+        // Create variant table for SURVIVOR
+        createVariantTable('survivor', survivorVariants, survivorIGVBrowser);
+        stopProgressHeartbeat(heartbeatInterval);
+
+        // Step 8: Finalizing (95-100%)
+        currentPhase = { status: 'Finalizing...', percentage: 95 };
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Show completion time
+        clearInterval(continuousHeartbeat);
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+        updateComponentStatus('survivor', 'Ready!', `100% • Loaded in ${totalTime}s`);
+
+        // Hide component loading overlay after brief delay
+        setTimeout(() => hideComponentLoading('survivor'), 500);
+
+    } catch (error) {
+        stopProgressHeartbeat(heartbeatInterval);
+        console.error('SURVIVOR IGV initialization error:', error);
+        hideComponentLoading('survivor');
+        document.getElementById('survivor-igv-div').innerHTML = `
+            <div style="color: #e53e3e; padding: 20px; text-align: center;">
+                <strong>Error loading SURVIVOR IGV browser:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Create variant table with DataTables - ENHANCED with dynamic columns and filters
+function createVariantTable(prefix, variants, igvBrowser) {
+    const tableId = `${prefix}-variant-table`;
+
+    console.log(`Creating variant table for ${prefix} with ${variants.length} variants`);
+
+    // 1. Analyze all fields in variants
+    const fieldMetadata = vcfParser.analyzeFields(variants);
+    console.log(`Field metadata:`, fieldMetadata);
+
+    // 2. Determine column order (priority fields first, then others)
+    const priorityColumns = ['Select', 'CHROM', 'POS', 'SVTYPE', 'SVLEN', 'END', 'ID', 'FILTER', 'QUAL', 'SUPP_CALLERS'];
+    const allInfoKeys = Object.keys(fieldMetadata).filter(k => !['CHROM', 'FILTER'].includes(k));
+    const otherColumns = allInfoKeys.filter(k => !priorityColumns.includes(k)).sort();
+    const columnOrder = [...priorityColumns, ...otherColumns, 'REF', 'ALT'].filter((c, i, a) => a.indexOf(c) === i);
+
+    // 3. Prepare table data with ALL fields (ensure every row has every column)
+    const tableData = variants.map((v, idx) => {
+        const row = {
+            Select: 'checkbox',
+            rowIndex: idx,
+            CHROM: v.chr,
+            POS: v.pos,
+            ID: v.id,
+            REF: v.ref.length > 20 ? v.ref.substring(0, 20) + '...' : v.ref,
+            ALT: v.alt.length > 20 ? v.alt.substring(0, 20) + '...' : v.alt,
+            QUAL: v.qual !== null ? v.qual.toFixed(2) : '.',
+            FILTER: v.filter,
+            _variant: v,  // Store original variant object
+            _locus: v.locus  // Store locus for IGV navigation
+        };
+
+        // Add ALL INFO fields from fieldMetadata (not just fields present in this variant)
+        // This ensures every row has the same columns
+        for (const fieldName of Object.keys(fieldMetadata)) {
+            if (fieldName !== 'CHROM' && fieldName !== 'FILTER') {
+                const value = v.info[fieldName];
+                row[fieldName] = value !== null && value !== undefined ? value : '.';
+            }
+        }
+
+        return row;
+    });
+
+    // 4. Build DataTable columns with custom renderers
+    const columns = columnOrder
+        .filter(col => col === 'Select' || col in tableData[0])
+        .map(col => {
+            const colDef = {
+                data: col,
+                title: col === 'Select' ? '<input type="checkbox" id="select-all-' + prefix + '" title="Select All" />' :
+                       col === 'POS' ? 'Position' : col,
+                width: col === 'Select' ? '40px' : undefined
+            };
+
+            // Custom render functions
+            if (col === 'Select') {
+                colDef.render = () => '<input type="checkbox" class="row-checkbox" />';
+            } else if (fieldMetadata[col] && fieldMetadata[col].type === 'numeric') {
+                // Format numeric fields with thousands separator
+                colDef.render = (data) => {
+                    if (data === '.' || data === null || data === undefined) return '.';
+                    const num = parseFloat(data);
+                    if (isNaN(num)) return data;
+                    return num.toLocaleString();
+                };
+            } else if (fieldMetadata[col] && fieldMetadata[col].type === 'boolean') {
+                // Format boolean fields
+                colDef.render = (data) => {
+                    if (data === true) return '✓';
+                    if (data === false) return '';
+                    return data;
+                };
+            }
+
+            return colDef;
+        });
+
+    // 5. Create column name-to-index mapping for reliable filtering
+    const columnMap = {};
+    columns.forEach((col, idx) => {
+        columnMap[col.data] = idx;
+    });
+
+    console.log('Column map:', columnMap);
+    console.log('Sample row:', tableData[0]);
+
+    // 6. Check if DataTable already exists and destroy it
+    if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+        console.log(`DataTable for ${tableId} already exists, destroying first`);
+        $(`#${tableId}`).DataTable().destroy();
+        $(`#${tableId}`).empty(); // Clear table HTML
+    }
+
+    // 7. Initialize DataTable
+    const table = $(`#${tableId}`).DataTable({
+        data: tableData,
+        columns: columns,
+        scrollX: true,
+        scrollY: '400px',
+        scrollCollapse: true,
+        paging: false,
+        dom: 'rt',  // Remove default search/paging
+        order: [[1, 'asc'], [2, 'asc']],  // Sort by CHROM, POS
+        language: {
+            info: 'Showing _TOTAL_ variants',
+            infoEmpty: 'No variants found',
+            infoFiltered: '(filtered from _MAX_ total variants)'
+        }
+    });
+
+    // 8. Build filter UI dynamically
+    buildFilterUI(prefix, fieldMetadata, table, tableId, columnMap);
+
+    // 9. Add export functionality
+    addExportHandlers(prefix, table, variants);
+
+    // 10. Row click to navigate IGV (but not on checkbox)
+    $(`#${tableId} tbody`).on('click', 'tr', function(e) {
+        // Don't navigate if clicking checkbox
+        if ($(e.target).is('input[type="checkbox"]')) {
+            return;
+        }
+
+        const rowData = table.row(this).data();
+        if (rowData && rowData._locus) {
+            console.log(`Navigating to ${rowData._locus}`);
+            igvBrowser.search(rowData._locus);
+
+            // Highlight selected row
+            $(`#${tableId} tr.selected`).removeClass('selected');
+            $(this).addClass('selected');
+        }
+    });
+
+    // 11. Select All checkbox handler
+    $(`#select-all-${prefix}`).on('click', function() {
+        const isChecked = $(this).prop('checked');
+        table.rows({ search: 'applied' }).every(function() {
+            const node = this.node();
+            $('input.row-checkbox', node).prop('checked', isChecked);
+        });
+    });
+
+    // 12. Individual checkbox handler (update Select All state)
+    $(`#${tableId} tbody`).on('change', '.row-checkbox', function() {
+        const visibleRows = table.rows({ search: 'applied' }).nodes();
+        const visibleCheckboxes = $('.row-checkbox', visibleRows);
+        const allChecked = visibleCheckboxes.length > 0 &&
+                          visibleCheckboxes.filter(':checked').length === visibleCheckboxes.length;
+        $(`#select-all-${prefix}`).prop('checked', allChecked);
+    });
+
+    console.log(`Created variant table for ${prefix} with ${tableData.length} variants and ${columns.length} columns`);
+}
+
+// Build dynamic filter UI based on field metadata
+function buildFilterUI(prefix, fieldMetadata, table, tableId, columnMap) {
+    const filterContainer = $(`#filter-controls-${prefix}`);
+
+    // Add active filters display area
+    filterContainer.append(`
+        <div id="active-filters-${prefix}" class="w-full flex flex-wrap gap-1 mb-2 min-h-[24px]">
+            <!-- Active filter tags will appear here -->
+        </div>
+    `);
+
+    // Add filter loading indicator
+    filterContainer.append(`
+        <div id="filter-loading-${prefix}" class="hidden items-center gap-2 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+            <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Filtering...</span>
+        </div>
+    `);
+
+    // Global search (always present) with debouncing
+    filterContainer.append(`
+        <input type="text" id="global-search-${prefix}"
+               placeholder="Search all columns..."
+               class="px-2 py-1 border rounded text-sm flex-grow min-w-[200px]" />
+    `);
+
+    // Debounced global search (delay 300ms after user stops typing)
+    let searchTimeout;
+    $(`#global-search-${prefix}`).on('keyup', function() {
+        const val = this.value;
+
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+
+        // Show loading indicator immediately
+        if (val) {
+            showFilterLoading(prefix);
+        }
+
+        // Apply filter after delay
+        searchTimeout = setTimeout(() => {
+            table.search(val).draw();
+            hideFilterLoading(prefix);
+
+            if (val) {
+                addActiveFilterTag(prefix, 'Global Search', val, () => {
+                    $(`#global-search-${prefix}`).val('').trigger('keyup');
+                });
+            } else {
+                removeActiveFilterTag(prefix, 'Global Search');
+            }
+            updateSelectAllCheckbox(prefix, table);
+        }, 300);
+    });
+
+    // Build filters for each field
+    for (const [fieldName, metadata] of Object.entries(fieldMetadata)) {
+        // Skip internal fields and text fields
+        if (fieldName.startsWith('_') || metadata.type === 'text') {
+            continue;
+        }
+
+        // Skip filters with only one unique value (nothing to filter)
+        if (metadata.count <= 1) {
+            continue;
+        }
+
+        if (metadata.type === 'categorical' && metadata.uniqueValues.length > 0) {
+            // Dropdown filter for categorical fields
+            const options = metadata.uniqueValues.map(v =>
+                `<option value="${v}">${v}</option>`
+            ).join('');
+
+            filterContainer.append(`
+                <div class="flex items-center gap-1">
+                    <label class="text-xs font-medium">${fieldName}:</label>
+                    <select id="filter-${prefix}-${fieldName}" class="px-2 py-1 border rounded text-xs">
+                        <option value="">All</option>
+                        ${options}
+                    </select>
+                </div>
+            `);
+
+            // Attach event handler with column map lookup
+            $(`#filter-${prefix}-${fieldName}`).on('change', function() {
+                showFilterLoading(prefix);
+
+                setTimeout(() => {
+                    const colIdx = columnMap[fieldName];
+                    if (colIdx === undefined) {
+                        console.error(`Cannot filter: column ${fieldName} not found in columnMap`);
+                        hideFilterLoading(prefix);
+                        return;
+                    }
+                    const val = $(this).val();
+                    table.column(colIdx).search(val ? `^${val}$` : '', true, false).draw();
+
+                    // Update active filter tags
+                    if (val) {
+                        addActiveFilterTag(prefix, fieldName, val, () => {
+                            $(`#filter-${prefix}-${fieldName}`).val('').trigger('change');
+                        });
+                    } else {
+                        removeActiveFilterTag(prefix, fieldName);
+                    }
+
+                    updateSelectAllCheckbox(prefix, table);
+                    hideFilterLoading(prefix);
+                }, 10);
+            });
+        }
+
+        else if (metadata.type === 'numeric' && metadata.min !== undefined) {
+            // Range filter for numeric fields
+            filterContainer.append(`
+                <div class="flex items-center gap-1">
+                    <label class="text-xs font-medium">${fieldName}:</label>
+                    <input type="number" id="filter-${prefix}-${fieldName}-min"
+                           placeholder="Min" class="w-16 px-1 py-1 border rounded text-xs" />
+                    <span class="text-xs">-</span>
+                    <input type="number" id="filter-${prefix}-${fieldName}-max"
+                           placeholder="Max" class="w-16 px-1 py-1 border rounded text-xs" />
+                </div>
+            `);
+
+            // Attach range filter handler with debouncing
+            let rangeTimeout;
+            $(`#filter-${prefix}-${fieldName}-min, #filter-${prefix}-${fieldName}-max`)
+                .on('input', function() {
+                    clearTimeout(rangeTimeout);
+                    showFilterLoading(prefix);
+
+                    rangeTimeout = setTimeout(() => {
+                        const minVal = $(`#filter-${prefix}-${fieldName}-min`).val();
+                        const maxVal = $(`#filter-${prefix}-${fieldName}-max`).val();
+
+                        applyRangeFilter(prefix, table, fieldName, minVal, maxVal);
+
+                        // Update active filter tags
+                        if (minVal || maxVal) {
+                            const rangeText = minVal && maxVal ? `${minVal} - ${maxVal}` :
+                                             minVal ? `≥ ${minVal}` : `≤ ${maxVal}`;
+                            addActiveFilterTag(prefix, fieldName, rangeText, () => {
+                                $(`#filter-${prefix}-${fieldName}-min`).val('');
+                                $(`#filter-${prefix}-${fieldName}-max`).val('').trigger('input');
+                            });
+                        } else {
+                            removeActiveFilterTag(prefix, fieldName);
+                        }
+
+                        updateSelectAllCheckbox(prefix, table);
+                        hideFilterLoading(prefix);
+                    }, 500);
+                });
+        }
+
+        else if (metadata.type === 'list' && metadata.uniqueValues.length > 0) {
+            // Multi-select checkbox filter (for fields like SUPP_CALLERS)
+            const checkboxes = metadata.uniqueValues.map(v => `
+                <label class="flex items-center gap-1 px-2 py-1 hover:bg-gray-100">
+                    <input type="checkbox" value="${v}" class="text-xs" />
+                    <span class="text-xs">${v}</span>
+                </label>
+            `).join('');
+
+            filterContainer.append(`
+                <div class="relative flex items-center gap-1">
+                    <label class="text-xs font-medium">${fieldName}:</label>
+                    <button id="dropdown-${prefix}-${fieldName}"
+                            class="px-2 py-1 border rounded text-xs bg-white hover:bg-gray-50">
+                        All
+                    </button>
+                    <div id="dropdown-menu-${prefix}-${fieldName}"
+                         class="hidden absolute top-full left-0 mt-1 bg-white border rounded shadow-lg z-50 max-h-60 overflow-y-auto min-w-[150px]">
+                        ${checkboxes}
+                    </div>
+                </div>
+            `);
+
+            // Toggle dropdown
+            $(`#dropdown-${prefix}-${fieldName}`).on('click', function(e) {
+                e.stopPropagation();
+                $(`#dropdown-menu-${prefix}-${fieldName}`).toggleClass('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest(`#dropdown-${prefix}-${fieldName}`).length) {
+                    $(`#dropdown-menu-${prefix}-${fieldName}`).addClass('hidden');
+                }
+            });
+
+            // Handle checkbox changes with loading indicator
+            $(`#dropdown-menu-${prefix}-${fieldName}`).on('change', 'input[type="checkbox"]', function() {
+                showFilterLoading(prefix);
+
+                setTimeout(() => {
+                    const selectedValues = $(`#dropdown-menu-${prefix}-${fieldName} input[type="checkbox"]:checked`)
+                        .map(function() { return $(this).val(); }).get();
+
+                    const colIdx = columnMap[fieldName];
+                    if (colIdx === undefined) {
+                        console.error(`Cannot filter: column ${fieldName} not found in columnMap`);
+                        hideFilterLoading(prefix);
+                        return;
+                    }
+
+                    if (selectedValues.length === 0) {
+                        table.column(colIdx).search('').draw();
+                    } else {
+                        // Match rows containing any of the selected values
+                        const searchPattern = selectedValues.map(val => `(?=.*${val})`).join('|');
+                        table.column(colIdx).search(searchPattern, true, false).draw();
+                    }
+
+                    // Update button text
+                    const buttonText = selectedValues.length > 0 ?
+                        `${selectedValues.length} selected` : 'All';
+                    $(`#dropdown-${prefix}-${fieldName}`).text(buttonText);
+
+                    // Update active filter tags
+                    if (selectedValues.length > 0) {
+                        addActiveFilterTag(prefix, fieldName, selectedValues.join(', '), () => {
+                            $(`#dropdown-menu-${prefix}-${fieldName} input[type="checkbox"]`).prop('checked', false).first().trigger('change');
+                        });
+                    } else {
+                        removeActiveFilterTag(prefix, fieldName);
+                    }
+
+                    updateSelectAllCheckbox(prefix, table);
+                    hideFilterLoading(prefix);
+                }, 10);
+            });
+        }
+    }
+}
+
+// Show/hide filter loading indicator
+function showFilterLoading(prefix) {
+    $(`#filter-loading-${prefix}`).removeClass('hidden').addClass('flex');
+}
+
+function hideFilterLoading(prefix) {
+    $(`#filter-loading-${prefix}`).removeClass('flex').addClass('hidden');
+}
+
+// Active filter tag management
+function addActiveFilterTag(prefix, fieldName, value, resetCallback) {
+    const tagId = `tag-${prefix}-${fieldName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const container = $(`#active-filters-${prefix}`);
+
+    // Remove existing tag if present
+    $(`#${tagId}`).remove();
+
+    // Add new tag
+    const tag = $(`
+        <div id="${tagId}" class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+            <span class="font-medium">${fieldName}:</span>
+            <span>${value}</span>
+            <button class="ml-1 hover:text-blue-600 font-bold" title="Remove filter">&times;</button>
+        </div>
+    `);
+
+    tag.find('button').on('click', resetCallback);
+    container.append(tag);
+}
+
+function removeActiveFilterTag(prefix, fieldName) {
+    const tagId = `tag-${prefix}-${fieldName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    $(`#${tagId}`).remove();
+}
+
+// Apply range filter for numeric fields
+// Store active range filters per prefix to avoid conflicts
+const activeRangeFilters = {};
+
+function applyRangeFilter(prefix, table, fieldName, minVal, maxVal) {
+    // Remove existing range filter for this prefix/field if any
+    const filterKey = `${prefix}-${fieldName}`;
+    if (activeRangeFilters[filterKey]) {
+        const filterIndex = $.fn.dataTable.ext.search.indexOf(activeRangeFilters[filterKey]);
+        if (filterIndex > -1) {
+            $.fn.dataTable.ext.search.splice(filterIndex, 1);
+        }
+    }
+
+    // Add new filter if min or max is specified
+    if (minVal || maxVal) {
+        const filterFunc = function(settings, data, dataIndex) {
+            const rowData = table.row(dataIndex).data();
+            const cellValue = parseFloat(rowData[fieldName]);
+
+            // Allow rows where field is missing or not numeric
+            if (isNaN(cellValue) || cellValue === null || cellValue === undefined) {
+                return true;
+            }
+
+            if (minVal && cellValue < parseFloat(minVal)) return false;
+            if (maxVal && cellValue > parseFloat(maxVal)) return false;
+
+            return true;
+        };
+
+        $.fn.dataTable.ext.search.push(filterFunc);
+        activeRangeFilters[filterKey] = filterFunc;
+    } else {
+        delete activeRangeFilters[filterKey];
+    }
+
+    table.draw();
+}
+
+// Update Select All checkbox state after filtering
+function updateSelectAllCheckbox(prefix, table) {
+    const visibleRows = table.rows({ search: 'applied' }).nodes();
+    const visibleCheckboxes = $('.row-checkbox', visibleRows);
+    const allChecked = visibleCheckboxes.length > 0 &&
+                      visibleCheckboxes.filter(':checked').length === visibleCheckboxes.length;
+    $(`#select-all-${prefix}`).prop('checked', allChecked);
+}
+
+// Add export handlers for CSV and VCF
+function addExportHandlers(prefix, table, variants) {
+    // CSV Export
+    $(`#export-csv-${prefix}`).on('click', function() {
+        const selectedRows = getSelectedRows(table);
+        if (selectedRows.length === 0) {
+            alert('No rows selected. Please select at least one row by checking the checkbox.');
+            return;
+        }
+
+        // Build CSV
+        const headers = Object.keys(selectedRows[0]).filter(k => !k.startsWith('_') && k !== 'Select' && k !== 'rowIndex');
+        const csv = [headers.join(',')];
+
+        selectedRows.forEach(row => {
+            const values = headers.map(h => {
+                const val = row[h];
+                // Escape values containing commas or quotes
+                if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                    return `"${val.replace(/"/g, '""')}"`;
+                }
+                return val;
+            });
+            csv.push(values.join(','));
+        });
+
+        downloadFile(csv.join('\n'), `${prefix}_variants.csv`, 'text/csv');
+        console.log(`Exported ${selectedRows.length} variants to CSV`);
+    });
+
+    // VCF Export (with original VCF headers)
+    $(`#export-vcf-${prefix}`).on('click', function() {
+        const selectedRows = getSelectedRows(table);
+        if (selectedRows.length === 0) {
+            alert('No rows selected. Please select at least one row by checking the checkbox.');
+            return;
+        }
+
+        // 1. Get correct VCF header based on table being exported
+        const header = prefix === 'bcf' ? bcfHeader : survivorHeader;
+        if (!header) {
+            alert('VCF header not available. Cannot export to VCF format.');
+            console.error(`Header for ${prefix} is null`);
+            return;
+        }
+        const vcfHeaderLines = header.meta.join('\n');
+        const columnHeader = header.columns;
+
+        // 2. Reconstruct VCF lines from selected rows
+        const vcfLines = selectedRows.map(row => {
+            const v = row._variant;  // Original variant object
+
+            // Use rawInfo if available, otherwise reconstruct
+            const info = v.rawInfo || reconstructINFO(v.info);
+
+            return [
+                v.chr,
+                v.pos,
+                v.id,
+                v.ref,
+                v.alt,
+                v.qual !== null ? v.qual : '.',
+                v.filter,
+                info
+            ].join('\t');
+        });
+
+        // 3. Combine header + lines
+        const vcfContent = [vcfHeaderLines, columnHeader, ...vcfLines].join('\n');
+
+        downloadFile(vcfContent, `${prefix}_variants.vcf`, 'text/vcf');
+        console.log(`Exported ${selectedRows.length} variants to VCF`);
+    });
+}
+
+// Reconstruct INFO field from parsed object (in case it was modified)
+function reconstructINFO(infoObj) {
+    const pairs = [];
+    for (const [key, value] of Object.entries(infoObj)) {
+        if (typeof value === 'boolean' && value === true) {
+            pairs.push(key);  // Flag field
+        } else if (value !== null && value !== undefined && value !== '.') {
+            pairs.push(`${key}=${value}`);
+        }
+    }
+    return pairs.length > 0 ? pairs.join(';') : '.';
+}
+
+// Get selected rows from table
+function getSelectedRows(table) {
+    const rows = [];
+    table.rows().every(function() {
+        const node = this.node();
+        if ($('.row-checkbox', node).is(':checked')) {
+            rows.push(this.data());
+        }
+    });
+    return rows;
+}
+
+// Download file helper
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+}
+
+// Lazy load IGV when section is expanded
+function setupLazyIGVLoad(sectionId, initFunction) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    const details = section.closest('details');
+    if (!details) return;
+
+    let initialized = false;
+    details.addEventListener('toggle', function() {
+        if (details.open && !initialized) {
+            console.log(`Lazy loading ${sectionId}...`);
+            initialized = true;
+            initFunction();
+        }
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, setting up IGV...');
+
+    // Setup lazy loading for IGV sections
+    setupLazyIGVLoad('bcf-igv-section', async () => {
+        if (!bcfIGVBrowser) {
+            await initializeIGV();
+        }
+    });
+
+    setupLazyIGVLoad('survivor-igv-section', async () => {
+        if (!survivorIGVBrowser && !bcfIGVBrowser) {
+            await initializeIGV();
+        }
+    });
+
+    // Auto-initialize if BCF section is initially open
+    const bcfSection = document.getElementById('bcf-igv-section');
+    if (bcfSection && bcfSection.closest('details').open) {
+        initializeIGV();
+    }
+});
+</script>
+
+<!-- CSS for variant table -->
+<style>
+#bcf-variant-table tr.selected,
+#survivor-variant-table tr.selected {
+    background-color: #bee3f8 !important;
+}
+
+#bcf-variant-table tbody tr:hover,
+#survivor-variant-table tbody tr:hover {
+    background-color: #e6f7ff !important;
+    cursor: pointer;
+}
+
+.igv-container {
+    min-height: 500px;
+    background: #f7fafc;
+    border-radius: 4px;
+    padding: 16px;
+}
+</style>
+
+<!-- Global Loading Overlay -->
+<div id="loading-indicator" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999; transition: opacity 0.3s ease-out;">
+    <!-- Dimmed backdrop with blur -->
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px);"></div>
+    <!-- Loading card -->
+    <div style="position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 48px 72px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4); text-align: center; max-width: 500px;">
+            <div style="width: 80px; height: 80px; border: 7px solid #e2e8f0; border-top-color: #4299e1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 28px;"></div>
+            <p id="loading-text" style="font-size: 20px; font-weight: 600; color: #2d3748; margin: 0 0 12px 0;">Loading...</p>
+            <p style="font-size: 15px; color: #718096; margin: 0;">Please wait while we prepare your data</p>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<!-- Clear Cache/Database Button -->
+<div class="mt-6 mb-4" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
+    <div style="flex-grow: 1; display: flex; align-items: center; gap: 8px;">
+        <svg style="width: 20px; height: 20px; color: #4299e1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span style="color: #4a5568; font-size: 14px;">
+            <span id="cache-status-text">Checking cache...</span>
+            <span id="cache-size-text" style="color: #718096;"></span>
+        </span>
+    </div>
+    <button id="clear-cache-btn" onclick="clearCacheAndDatabase()"
+            style="padding: 8px 16px; background-color: #e53e3e; color: white; border: none; border-radius: 6px;
+                   font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;
+                   display: flex; align-items: center; gap: 8px;"
+            onmouseover="this.style.backgroundColor='#c53030'"
+            onmouseout="this.style.backgroundColor='#e53e3e'">
+        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+        </svg>
+        Clear Cache & Database
+    </button>
+</div>
+
+<script>
+// Function to clear cache and database
+async function clearCacheAndDatabase() {
+    if (!confirm('Are you sure you want to delete the entire database?\n\nThis will remove all uploaded genome files and you will need to re-upload them.\n\nMake sure to close all other tabs with this report open first.')) {
+        return;
+    }
+
+    const btn = document.getElementById('clear-cache-btn');
+    const originalText = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = '<svg style="width: 16px; height: 16px; animation: spin 1s linear infinite;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" stroke="currentColor" stroke-opacity="0.25"></circle><path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path></svg> Clearing...';
+
+    try {
+        await genomeDBManager.deleteDatabase();
+        document.getElementById('cache-status-text').textContent = 'Cache cleared!';
+        document.getElementById('cache-size-text').textContent = '';
+
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    } catch (error) {
+        console.error('Failed to clear cache:', error);
+        alert(`Failed to clear cache: ${error.message}`);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Update cache status on page load
+async function updateCacheStatus() {
+    try {
+        const size = await genomeDBManager.getStorageSize();
+        const sizeText = genomeDBManager.formatBytes(size);
+
+        if (size > 0) {
+            document.getElementById('cache-status-text').textContent = 'Cache active:';
+            document.getElementById('cache-size-text').textContent = sizeText + ' stored';
+        } else {
+            document.getElementById('cache-status-text').textContent = 'No cached data';
+            document.getElementById('cache-size-text').textContent = '';
+        }
+    } catch (error) {
+        console.error('Failed to check cache status:', error);
+        document.getElementById('cache-status-text').textContent = 'Cache status unknown';
+    }
+}
+
+// Make updateCacheStatus globally accessible so it can be called after uploads
+window.updateCacheStatus = updateCacheStatus;
+
+// Check cache status after IndexedDB is initialized
+window.addEventListener('DOMContentLoaded', async () => {
+    // Wait a bit for IndexedDB to initialize
+    setTimeout(updateCacheStatus, 500);
+});
+</script>
+
+<!-- BCF IGV Section -->
+{% if bcf_vcf_filename %}
+<details class="mt-6" id="bcf-igv-section">
+    <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
+        View IGV Browser (BCF) - Variants loaded dynamically
+    </summary>
+    <div class="mt-2 p-4 border border-gray-300 rounded-md shadow-md" style="position: relative; min-height: 500px;">
+        <!-- Component loading overlay -->
+        <div id="bcf-component-loading" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 50000; transition: opacity 0.3s ease-out;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(3px);"></div>
+            <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                <div style="text-align: center;">
+                    <div style="width: 60px; height: 60px; border: 5px solid #e2e8f0; border-top-color: #4299e1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                    <p id="bcf-component-status" style="color: #4a5568; font-size: 16px; font-weight: 500; margin: 0;">Preparing variant data...</p>
+                    <p id="bcf-component-time" style="color: #718096; font-size: 13px; margin: 8px 0 0 0;"></p>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-sm text-gray-600 mb-4">
+            Click on any variant in the table below to navigate the IGV browser to that locus.
+            First time setup: Upload genome files (FASTA, VCF) to browser storage (one-time).
+        </p>
+
+        <!-- Variant Table -->
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">BCF Variants</h3>
+
+            <!-- Filter Controls (dynamically populated) -->
+            <div id="filter-controls-bcf" class="flex flex-wrap gap-2 mb-4 items-center text-sm">
+                <!-- Filters will be added dynamically by JavaScript -->
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="export-controls mb-4 flex gap-2">
+                <button id="export-csv-bcf" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                    Export Selected to CSV
+                </button>
+                <button id="export-vcf-bcf" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                    Export Selected to VCF
+                </button>
+            </div>
+
+            <table id="bcf-variant-table" class="display compact" style="width:100%"></table>
+        </div>
+
+        <!-- IGV Browser -->
+        <div class="igv-container">
+            <h3 class="text-lg font-semibold mb-2">IGV Genome Browser</h3>
+            <div id="bcf-igv-div" style="min-height: 400px;"></div>
+        </div>
+    </div>
+</details>
+{% endif %}
+
+<!-- SURVIVOR IGV Section -->
+{% if survivor_vcf_filename %}
+<details class="mt-6" id="survivor-igv-section">
+    <summary class="cursor-pointer bg-gray-200 px-4 py-2 text-md font-medium text-gray-800 border-b">
+        View IGV Browser (SURVIVOR) - Variants loaded dynamically
+    </summary>
+    <div class="mt-2 p-4 border border-gray-300 rounded-md shadow-md" style="position: relative; min-height: 500px;">
+        <!-- Component loading overlay -->
+        <div id="survivor-component-loading" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 50000; transition: opacity 0.3s ease-out;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(3px);"></div>
+            <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                <div style="text-align: center;">
+                    <div style="width: 60px; height: 60px; border: 5px solid #e2e8f0; border-top-color: #4299e1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                    <p id="survivor-component-status" style="color: #4a5568; font-size: 16px; font-weight: 500; margin: 0;">Preparing variant data...</p>
+                    <p id="survivor-component-time" style="color: #718096; font-size: 13px; margin: 8px 0 0 0;"></p>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-sm text-gray-600 mb-4">
+            Click on any variant in the table below to navigate the IGV browser to that locus.
+        </p>
+
+        <!-- Variant Table -->
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">SURVIVOR Variants</h3>
+
+            <!-- Filter Controls (dynamically populated) -->
+            <div id="filter-controls-survivor" class="flex flex-wrap gap-2 mb-4 items-center text-sm">
+                <!-- Filters will be added dynamically by JavaScript -->
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="export-controls mb-4 flex gap-2">
+                <button id="export-csv-survivor" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                    Export Selected to CSV
+                </button>
+                <button id="export-vcf-survivor" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                    Export Selected to VCF
+                </button>
+            </div>
+
+            <table id="survivor-variant-table" class="display compact" style="width:100%"></table>
+        </div>
+
+        <!-- IGV Browser -->
+        <div class="igv-container">
+            <h3 class="text-lg font-semibold mb-2">IGV Genome Browser</h3>
+            <div id="survivor-igv-div" style="min-height: 400px;"></div>
+        </div>
+    </div>
+</details>
+{% endif %}
+
+{% endif %}

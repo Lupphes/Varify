@@ -5,6 +5,8 @@ import json
 import numpy as np
 
 from .parser import VcfType
+from .report import generate_report
+# VCF extraction no longer needed - variants loaded dynamically in browser
 
 BCFTOOLS_SECTION_DESCRIPTIONS = {
     "SN": (
@@ -131,13 +133,50 @@ def render_interactive_variant_table(
     remaining_columns = [
         col for col in df_to_display.columns if col not in ordered_columns
     ]
-    final_columns = ["Select"] + ordered_columns + remaining_columns
+
+    # Add "View in IGV" column with locus information embedded in the value
+    # Format: igv_link:chr:start-end with flanking region
+    def calculate_locus(row):
+        """Calculate IGV locus for a variant, handling missing END field."""
+        if pd.isna(row.get('CHROM')) or pd.isna(row.get('POSITION')):
+            return "igv_link:"
+
+        chrom = row['CHROM']
+        pos = int(row['POSITION'])
+        flanking = 1000
+
+        # If END is available, use it
+        if pd.notna(row.get('END')):
+            end = int(row['END'])
+            start = max(1, pos - flanking)
+            end_with_flank = end + flanking
+            return f"igv_link:{chrom}:{start}-{end_with_flank}"
+
+        # If END is missing, try to calculate from SVLEN
+        elif pd.notna(row.get('SVLEN')):
+            svlen = int(row['SVLEN'])
+            # For INS/DEL, SVLEN tells us the size
+            end = pos + abs(svlen)
+            start = max(1, pos - flanking)
+            end_with_flank = end + flanking
+            return f"igv_link:{chrom}:{start}-{end_with_flank}"
+
+        # Fallback: use a default window around the position
+        else:
+            # Use a 2kb window (1kb on each side) for variants without END/SVLEN
+            start = max(1, pos - flanking)
+            end = pos + flanking
+            return f"igv_link:{chrom}:{start}-{end}"
+
+    df_to_display["View_IGV"] = df_to_display.apply(calculate_locus, axis=1)
+
+    final_columns = ["Select", "View_IGV"] + ordered_columns + remaining_columns
     df_to_display["Select"] = "checkbox"
     df_to_display = df_to_display[final_columns]
 
-    # Preprocess categorical columns (excluding the Select column)
+    # Preprocess categorical columns (excluding the Select and View_IGV columns)
     for col in df_to_display.select_dtypes(include="object").columns:
-        if col != "Select":  # Skip preprocessing for the Select column
+        if col not in ("Select", "View_IGV"):  # Skip preprocessing for special columns
             # Skip string conversion for columns that contain lists
             if not df_to_display[col].apply(lambda x: isinstance(x, list)).any():
                 # Convert to string and clean up
@@ -154,7 +193,7 @@ def render_interactive_variant_table(
     categorical_fields = [
         col
         for col in df_to_display.columns
-        if col != "Select"
+        if col not in ("Select", "View_IGV")
         and col not in format_fields
         and not df_to_display[col]
         .apply(lambda x: isinstance(x, list))
@@ -193,10 +232,25 @@ def render_interactive_variant_table(
         border=0,
     )
 
-    # Replace the placeholder values with actual checkboxes
+    # Replace the placeholder values with actual checkboxes and IGV links
     table_html = table_html.replace(
         ">checkbox<", '><input type="checkbox" class="row-checkbox" /><'
     ).replace("<th>Select</th>", '<th><input type="checkbox" id="select-all" /></th>')
+
+    # Replace IGV link placeholders with buttons that include locus data
+    # Format in DataFrame: "igv_link:chr:start-end"
+    import re
+
+    def replace_igv_link(match):
+        # Extract the locus from the matched content
+        # The regex already captured everything after "igv_link:"
+        locus = match.group(1)
+        return f'<button class="igv-jump-btn px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600" data-locus="{locus}" title="Jump to this variant in IGV">View</button>'
+
+    # Replace all igv_link:... values with buttons that have data-locus attribute
+    # The regex captures everything between ">igv_link:" and "<"
+    table_html = re.sub(r'>igv_link:([^<]*)<', lambda m: '>' + replace_igv_link(m) + '<', table_html)
+    table_html = table_html.replace("<th>View_IGV</th>", '<th>IGV</th>')
 
     filter_inputs_html = "".join(
         [
@@ -566,8 +620,10 @@ def render_interactive_variant_table(
 def generate_combined_report(
     env,
     combined_report_file,
-    bcf_html,
-    survivor_html,
+    bcf_vcf_path,
+    survivor_vcf_path,
+    fasta_path,
+    bam_files,
     bcf_df,
     bcf_stats,
     survivor_df,
@@ -580,6 +636,9 @@ def generate_combined_report(
     survivor_sample_columns,
     disable_igv,
 ):
+    # Store original file paths as hints for user (will use File Input API at runtime)
+    # No file copying needed - users will select files via browser file picker
+
     bcf_summary = (
         {
             "total_sv": len(bcf_df),
@@ -660,10 +719,154 @@ def generate_combined_report(
         else ""
     )
 
+    # Prepare filenames for IndexedDB + IGV.js integration (NO variant data embedding)
+    output_dir = os.path.dirname(combined_report_file)
+    if not output_dir:
+        output_dir = "."
+
+    fasta_filename = None
+    bcf_vcf_filename = None
+    survivor_vcf_filename = None
+
+    # Create genome_files subdirectory in output directory
+    genome_files_dir = os.path.join(output_dir, "genome_files")
+
+    if not disable_igv:
+        print("\nPreparing IGV genome files...")
+
+        # Create genome_files directory
+        os.makedirs(genome_files_dir, exist_ok=True)
+
+        import shutil
+        import subprocess
+
+        copied_files = []
+
+        # Copy FASTA and generate .fai if needed
+        if fasta_path and os.path.exists(fasta_path):
+            fasta_filename = os.path.basename(fasta_path)
+            fasta_dest = os.path.join(genome_files_dir, fasta_filename)
+            fasta_fai_src = fasta_path + '.fai'
+            fasta_fai_dest = fasta_dest + '.fai'
+
+            # Copy FASTA
+            shutil.copy2(fasta_path, fasta_dest)
+            copied_files.append(fasta_dest)
+            print(f"  ✓ Copied: {fasta_filename}")
+
+            # Copy or generate .fai index
+            if os.path.exists(fasta_fai_src):
+                shutil.copy2(fasta_fai_src, fasta_fai_dest)
+                copied_files.append(fasta_fai_dest)
+                print(f"  ✓ Copied: {fasta_filename}.fai")
+            else:
+                print(f"  ⚠ Missing .fai index for {fasta_filename}")
+                print(f"    You can generate it with: samtools faidx {fasta_dest}")
+
+        # Copy BCF VCF and .tbi if needed
+        if bcf_vcf_path and os.path.exists(bcf_vcf_path):
+            bcf_vcf_filename = os.path.basename(bcf_vcf_path)
+            bcf_vcf_dest = os.path.join(genome_files_dir, bcf_vcf_filename)
+
+            shutil.copy2(bcf_vcf_path, bcf_vcf_dest)
+            copied_files.append(bcf_vcf_dest)
+            print(f"  ✓ Copied: {bcf_vcf_filename}")
+
+            # Copy .tbi if exists (for .gz files)
+            if bcf_vcf_path.endswith('.gz'):
+                tbi_src = bcf_vcf_path + '.tbi'
+                tbi_dest = bcf_vcf_dest + '.tbi'
+                if os.path.exists(tbi_src):
+                    shutil.copy2(tbi_src, tbi_dest)
+                    copied_files.append(tbi_dest)
+                    print(f"  ✓ Copied: {bcf_vcf_filename}.tbi")
+                else:
+                    print(f"  ⚠ Missing .tbi index for {bcf_vcf_filename}")
+                    print(f"    You can generate it with: tabix -p vcf {bcf_vcf_dest}")
+
+                # Also decompress to create uncompressed version for browser parsing
+                # (BGZF format not well supported by pako.js in browser)
+                uncompressed_filename = bcf_vcf_filename.replace('.gz', '')
+                uncompressed_dest = os.path.join(genome_files_dir, uncompressed_filename)
+                try:
+                    result = subprocess.run(
+                        ['gunzip', '-c', bcf_vcf_dest],
+                        capture_output=True,
+                        check=True
+                    )
+                    with open(uncompressed_dest, 'wb') as f:
+                        f.write(result.stdout)
+                    copied_files.append(uncompressed_dest)
+                    print(f"  ✓ Decompressed: {uncompressed_filename} (for browser table parsing)")
+                except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                    print(f"  ⚠ Could not decompress {bcf_vcf_filename}: {e}")
+                    print(f"    Browser will attempt to decompress in-browser (may be slow)")
+
+        # Copy SURVIVOR VCF
+        if survivor_vcf_path and os.path.exists(survivor_vcf_path):
+            survivor_vcf_filename = os.path.basename(survivor_vcf_path)
+            survivor_vcf_dest = os.path.join(genome_files_dir, survivor_vcf_filename)
+
+            shutil.copy2(survivor_vcf_path, survivor_vcf_dest)
+            copied_files.append(survivor_vcf_dest)
+            print(f"  ✓ Copied: {survivor_vcf_filename}")
+
+        print(f"\n📁 Genome files copied to: {os.path.abspath(genome_files_dir)}/")
+        print("  ℹ️  Use these files when uploading to the IGV browser in the HTML report")
+        print("  ℹ️  Variants will be dynamically loaded from VCF files in browser")
+
+        # Generate version ID based on file metadata (timestamps + sizes)
+        import hashlib
+        version_parts = []
+        for file_path in copied_files:
+            if os.path.exists(file_path):
+                stat = os.stat(file_path)
+                version_parts.append(f"{os.path.basename(file_path)}:{stat.st_mtime}:{stat.st_size}")
+
+        version_string = "|".join(sorted(version_parts))
+        file_version = hashlib.md5(version_string.encode()).hexdigest()[:16]
+        print(f"  ℹ️  Report version: {file_version}")
+    else:
+        file_version = None
+
+    # Read JavaScript files for embedding
+    indexeddb_manager_js = ""
+    igv_loader_js = ""
+    file_upload_ui_js = ""
+    vcf_parser_js = ""
+
+    if not disable_igv:
+        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        try:
+            with open(os.path.join(static_dir, "indexeddb-manager.js"), "r") as f:
+                indexeddb_manager_js = f.read()
+            with open(os.path.join(static_dir, "igv-indexeddb-loader.js"), "r") as f:
+                igv_loader_js = f.read()
+            with open(os.path.join(static_dir, "file-upload-ui.js"), "r") as f:
+                file_upload_ui_js = f.read()
+            with open(os.path.join(static_dir, "vcf-parser.js"), "r") as f:
+                vcf_parser_js = f.read()
+            print("Loaded IndexedDB and VCF parser JavaScript files")
+        except Exception as e:
+            print(f"Warning: Could not load JavaScript files: {e}")
+
     template = env.get_template("combined_report_template.html")
     rendered_html = template.render(
-        bcf_html=bcf_html,
-        survivor_html=survivor_html,
+        # IndexedDB + IGV.js data (NO variant JSON - loaded dynamically)
+        fasta_filename=fasta_filename,
+        bcf_vcf_filename=bcf_vcf_filename,
+        survivor_vcf_filename=survivor_vcf_filename,
+        file_version=file_version,
+        indexeddb_manager_js=indexeddb_manager_js,
+        igv_loader_js=igv_loader_js,
+        file_upload_ui_js=file_upload_ui_js,
+        vcf_parser_js=vcf_parser_js,
+        disable_igv=disable_igv,
+        # Original template variables
+        bcf_vcf_path=bcf_vcf_path,
+        survivor_vcf_path=survivor_vcf_path,
+        fasta_path=fasta_path,
+        bam_files=bam_files or [],
         bcf_summary=bcf_summary,
         survivor_summary=survivor_summary,
         survivor_stats=survivor_stats_html,
@@ -676,7 +879,6 @@ def generate_combined_report(
         reference_name=reference_name,
         bcf_variant_table_html=bcf_variant_table_html,
         survivor_variant_table_html=survivor_variant_table_html,
-        disable_igv=disable_igv,
     )
 
     with open(combined_report_file, "w") as f:

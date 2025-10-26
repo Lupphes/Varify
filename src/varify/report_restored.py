@@ -1,7 +1,6 @@
 import argparse
 import tempfile
 import json
-import os
 from typing import List, Optional, Tuple
 from jinja2 import Environment
 from igv_reports.report import create_report
@@ -18,38 +17,15 @@ def generate_report(
     info_columns: Optional[List[str]],
     sample_columns: Optional[List[str]],
     samples: Optional[List[str]],
-    output_dir: str,
 ) -> Tuple[str, str]:
     """
     Generates an IGV report using a custom template and track configuration.
-    Uses --no-embed mode with relative file paths for lightweight HTML files.
     Returns a tuple of (temporary_file_path, html_content)
     """
-    print(f"Generating IGV report for {title} with prefix='{prefix}' (no-embed mode)...")
+    print(f"Generating IGV report for {title} with prefix='{prefix}'...")
 
-    # Convert absolute paths to relative paths from output_dir
-    def make_relative(path: str) -> str:
-        """Convert absolute path to relative path from output directory."""
-        if not path:
-            return path
-        abs_output_dir = os.path.abspath(output_dir)
-        abs_path = os.path.abspath(path)
-        try:
-            return os.path.relpath(abs_path, abs_output_dir)
-        except ValueError:
-            # On Windows, relpath fails if paths are on different drives
-            return abs_path
-
-    # Use ABSOLUTE paths for igv-reports processing
-    main_vcf_abs = os.path.abspath(main_vcf)
-    second_vcf_abs = os.path.abspath(second_vcf) if second_vcf else None
-    genome_file_abs = os.path.abspath(genome_file)
-    bam_files_abs = [os.path.abspath(bam) for bam in (bam_files or [])]
-
-    # When using no_embed=True, we cannot use a custom template that expects @SESSION_DICTIONARY@
-    # Instead, let igv-reports use its default variant_template-noembed.html template
-    template_path = None  # Use default template for no-embed mode
-    track_config_path = _write_track_config(main_vcf_abs, second_vcf_abs, bam_files_abs, prefix)
+    template_path = _render_template(env, prefix)
+    track_config_path = _write_track_config(main_vcf, second_vcf, bam_files, prefix)
 
     # Create a temporary file for the report
     with tempfile.NamedTemporaryFile(
@@ -58,9 +34,9 @@ def generate_report(
         output_file = temp_file.name
 
     args = _build_igv_args(
-        main_vcf=main_vcf_abs,
-        second_vcf=second_vcf_abs if second_vcf else None,
-        genome_file=genome_file_abs,
+        main_vcf=main_vcf,
+        second_vcf=second_vcf if second_vcf else None,
+        genome_file=genome_file,
         output_file=output_file,
         title=title,
         template_path=template_path,
@@ -68,7 +44,6 @@ def generate_report(
         info_columns=info_columns,
         sample_columns=sample_columns,
         samples=samples,
-        no_embed=True,  # KEY CHANGE: Use no-embed mode with relative paths
     )
 
     create_report(args)
@@ -78,60 +53,7 @@ def generate_report(
     with open(output_file, "r") as f:
         html_content = f.read()
 
-    # Post-process HTML to convert absolute paths to relative paths
-    html_content = _convert_paths_to_relative(
-        html_content,
-        output_dir,
-        main_vcf_abs,
-        second_vcf_abs,
-        genome_file_abs,
-        bam_files_abs,
-    )
-
     return output_file, html_content
-
-
-def _convert_paths_to_relative(
-    html_content: str,
-    output_dir: str,
-    main_vcf: str,
-    second_vcf: Optional[str],
-    genome_file: str,
-    bam_files: List[str],
-) -> str:
-    """
-    Post-process HTML to convert absolute file paths to relative paths.
-    This allows the HTML to reference files using relative paths when opened.
-    """
-    abs_output_dir = os.path.abspath(output_dir)
-
-    def make_relative(abs_path: str) -> str:
-        try:
-            return os.path.relpath(abs_path, abs_output_dir)
-        except ValueError:
-            return abs_path
-
-    # Replace absolute paths with relative paths in HTML
-    html_content = html_content.replace(main_vcf, make_relative(main_vcf))
-
-    if second_vcf:
-        html_content = html_content.replace(second_vcf, make_relative(second_vcf))
-
-    html_content = html_content.replace(genome_file, make_relative(genome_file))
-
-    # Also replace the .fai index file
-    fai_file = genome_file + ".fai"
-    if os.path.exists(fai_file):
-        html_content = html_content.replace(fai_file, make_relative(fai_file))
-
-    for bam in bam_files:
-        html_content = html_content.replace(bam, make_relative(bam))
-        # Also replace .bai index files
-        bai_file = bam + ".bai"
-        if os.path.exists(bai_file):
-            html_content = html_content.replace(bai_file, make_relative(bai_file))
-
-    return html_content
 
 
 def _render_template(env: Environment, prefix: str) -> str:
@@ -183,7 +105,6 @@ def _build_igv_args(
     info_columns: Optional[List[str]],
     sample_columns: Optional[List[str]],
     samples: Optional[List[str]],
-    no_embed: bool = True,
 ) -> argparse.Namespace:
     return argparse.Namespace(
         sites=main_vcf,
@@ -211,7 +132,7 @@ def _build_igv_args(
         zero_based=None,
         idlink=None,
         exclude_flags=1536,
-        no_embed=no_embed,  # Now configurable, defaults to True
+        no_embed=False,
         subsample=None,
         maxlen=10000,
         translate_sequence_track=False,

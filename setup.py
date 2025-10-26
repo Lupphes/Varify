@@ -18,9 +18,8 @@ setup(
         "matplotlib==3.10.1",
         "seaborn==0.13.2",
         "numpy==2.2.4",
-        "igv-reports==1.14.1",
-        "kaleido==0.2.1",
-        "plotly==6.0.1",
+        "kaleido==1.1.0",
+        "plotly>=6.1.1",
         "scipy==1.15.2",
     ],
     entry_points={

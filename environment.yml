@@ -48,7 +48,8 @@ dependencies:
   - packaging=24.2=py312h06a4308_0
   - pandas=2.2.3=py312h6a678d5_0
   - pip=25.0=py312h06a4308_0
-  - plotly=6.0.1=pyhd8ed1ab_0
+  - plotly>=6.1.1
+  - kaleido=1.1.0
   - pysam=0.23.0=py312h47d5410_0
   - python=3.12.9=h9e4cc4f_1_cpython
   - python-dateutil=2.9.0post0=py312h06a4308_2

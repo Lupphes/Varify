@@ -6,7 +6,6 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from .parser import parse_vcf, parse_survivor_stats, parse_bcftools_stats, VcfType
-from .report import generate_report
 from .combine import generate_combined_report
 from .plots import (
     plot_sv_type_distribution,
@@ -47,8 +46,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report-file",
         required=False,
-        default="out/",
-        help="Path to save the combined HTML report",
+        default="varify_report.html",
+        help="Filename for the combined HTML report (saved in output_dir)",
     )
     parser.add_argument(
         "--profile", default="default", help="Profile run from the pipeline"
@@ -117,51 +116,19 @@ def generate_plots(
     }
 
 
-def process_vcf_and_generate_report(
-    env: Environment,
+def process_vcf(
     label: VcfType,
     vcf_path: str,
-    alt_vcf_path: str,
-    fasta: str,
-    bam_files: Optional[List[str]],
     output_dir: str,
-    disable_igv,
-) -> Tuple[pd.DataFrame, str]:
-    """Process VCF file and generate report. Returns DataFrame and HTML content."""
+) -> pd.DataFrame:
+    """Process VCF file and return DataFrame."""
     if not os.path.exists(vcf_path):
         raise FileNotFoundError(f"VCF file '{vcf_path}' does not exist.")
 
     df, info_columns = parse_vcf(vcf_path, label=label)
-
-    non_empty_info_columns = [
-        col for col in info_columns if col in df.columns and df[col].notna().any()
-    ]
-
     os.makedirs(output_dir, exist_ok=True)
 
-    if not disable_igv:
-        temp_file_path, html_content = generate_report(
-            env=env,
-            main_vcf=vcf_path,
-            second_vcf=alt_vcf_path,
-            genome_file=fasta,
-            bam_files=bam_files,
-            title=f"{label.value.upper()} Merge Report",
-            prefix=label.value,
-            info_columns=non_empty_info_columns,
-            sample_columns=None,
-            samples=None,
-        )
-
-        # Clean up the temporary file
-        try:
-            os.unlink(temp_file_path)
-        except Exception as e:
-            print(f"Warning: Could not delete temporary file {temp_file_path}: {e}")
-
-        return df, html_content
-
-    return df, ""
+    return df
 
 
 def main() -> None:
@@ -174,33 +141,23 @@ def main() -> None:
     )
 
     # Initialize defaults
-    bcf_df, bcf_html, bcf_stats, bcf_plots = None, None, None, None
-    survivor_df, survivor_html, survivor_stats, survivor_plots = None, None, None, None
+    bcf_df, bcf_stats, bcf_plots = None, None, None
+    survivor_df, survivor_stats, survivor_plots = None, None, None
 
     if args.bcf_vcf_file:
-        bcf_df, bcf_html = process_vcf_and_generate_report(
-            env,
+        bcf_df = process_vcf(
             VcfType.BCF,
             args.bcf_vcf_file,
-            args.survivor_vcf_file,
-            args.fasta_file,
-            args.bam_files,
             args.output_dir,
-            args.disable_igv,
         )
         bcf_stats = parse_bcftools_stats(args.bcf_stats_file)
         bcf_plots = generate_plots(bcf_df, "bcf", args.output_dir, label=VcfType.BCF)
 
     if args.survivor_vcf_file:
-        survivor_df, survivor_html = process_vcf_and_generate_report(
-            env,
+        survivor_df = process_vcf(
             VcfType.SURVIVOR,
             args.survivor_vcf_file,
-            args.bcf_vcf_file,
-            args.fasta_file,
-            args.bam_files,
             args.output_dir,
-            args.disable_igv,
         )
         survivor_stats = parse_survivor_stats(args.survivor_stats_file)
         survivor_plots = generate_plots(
@@ -210,8 +167,10 @@ def main() -> None:
     generate_combined_report(
         env=env,
         combined_report_file=os.path.join(args.output_dir, args.report_file),
-        bcf_html=bcf_html,
-        survivor_html=survivor_html,
+        bcf_vcf_path=args.bcf_vcf_file,
+        survivor_vcf_path=args.survivor_vcf_file,
+        fasta_path=args.fasta_file,
+        bam_files=args.bam_files,
         bcf_df=bcf_df,
         bcf_stats=bcf_stats,
         survivor_df=survivor_df,
