@@ -213,3 +213,4 @@ Thumbs.db
 html/
 backup/
 conda-build-output
+coverage/
