@@ -1,0 +1,8 @@
+##fileformat=VCFv4.2
+##contig=<ID=chr1,length=249250621>
+##contig=<ID=chr2,length=243199373>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr1	1000	.	N	<DEL>	.	PASS	SVTYPE=DEL
+chr1	2000	.	N	<INS>	.	PASS	SVTYPE=INS
+chr2	500	.	N	<DUP>	.	PASS	SVTYPE=DUP

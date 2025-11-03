@@ -1,0 +1,211 @@
+import os
+
+
+def generate_combined_report(
+    combined_report_file,
+    bcf_vcf_path,
+    survivor_vcf_path,
+    fasta_path,
+    bcf_df,
+    survivor_df,
+    profiles,
+    reference_name,
+    bcf_stats_file=None,
+    survivor_stats_file=None,
+):
+    """
+    Generate Varify report with metadata.json and pre-bundled HTML.
+
+    Stats files are copied to genome_files/ and parsed in browser (not in Python).
+    """
+
+    bcf_summary = (
+        {
+            "total_sv": len(bcf_df),
+            "unique_sv": bcf_df["SVTYPE"].nunique(),
+            "mqs": (
+                round(bcf_df["QUAL"].median(), 2) if not bcf_df["QUAL"].isna().all() else "N/A"
+            ),
+        }
+        if bcf_df is not None
+        else None
+    )
+
+    survivor_summary = (
+        {
+            "total_sv": len(survivor_df),
+            "unique_sv": survivor_df["SVTYPE"].nunique(),
+            "mqs": (
+                round(survivor_df["QUAL"].median(), 2)
+                if not survivor_df["QUAL"].isna().all()
+                else "N/A"
+            ),
+        }
+        if survivor_df is not None
+        else None
+    )
+
+    output_dir = os.path.dirname(combined_report_file)
+    if not output_dir:
+        output_dir = "."
+
+    fasta_filename = None
+    bcf_vcf_filename = None
+    survivor_vcf_filename = None
+
+    genome_files_dir = os.path.join(output_dir, "genome_files")
+
+    print("Copying genome files...")
+
+    os.makedirs(genome_files_dir, exist_ok=True)
+
+    import shutil
+
+    copied_files = []
+
+    source_files = []
+    if bcf_vcf_path and os.path.exists(bcf_vcf_path):
+        source_files.append(bcf_vcf_path)
+    if survivor_vcf_path and os.path.exists(survivor_vcf_path):
+        source_files.append(survivor_vcf_path)
+    if fasta_path and os.path.exists(fasta_path):
+        source_files.append(fasta_path)
+
+    bcf_stats_filename = None
+    survivor_stats_filename = None
+
+    if fasta_path and os.path.exists(fasta_path):
+        fasta_filename = os.path.basename(fasta_path)
+        fasta_dest = os.path.join(genome_files_dir, fasta_filename)
+        fasta_fai_src = fasta_path + ".fai"
+        fasta_fai_dest = fasta_dest + ".fai"
+
+        shutil.copy2(fasta_path, fasta_dest)
+        copied_files.append(fasta_dest)
+
+        if os.path.exists(fasta_fai_src):
+            shutil.copy2(fasta_fai_src, fasta_fai_dest)
+            copied_files.append(fasta_fai_dest)
+
+    if bcf_vcf_path and os.path.exists(bcf_vcf_path):
+        bcf_vcf_filename = os.path.basename(bcf_vcf_path)
+        bcf_vcf_dest = os.path.join(genome_files_dir, bcf_vcf_filename)
+
+        if os.path.exists(bcf_vcf_dest):
+            copied_files.append(bcf_vcf_dest)
+        else:
+            shutil.copy2(bcf_vcf_path, bcf_vcf_dest)
+            copied_files.append(bcf_vcf_dest)
+
+        if bcf_vcf_path.endswith(".gz"):
+            tbi_src = bcf_vcf_path + ".tbi"
+            tbi_dest = bcf_vcf_dest + ".tbi"
+            if os.path.exists(tbi_dest):
+                copied_files.append(tbi_dest)
+            elif os.path.exists(tbi_src):
+                shutil.copy2(tbi_src, tbi_dest)
+                copied_files.append(tbi_dest)
+
+            uncompressed_filename = bcf_vcf_filename.replace(".gz", "")
+            uncompressed_dest = os.path.join(genome_files_dir, uncompressed_filename)
+            if os.path.exists(uncompressed_dest):
+                copied_files.append(uncompressed_dest)
+
+    if survivor_vcf_path and os.path.exists(survivor_vcf_path):
+        survivor_vcf_filename = os.path.basename(survivor_vcf_path)
+        survivor_vcf_dest = os.path.join(genome_files_dir, survivor_vcf_filename)
+
+        if os.path.exists(survivor_vcf_dest):
+            copied_files.append(survivor_vcf_dest)
+        else:
+            shutil.copy2(survivor_vcf_path, survivor_vcf_dest)
+            copied_files.append(survivor_vcf_dest)
+
+        if survivor_vcf_filename.endswith(".gz"):
+            survivor_tbi_src = f"{survivor_vcf_path}.tbi"
+            survivor_tbi_dest = os.path.join(genome_files_dir, f"{survivor_vcf_filename}.tbi")
+            if os.path.exists(survivor_tbi_dest):
+                copied_files.append(survivor_tbi_dest)
+            elif os.path.exists(survivor_tbi_src):
+                shutil.copy2(survivor_tbi_src, survivor_tbi_dest)
+                copied_files.append(survivor_tbi_dest)
+
+            uncompressed_filename = survivor_vcf_filename.replace(".gz", "")
+            uncompressed_dest = os.path.join(genome_files_dir, uncompressed_filename)
+            if os.path.exists(uncompressed_dest):
+                copied_files.append(uncompressed_dest)
+
+    if bcf_stats_file and os.path.exists(bcf_stats_file):
+        bcf_stats_filename = os.path.basename(bcf_stats_file)
+        bcf_stats_dest = os.path.join(genome_files_dir, bcf_stats_filename)
+        shutil.copy2(bcf_stats_file, bcf_stats_dest)
+        copied_files.append(bcf_stats_dest)
+
+    if survivor_stats_file and os.path.exists(survivor_stats_file):
+        survivor_stats_filename = os.path.basename(survivor_stats_file)
+        survivor_stats_dest = os.path.join(genome_files_dir, survivor_stats_filename)
+        shutil.copy2(survivor_stats_file, survivor_stats_dest)
+        copied_files.append(survivor_stats_dest)
+
+    import hashlib
+    import json
+    import datetime
+
+    version_parts = []
+    for file_path in source_files:
+        if os.path.exists(file_path):
+            stat = os.stat(file_path)
+            version_parts.append(f"{os.path.basename(file_path)}:{stat.st_mtime}:{stat.st_size}")
+
+    version_string = "|".join(sorted(version_parts))
+    file_version = hashlib.md5(version_string.encode()).hexdigest()[:16]
+
+    metadata = {
+        "generated_on": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "profiles": profiles,
+        "reference_name": reference_name,
+        "file_version": file_version,
+        "fasta_filename": fasta_filename,
+        "bcf": (
+            {
+                "summary": bcf_summary,
+                "vcf_filename": bcf_vcf_filename,
+                "stats_filename": bcf_stats_filename,
+            }
+            if bcf_summary
+            else None
+        ),
+        "survivor": (
+            {
+                "summary": survivor_summary,
+                "vcf_filename": survivor_vcf_filename,
+                "stats_filename": survivor_stats_filename,
+            }
+            if survivor_summary
+            else None
+        ),
+    }
+
+    package_dir = os.path.dirname(os.path.dirname(__file__))
+    prebundled_html_path = os.path.join(package_dir, "dist", "report.html")
+
+    if not os.path.exists(prebundled_html_path):
+        project_root = os.path.dirname(os.path.dirname(package_dir))
+        prebundled_html_path = os.path.join(project_root, "dist", "report.html")
+
+    try:
+        with open(prebundled_html_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+    except FileNotFoundError:
+        print(f"ERROR: Pre-bundled HTML not found at: {prebundled_html_path}")
+        print(f"Please run: npm run build:report")
+        raise
+
+    metadata_json = json.dumps(metadata, ensure_ascii=False)
+    html_content = html_content.replace("<!-- REPORT_METADATA -->", metadata_json)
+
+    with open(combined_report_file, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    print(f"Report: {combined_report_file}")
+    print(f"Genome files: {len(copied_files)} files -> {genome_files_dir}/")

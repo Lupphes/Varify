@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Varify - Structural Variant Report</title>
+
+    <!-- BUNDLE_CSS -->
+  </head>
+
+  <body class="bg-gray-50 text-gray-800 font-sans antialiased">
+    <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
+      <div class="container mx-auto px-6 py-8">
+        <h1 class="text-4xl font-bold">Varify</h1>
+        <p class="text-blue-100 mt-2">Structural Variant Analysis Report</p>
+        <p class="text-sm mt-3 text-blue-200" id="header-metadata">Loading report information...</p>
+      </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-6">
+      <div class="bg-white rounded-lg shadow-md mb-6 p-4 flex flex-wrap items-center gap-4">
+        <div class="flex gap-2 flex-1">
+          <button id="tab-bcf" class="tab-button active">
+            <svg
+              class="w-5 h-5 inline-block mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+            BCFtools
+          </button>
+          <button id="tab-survivor" class="tab-button">
+            <svg
+              class="w-5 h-5 inline-block mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+            SURVIVOR
+          </button>
+        </div>
+
+        <div class="flex gap-3">
+          <div
+            class="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200"
+          >
+            <svg
+              class="w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+              ></path>
+            </svg>
+            <span class="text-sm text-gray-600" id="cache-status-text">Checking cache...</span>
+            <span class="text-sm text-gray-500" id="cache-size-text"></span>
+          </div>
+
+          <button id="load-data-btn" class="btn-primary">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+              ></path>
+            </svg>
+            Load Data
+          </button>
+
+          <button id="clear-cache-btn" class="btn-danger">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              ></path>
+            </svg>
+            Clear Cache
+          </button>
+        </div>
+      </div>
+
+      <div id="bcf-tab-content" class="tab-content active">
+        <div id="bcf-empty-state"></div>
+
+        <div id="bcf-content" class="hidden">
+          <div id="bcf-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+
+          <div class="grid grid-cols-1 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <h2 class="section-header">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  ></path>
+                </svg>
+                BCF Variants Table
+              </h2>
+
+              <div
+                id="filter-controls-bcf"
+                class="flex flex-wrap gap-2 mb-4 items-center text-sm"
+              ></div>
+
+              <div class="export-controls mb-4 flex gap-2">
+                <button id="export-csv-bcf" class="btn-secondary text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    ></path>
+                  </svg>
+                  Export to CSV
+                </button>
+                <button id="export-vcf-bcf" class="btn-secondary text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    ></path>
+                  </svg>
+                  Export to VCF
+                </button>
+              </div>
+
+              <div id="bcf-component-loading" class="relative" style="display: none">
+                <div
+                  class="absolute inset-0 bg-white bg-opacity-95 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg"
+                >
+                  <div class="text-center">
+                    <div
+                      class="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
+                    ></div>
+                    <p id="bcf-component-status" class="text-gray-700 font-medium">Loading...</p>
+                    <p id="bcf-component-time" class="text-gray-500 text-sm mt-2"></p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                id="bcf-table-container"
+                class="ag-theme-alpine"
+                style="height: 500px; width: 100%"
+              ></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <h2 class="section-header">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  ></path>
+                </svg>
+                IGV Genome Browser
+              </h2>
+              <p class="text-sm text-gray-600 mb-4">
+                Click on any variant in the table to navigate the genome browser to that locus.
+              </p>
+              <div id="bcf-igv-div" style="height: 400px"></div>
+            </div>
+          </div>
+
+          <details class="mb-6" open>
+            <summary class="text-lg">
+              <svg
+                class="w-5 h-5 inline-block mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                ></path>
+              </svg>
+              Charts & Visualizations
+            </summary>
+            <div>
+              <p class="text-sm text-gray-600 mb-4">
+                Click on any plot element to filter the variant table. Charts update dynamically
+                based on table filters.
+              </p>
+              <div id="bcf-charts-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+            </div>
+          </details>
+
+          <details class="mb-6">
+            <summary class="text-lg">
+              <svg
+                class="w-5 h-5 inline-block mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                ></path>
+              </svg>
+              BCFtools Statistics
+            </summary>
+            <div id="bcf-stats-container" class="bg-gray-50">
+              <div class="p-8 text-center text-gray-500">
+                <p>Loading statistics...</p>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div id="survivor-tab-content" class="tab-content">
+        <div id="survivor-empty-state"></div>
+
+        <div id="survivor-content" class="hidden">
+          <div id="survivor-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+
+          <div class="grid grid-cols-1 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <h2 class="section-header">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  ></path>
+                </svg>
+                SURVIVOR Variants Table
+              </h2>
+
+              <div
+                id="filter-controls-survivor"
+                class="flex flex-wrap gap-2 mb-4 items-center text-sm"
+              >
+                <label
+                  class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    id="survivor-multi-caller-filter"
+                    class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    onchange="toggleMultiCallerFilter(this.checked)"
+                  />
+                  <span class="font-medium">Match ANY caller</span>
+                  <svg
+                    class="w-4 h-4 text-blue-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    title="When enabled, variants match the filter if ANY caller meets the criteria. When disabled, only the primary caller is checked."
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clip-rule="evenodd"
+                    ></path>
+                  </svg>
+                </label>
+              </div>
+
+              <div class="export-controls mb-4 flex gap-2">
+                <button id="export-csv-survivor" class="btn-secondary text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    ></path>
+                  </svg>
+                  Export to CSV
+                </button>
+                <button id="export-vcf-survivor" class="btn-secondary text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    ></path>
+                  </svg>
+                  Export to VCF
+                </button>
+              </div>
+
+              <div id="survivor-component-loading" class="relative" style="display: none">
+                <div
+                  class="absolute inset-0 bg-white bg-opacity-95 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg"
+                >
+                  <div class="text-center">
+                    <div
+                      class="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
+                    ></div>
+                    <p id="survivor-component-status" class="text-gray-700 font-medium">
+                      Loading...
+                    </p>
+                    <p id="survivor-component-time" class="text-gray-500 text-sm mt-2"></p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                id="survivor-table-container"
+                class="ag-theme-alpine"
+                style="height: 500px; width: 100%"
+              ></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <h2 class="section-header">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  ></path>
+                </svg>
+                IGV Genome Browser
+              </h2>
+              <p class="text-sm text-gray-600 mb-4">
+                Click on any variant in the table to navigate the genome browser to that locus.
+              </p>
+              <div id="survivor-igv-div" style="height: 400px"></div>
+            </div>
+          </div>
+
+          <details class="mb-6" open>
+            <summary class="text-lg">
+              <svg
+                class="w-5 h-5 inline-block mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                ></path>
+              </svg>
+              Charts & Visualizations
+            </summary>
+            <div>
+              <p class="text-sm text-gray-600 mb-4">
+                Click on any plot element to filter the variant table. Charts update dynamically
+                based on table filters.
+              </p>
+              <div
+                id="survivor-charts-container"
+                class="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              ></div>
+            </div>
+          </details>
+
+          <details class="mb-6">
+            <summary class="text-lg">
+              <svg
+                class="w-5 h-5 inline-block mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                ></path>
+              </svg>
+              SURVIVOR Statistics
+            </summary>
+            <div id="survivor-stats-container" class="bg-gray-50">
+              <div class="p-8 text-center text-gray-500">
+                <p>Loading statistics...</p>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="loading-indicator"
+      class="fixed inset-0 z-[99999] hidden transition-opacity duration-300"
+    >
+      <div
+        class="absolute inset-0"
+        style="background-color: rgba(0, 0, 0, 0.3); backdrop-filter: blur(4px)"
+      ></div>
+      <div class="relative w-full h-full flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-md">
+          <div
+            class="w-20 h-20 border-8 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-8"
+          ></div>
+          <p id="loading-text" class="text-2xl font-semibold text-gray-800 mb-3">Loading...</p>
+          <p class="text-gray-500">Please wait while we prepare your data</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bg-gray-100 border-t border-gray-200 py-8 mt-12">
+      <div class="container mx-auto px-6 text-center">
+        <p class="text-sm text-gray-600">
+          © 2025 Varify — GPL-3.0-or-later. Created by
+          <span class="font-semibold text-gray-800">Ondřej Lupphes Sloup</span>.
+        </p>
+      </div>
+    </footer>
+
+    <!-- Report Metadata (injected by Python) -->
+    <script>
+      window.REPORT_METADATA = <!-- REPORT_METADATA -->;
+    </script>
+
+    <!-- Bundled JavaScript (injected at build time) -->
+    <!-- BUNDLE_JS -->
+  </body>
+</html>

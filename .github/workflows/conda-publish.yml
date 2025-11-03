@@ -14,22 +14,49 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-minor-version: [10]
+        python-version: ['3.12']
 
     steps:
-      # ✅ Step 1: Checkout code
+      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ✅ Step 2: Build and publish Conda package
-      - name: Build and Publish Conda Package
-        uses: openalea/action-build-publish-anaconda@v0.1.5
+      # Step 2: Setup Conda/Mamba
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          conda: conda
-          mamba: false
-          python: ${{ matrix.python-minor-version }}
-          numpy: '22' # Optional; works with Python version
-          channels: bioconda,conda-forge,defaults
-          token: ${{ secrets.ANACONDA_TOKEN }}
-          publish: true
-          label: main
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge,bioconda,defaults
+          channel-priority: strict
+
+      # Step 3: Install conda-build
+      - name: Install conda-build
+        run: |
+          conda install -y conda-build anaconda-client
+          conda build --version
+
+      # Step 4: Setup Node.js for building JavaScript assets
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Step 5: Build JavaScript assets (REQUIRED for v3.0.0+)
+      - name: Build JavaScript assets
+        run: |
+          npm install
+          npm run build:report
+          ls -lh dist/report.html  # Verify file was created
+
+      # Step 6: Build Conda package
+      - name: Build Conda package
+        run: |
+          conda build conda/ --output-folder ./conda-bld -c conda-forge -c bioconda
+
+      # Step 7: Publish to Anaconda.org
+      - name: Upload to Anaconda
+        if: success()
+        run: |
+          anaconda -t ${{ secrets.ANACONDA_TOKEN }} upload --force ./conda-bld/noarch/varify-*.conda

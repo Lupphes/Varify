@@ -1,0 +1,15 @@
+/**
+ * Varify CSS Entry Point
+ *
+ * This imports all CSS needed for the report, including:
+ * - Tailwind CSS (with tree-shaking)
+ * - AG-Grid styles (base and theme)
+ * - Custom Varify styles
+ *
+ * This file is used as the CSS entry point in build-report.js
+ */
+
+@import "./tailwind.css";
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-alpine.css";
+@import "./varify-report.css";

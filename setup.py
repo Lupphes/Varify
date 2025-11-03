@@ -2,29 +2,32 @@ from setuptools import setup, find_packages
 
 setup(
     name="varify",
-    version="0.2.8",
+    version="3.0.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
     package_data={
-        "varify": ["templates/*.html"],
+        "varify": [
+            "templates/*.html",
+            "dist/*.html",
+            "dist/*.js",
+            "dist/*.css",
+        ],
     },
     install_requires=[
-        "setuptools>=65.0",
+        "numpy==2.2.4",
         "pandas==2.2.3",
         "pysam==0.23.0",
         "vcfpy==0.13.8",
-        "jinja2==3.1.6",
-        "matplotlib==3.10.1",
-        "seaborn==0.13.2",
-        "numpy==2.2.4",
-        "kaleido==1.1.0",
-        "plotly>=6.1.1",
-        "scipy==1.15.2",
+        "python-dateutil==2.9.0.post0",
+        "pytz==2025.2",
+        "six==1.17.0",
+        "tzdata==2025.2",
+        "setuptools==80.9.0",
     ],
     entry_points={
         "console_scripts": [
-            "varify=varify.varify:main",
+            "varify=varify.cli:main",
         ]
     },
     python_requires=">=3.10",

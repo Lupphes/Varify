@@ -1,0 +1,7 @@
+##fileformat=VCFv4.2
+##contig=<ID=NC_001133.9,length=230218>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+NC_001133.9	1000	.	N	<DEL>	.	PASS	SVTYPE=DEL;SVLEN=-500

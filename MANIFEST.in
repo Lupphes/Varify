@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+
+include package.json
+include build-report.js
+include postcss.config.js
+include tailwind.config.js
+
+recursive-include src/varify/templates *.html
+
+recursive-include dist *.html *.js *.css
+
+recursive-exclude dist test_*.html

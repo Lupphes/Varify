@@ -1,19 +1,34 @@
-# Use an official Python base image
+# Build JavaScript assets
+FROM node:18-slim AS builder
+
+WORKDIR /build
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+COPY src/ ./src/
+COPY build-report.js postcss.config.cjs ./
+
+RUN npm run build:report
+
+# Python runtime
 FROM python:3.12-slim
 
-# Set environment variables to reduce buffer issues and improve logging
 ENV PYTHONUNBUFFERED=1
 
-# Install bash and curl (and clean up after to keep the image small)
 RUN apt-get update && \
     apt-get install -y procps bash curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Set working directory inside the container
 WORKDIR /app
 
-# Copy the entire source code into the container
-COPY . /app
+COPY src/ ./src/
+COPY setup.py pyproject.toml MANIFEST.in README.md LICENSE ./
 
-# Install the package using setup.py
-RUN pip install --no-cache-dir .
+COPY --from=builder /build/dist ./dist
+
+RUN cp -r dist src/varify/dist
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir . && \
+    pip list

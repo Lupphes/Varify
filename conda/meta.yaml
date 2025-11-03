@@ -1,14 +1,23 @@
 package:
   name: varify
-  version: "0.2.8"
+  version: "3.0.0"
 
 source:
   path: ..
 
 build:
   noarch: python
-  number: 1
-  script: "{{ PYTHON }} -m pip install . -vv"
+  number: 0
+  script: |
+    # Check if pre-bundled assets exist (critical for HTML generation)
+    if [ ! -f dist/report.html ]; then
+      echo "ERROR: dist/report.html not found!"
+      echo "Please run 'npm run build:report' before building the conda package"
+      exit 1
+    fi
+    # Copy dist into src/varify for package inclusion
+    cp -r dist src/varify/dist
+    {{ PYTHON }} -m pip install . -vv
 
 requirements:
   host:
@@ -17,18 +26,15 @@ requirements:
     - setuptools
   run:
     - python>=3.10,<3.13
-    - pandas=2.2.3
-    - setuptools
-    - bioconda::pysam=0.23.0
-    - bioconda::vcfpy=0.13.8
-    - conda-forge::jinja2=3.1.6
-    - conda-forge::matplotlib=3.10.1
-    - conda-forge::seaborn=0.13.2
-    - conda-forge::numpy=2.2.4
-    - conda-forge::plotly=6.0.1
-    - conda-forge::python-kaleido=0.2.1
-    - bioconda::igv-reports=1.14.1
-    - conda-forge::scipy=1.15.2
+    - conda-forge::numpy>=2.2.0
+    - pandas>=2.2.0
+    - bioconda::pysam>=0.23.0
+    - bioconda::vcfpy>=0.13.8
+    - python-dateutil>=2.9.0
+    - pytz>=2025.0
+    - six>=1.17.0
+    - tzdata>=2025a
+    - setuptools>=80.0.0
 
 test:
   commands:

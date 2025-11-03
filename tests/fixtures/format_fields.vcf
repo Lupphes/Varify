@@ -1,0 +1,8 @@
+##fileformat=VCFv4.2
+##contig=<ID=NC_001133.9,length=230218>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1
+NC_001133.9	1000	.	N	<DEL>	.	PASS	SVTYPE=DEL	GT:DP:GQ	./.:0:0

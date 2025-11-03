@@ -1,0 +1,8 @@
+node_modules
+dist
+out_test
+*.min.js
+*.bundle.js
+coverage
+html
+.git

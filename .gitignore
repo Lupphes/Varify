@@ -194,3 +194,23 @@ output_concat/
 
 .history/
 out/
+test_*/
+
+# JavaScript / Node.js
+node_modules/
+dist/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+html/
+backup/
+conda-build-output
