@@ -9,7 +9,7 @@ RUN npm install
 COPY src/ ./src/
 COPY build-report.js postcss.config.cjs ./
 
-RUN npm run build:report
+RUN npm run build:package
 
 # Python runtime
 FROM python:3.12-slim
@@ -25,9 +25,7 @@ WORKDIR /app
 COPY src/ ./src/
 COPY setup.py pyproject.toml MANIFEST.in README.md LICENSE ./
 
-COPY --from=builder /build/dist ./dist
-
-RUN cp -r dist src/varify/dist
+COPY --from=builder /build/src/varify/dist ./src/varify/dist
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir . && \
