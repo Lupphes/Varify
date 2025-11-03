@@ -7,6 +7,7 @@
     "build": "node build-report.js",
     "build:quick": "esbuild src/varify/assets/js/index.js --bundle --outfile=dist/bundle.js --format=iife --global-name=Varify --minify --main-fields=module,main",
     "build:report": "node build-report.js",
+    "build:package": "node build-report.js --package",
     "dev": "esbuild src/varify/assets/js/index.js --bundle --outfile=dist/bundle.js --format=iife --global-name=Varify --watch --main-fields=module,main",
     "test": "vitest",
     "test:ui": "vitest --ui",

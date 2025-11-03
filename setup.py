@@ -1,29 +1,21 @@
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
 import os
-import shutil
 
 
 class BuildWithAssets(build_py):
-    """Custom build command that copies web assets to package directory."""
+    """Custom build command that web assets are in package directory."""
 
     def run(self):
         project_root = os.path.dirname(os.path.abspath(__file__))
-        source_dist = os.path.join(project_root, "dist")
         target_dist = os.path.join(project_root, "src", "varify", "dist")
 
-        os.makedirs(target_dist, exist_ok=True)
-
         for filename in ["bundle.js", "bundle.css"]:
-            source_file = os.path.join(source_dist, filename)
             target_file = os.path.join(target_dist, filename)
 
-            if os.path.exists(source_file):
-                shutil.copy2(source_file, target_file)
-                print(f"Copied {filename} to package directory")
-            else:
-                print(f"Warning: {filename} not found at {source_file}")
-                print("Run 'npm run build:report' to generate bundles")
+            if not os.path.exists(target_file):
+                print(f"Warning: {filename} not found at {target_file}")
+                print("Run 'npm install && npm run build:package' to generate bundles")
 
         build_py.run(self)
 

@@ -47,8 +47,8 @@ jobs:
       - name: Build JavaScript assets
         run: |
           npm install
-          npm run build:report
-          ls -lh dist/report.html  # Verify file was created
+          npm run build:package
+          ls -lh src/varify/dist/
 
       # Step 6: Build Conda package
       - name: Build Conda package
