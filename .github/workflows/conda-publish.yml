@@ -32,9 +32,11 @@ jobs:
 
       # Step 3: Install conda-build
       - name: Install conda-build
+        shell: bash -el {0}
         run: |
           conda install -y conda-build anaconda-client
           conda build --version
+          anaconda --version
 
       # Step 4: Setup Node.js for building JavaScript assets
       - name: Setup Node.js
@@ -52,11 +54,13 @@ jobs:
 
       # Step 6: Build Conda package
       - name: Build Conda package
+        shell: bash -el {0}
         run: |
           conda build conda/ --output-folder ./conda-bld -c conda-forge -c bioconda
 
       # Step 7: Publish to Anaconda.org
       - name: Upload to Anaconda
         if: success()
+        shell: bash -el {0}
         run: |
           anaconda -t ${{ secrets.ANACONDA_TOKEN }} upload --force ./conda-bld/noarch/varify-*.conda
