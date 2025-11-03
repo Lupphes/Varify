@@ -184,11 +184,30 @@ export class TabManager {
     const plotsComponent = window[`${tabId}Plots`];
     if (plotsComponent && plotsComponent.charts) {
       logger.debug(`Resizing ${plotsComponent.charts.size} charts in ${tabId} tab`);
-      plotsComponent.charts.forEach((chart, chartId) => {
-        if (chart && typeof chart.resize === "function") {
-          chart.resize();
+
+      const chartArray = Array.from(plotsComponent.charts.values());
+
+      const batchSize = 3;
+      let index = 0;
+
+      const resizeBatch = () => {
+        const end = Math.min(index + batchSize, chartArray.length);
+
+        for (let i = index; i < end; i++) {
+          const chart = chartArray[i];
+          if (chart && typeof chart.resize === "function") {
+            chart.resize();
+          }
         }
-      });
+
+        index = end;
+
+        if (index < chartArray.length) {
+          requestAnimationFrame(resizeBatch);
+        }
+      };
+
+      requestAnimationFrame(resizeBatch);
     }
   }
 

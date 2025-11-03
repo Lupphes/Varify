@@ -33,6 +33,15 @@ export class VariantQuery {
 
       let indexName = VariantFilter.selectBestIndex(filters);
 
+      // For SURVIVOR variants in multi-caller mode with SVTYPE filter:
+      // Disable SVTYPE index to check TY field in each caller (not just primary)
+      if (multiCallerMode && indexName === "SVTYPE" && storeName.includes("survivor")) {
+        logger.debug(
+          `Multi-caller mode + SVTYPE filter: Disabling SVTYPE index to check TY in all callers`
+        );
+        indexName = null;
+      }
+
       if (multiCallerMode && indexName) {
         const index = objectStore.index(indexName);
         const indexPath = index.keyPath;
@@ -134,11 +143,13 @@ export class VariantQuery {
    * Get count of variants matching filters
    * @param {string} prefix - 'bcf' or 'survivor'
    * @param {Object} filters - Filter object
+   * @param {Object} options - { multiCallerMode: false }
    * @returns {Promise<number>}
    */
-  async getVariantCount(prefix, filters = {}) {
+  async getVariantCount(prefix, filters = {}, options = {}) {
     const db = await this.dbManager.getDB();
     const storeName = this.dbManager.getVariantStoreName(prefix);
+    const { multiCallerMode = false } = options;
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], "readonly");
@@ -162,7 +173,7 @@ export class VariantQuery {
           return;
         }
 
-        if (VariantFilter.matchesFilters(cursor.value, filters)) {
+        if (VariantFilter.matchesFilters(cursor.value, filters, multiCallerMode)) {
           count++;
         }
 

@@ -105,8 +105,8 @@ class IndexedDBManager {
     return this.variantQuery.queryVariants(prefix, filters, options);
   }
 
-  async getVariantCount(prefix, filters = {}) {
-    return this.variantQuery.getVariantCount(prefix, filters);
+  async getVariantCount(prefix, filters = {}, options = {}) {
+    return this.variantQuery.getVariantCount(prefix, filters, options);
   }
 
   get storeName() {

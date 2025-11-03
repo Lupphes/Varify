@@ -163,7 +163,9 @@ export class ReportInitializer {
 
     const clearCacheBtn = document.getElementById("clear-cache-btn");
     if (clearCacheBtn) {
-      clearCacheBtn.addEventListener("click", () => this.clearCacheAndDatabase());
+      clearCacheBtn.addEventListener("click", () => {
+        setTimeout(() => this.clearCacheAndDatabase(), 0);
+      });
     }
   }
 
@@ -489,16 +491,10 @@ export class ReportInitializer {
     try {
       await this.genomeDBManager.deleteDatabase();
 
-      this.dataLoaded = false;
-      this.tabManager.resetAllTabs();
-      this.setupEmptyStates();
-
       const statusText = document.getElementById("cache-status-text");
-      const sizeText = document.getElementById("cache-size-text");
       if (statusText) statusText.textContent = "Cache cleared!";
-      if (sizeText) sizeText.textContent = "";
 
-      setTimeout(() => location.reload(), 1000);
+      location.reload();
     } catch (error) {
       logger.error("Clear cache error:", error);
       alert(`Failed to clear cache: ${error.message}`);

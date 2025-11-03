@@ -97,10 +97,10 @@ export class VariantFilter {
     for (const [field, filter] of Object.entries(filters)) {
       const value = variant[field];
 
-      // For SURVIVOR multi-caller mode, check if ANY caller matches
+      // For SURVIVOR variants with _allCallers in multi-caller mode, check if ANY caller matches
       // Special handling for certain fields:
-      // - SVTYPE maps to TY field in each caller
-      // - FORMAT fields (GQ, DP, etc.) check in _allCallers directly
+      // - SVTYPE maps to TY field in each caller (when multiCallerMode is enabled)
+      // - FORMAT fields (GQ, DP, etc.) check in _allCallers when multiCallerMode is enabled
       // - INFO fields (NUM_CALLERS, CHROM, POS) use variant-level filtering
       if (multiCallerMode && variant._allCallers && variant._allCallers.length > 0) {
         // Special case: SVTYPE should check TY field in each caller

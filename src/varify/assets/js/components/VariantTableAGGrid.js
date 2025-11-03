@@ -17,9 +17,11 @@ import { FORMAT_FIELD_PRIORITY, COLUMN_PRIORITY_ORDER, COLUMN_WIDTHS } from "../
 import { UI_COLORS as THEME } from "../config/colors.js";
 import { CallerDetailsModal } from "./table/CallerDetailsModal.js";
 import { TableExporter } from "./table/TableExporter.js";
+import { MetadataService } from "../services/MetadataService.js";
 import { LoggerService } from "../utils/LoggerService.js";
 
 const logger = new LoggerService("VariantTableAGGrid");
+const metadataService = new MetadataService();
 
 export class VariantTableAGGrid {
   constructor(vcfParser, genomeDBManager, plotsComponent = null) {
@@ -258,26 +260,48 @@ export class VariantTableAGGrid {
   }
 
   configureColumnFilter(colDef, metadata) {
-    if (metadata.type === "numeric") {
+    if (colDef.field === "SVTYPE") {
+      const valuesArray = metadataService.getUniqueValues(metadata);
+
+      if (valuesArray.length > 0) {
+        colDef.filter = "categoricalFilter";
+        colDef.floatingFilter = true;
+        colDef.floatingFilterComponent = "categoricalFloatingFilter";
+        colDef.filterParams = {
+          uniqueValues: valuesArray,
+        };
+        colDef.minWidth = 150;
+        colDef.width = 200;
+        colDef.headerTooltip = `SV Type (categorical). Values: ${valuesArray.join(", ")}`;
+        return;
+      }
+    }
+
+    if (metadataService.isNumericField(metadata)) {
       colDef.filter = "agNumberColumnFilter";
       colDef.filterParams = {
         filterOptions: ["greaterThan", "lessThan", "inRange", "equals"],
         maxNumConditions: 1,
       };
-    } else if (
-      metadata.type === "categorical" &&
-      metadata.uniqueValues &&
-      metadata.uniqueValues.length < 20
-    ) {
-      colDef.filter = "categoricalFilter";
-      colDef.floatingFilter = true;
-      colDef.floatingFilterComponent = "categoricalFloatingFilter";
-      colDef.filterParams = {
-        uniqueValues: metadata.uniqueValues,
-      };
-      colDef.minWidth = 150;
-      colDef.width = 200;
-      colDef.headerTooltip = `Categorical field. Values: ${metadata.uniqueValues.join(", ")}`;
+    } else if (metadataService.isCategoricalField(metadata)) {
+      const valuesArray = metadataService.getUniqueValues(metadata);
+
+      if (valuesArray.length > 0 && valuesArray.length < 20) {
+        colDef.filter = "categoricalFilter";
+        colDef.floatingFilter = true;
+        colDef.floatingFilterComponent = "categoricalFloatingFilter";
+        colDef.filterParams = {
+          uniqueValues: valuesArray,
+        };
+        colDef.minWidth = 150;
+        colDef.width = 200;
+        colDef.headerTooltip = `Categorical field. Values: ${valuesArray.join(", ")}`;
+      } else {
+        colDef.filter = "agTextColumnFilter";
+        colDef.filterParams = {
+          maxNumConditions: 1,
+        };
+      }
     } else {
       colDef.filter = "agTextColumnFilter";
       colDef.filterParams = {
@@ -422,7 +446,9 @@ export class VariantTableAGGrid {
             multiCallerMode: multiCallerMode,
           });
 
-          const totalCount = await this.genomeDBManager.getVariantCount(prefix, filters);
+          const totalCount = await this.genomeDBManager.getVariantCount(prefix, filters, {
+            multiCallerMode: multiCallerMode,
+          });
 
           logger.debug(`Retrieved ${variants.length} variants (total: ${totalCount})`);
 
