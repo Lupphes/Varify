@@ -10,8 +10,10 @@ Delegates to caller classes for caller-specific processing:
 Uses the AbstractVariantCaller interface for extensibility.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 import vcfpy
+
 from ..callers.base import AbstractVariantCaller
 
 

@@ -4,6 +4,7 @@ Tests for SURVIVOR VCF Type Handler.
 
 import pytest
 import vcfpy
+
 from src.varify.core.vcf_types.survivor import SURVIVORHandler
 from tests.doubles import FakeVcfRecord
 

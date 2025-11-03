@@ -6,8 +6,9 @@ Handles bcftools merge output format:
 - Requires SUPP_CALLERS aggregation (multiple records per variant)
 """
 
-from typing import Dict, Any, Optional
-from .base import VcfTypeHandler, VcfRecordType
+from typing import Any, Dict, Optional
+
+from .base import VcfRecordType, VcfTypeHandler
 
 
 class BCFHandler(VcfTypeHandler):

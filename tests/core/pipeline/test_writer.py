@@ -3,13 +3,14 @@ Tests for VcfWriter - Enriched VCF file writing.
 
 """
 
-import pytest
 import os
-import pandas as pd
-import vcfpy
-import pysam
 
-from src.varify.core.pipeline.writer import VcfWriter, WRITABLE_INFO_FIELDS
+import pandas as pd
+import pysam
+import pytest
+import vcfpy
+
+from src.varify.core.pipeline.writer import WRITABLE_INFO_FIELDS, VcfWriter
 from tests.doubles import create_sample_dataframe
 
 

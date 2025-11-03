@@ -2,6 +2,7 @@
 
 import pytest
 import vcfpy
+
 from src.varify.core.callers.sniffles import SnifflesVariantCaller
 
 

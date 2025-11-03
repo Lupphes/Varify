@@ -1,8 +1,10 @@
 """Tests for general VCF processor."""
 
+from unittest.mock import Mock
+
 import pytest
 import vcfpy
-from unittest.mock import Mock
+
 from src.varify.core.pipeline.general_processor import GeneralProcessor
 
 

@@ -5,8 +5,10 @@ Fallback implementation for unknown or unsupported variant callers.
 Uses standard VCF fields and formats.
 """
 
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import vcfpy
+
 from .base import AbstractVariantCaller
 
 

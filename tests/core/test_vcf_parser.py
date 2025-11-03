@@ -2,10 +2,12 @@
 Unit tests for VCF parser module.
 """
 
-import pytest
-import pandas as pd
 from pathlib import Path
-from src.varify.core.vcf_parser import parse_vcf, VcfType
+
+import pandas as pd
+import pytest
+
+from src.varify.core.vcf_parser import VcfType, parse_vcf
 
 
 @pytest.fixture

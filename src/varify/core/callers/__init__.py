@@ -1,10 +1,10 @@
 from .base import AbstractVariantCaller
+from .cutesv import CuteSVVariantCaller
+from .dysgu import DysguVariantCaller
+from .generic import GenericVariantCaller
+from .gridss import GridssVariantCaller
 from .sniffles import SnifflesVariantCaller
 from .tiddit import TIDDITVariantCaller
-from .dysgu import DysguVariantCaller
-from .cutesv import CuteSVVariantCaller
-from .gridss import GridssVariantCaller
-from .generic import GenericVariantCaller
 
 __all__ = [
     "AbstractVariantCaller",

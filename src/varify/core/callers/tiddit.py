@@ -5,8 +5,10 @@ Handles TIDDIT-specific INFO fields and confidence interval calculations.
 TIDDIT uses CIPOS_REG and CIEND_REG (direct interval) format.
 """
 
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import vcfpy
+
 from .base import AbstractVariantCaller
 
 

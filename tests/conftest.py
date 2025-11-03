@@ -2,10 +2,11 @@
 Pytest configuration and shared fixtures for Varify tests.
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -133,7 +134,7 @@ def real_bcf_df(bcf_vcf_path):
     Returns:
         Tuple[pd.DataFrame, List[str]]: (dataframe, sample_names)
     """
-    from src.varify.core.vcf_parser import parse_vcf, VcfType
+    from src.varify.core.vcf_parser import VcfType, parse_vcf
 
     df, samples = parse_vcf(str(bcf_vcf_path), VcfType.BCF)
     assert df is not None and not df.empty, "Failed to parse BCF VCF"
@@ -147,7 +148,7 @@ def real_survivor_df(survivor_vcf_path):
     Returns:
         Tuple[pd.DataFrame, List[str]]: (dataframe, sample_names)
     """
-    from src.varify.core.vcf_parser import parse_vcf, VcfType
+    from src.varify.core.vcf_parser import VcfType, parse_vcf
 
     df, samples = parse_vcf(str(survivor_vcf_path), VcfType.SURVIVOR)
     assert df is not None and not df.empty, "Failed to parse SURVIVOR VCF"
@@ -161,7 +162,7 @@ def real_delly_df(delly_vcf_path):
     Returns:
         Tuple[pd.DataFrame, List[str]]: (dataframe, sample_names)
     """
-    from src.varify.core.vcf_parser import parse_vcf, VcfType
+    from src.varify.core.vcf_parser import VcfType, parse_vcf
 
     df, samples = parse_vcf(str(delly_vcf_path), VcfType.BCF)
     assert df is not None and not df.empty, "Failed to parse Delly VCF"

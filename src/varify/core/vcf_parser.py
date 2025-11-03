@@ -11,27 +11,28 @@ Parses VCF files using modular pipeline architecture:
 Supports both BCF and SURVIVOR formats with extensible caller system.
 """
 
-from typing import List, Tuple, Dict, Any, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 
-from .callers.base import AbstractVariantCaller
 from .callers import (
+    CuteSVVariantCaller,
+    DysguVariantCaller,
+    GenericVariantCaller,
+    GridssVariantCaller,
     SnifflesVariantCaller,
     TIDDITVariantCaller,
-    DysguVariantCaller,
-    CuteSVVariantCaller,
-    GridssVariantCaller,
-    GenericVariantCaller,
 )
+from .callers.base import AbstractVariantCaller
 from .pipeline import (
-    VcfReader,
-    GeneralProcessor,
-    CallerProcessor,
     Aggregator,
+    CallerProcessor,
+    GeneralProcessor,
+    VcfReader,
     VcfWriter,
 )
-from .vcf_types import VcfTypeHandler, BCFHandler, SURVIVORHandler
+from .vcf_types import BCFHandler, SURVIVORHandler, VcfTypeHandler
 
 
 class VcfType(Enum):

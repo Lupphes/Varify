@@ -5,7 +5,8 @@ Abstract interface for handling different VCF merge formats.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+
 import pandas as pd
 
 if TYPE_CHECKING:

@@ -8,9 +8,10 @@ Usage:
     caller = StubVariantCaller(caller_name="test_caller")
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-import pandas as pd
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import pandas as pd
 
 
 class FakeVcfReader:

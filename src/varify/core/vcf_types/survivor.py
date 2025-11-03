@@ -7,8 +7,9 @@ Handles SURVIVOR merge output format:
 - Additional SURVIVOR-specific fields (SUPP_VEC, STRANDS, SVMETHOD)
 """
 
-from typing import Dict, Any, Optional
-from .base import VcfTypeHandler, VcfRecordType
+from typing import Any, Dict, Optional
+
+from .base import VcfRecordType, VcfTypeHandler
 
 
 class SURVIVORHandler(VcfTypeHandler):

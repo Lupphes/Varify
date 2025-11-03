@@ -2,13 +2,14 @@
 Integration tests for report generation.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
+import pytest
+
+from src.varify.core.vcf_parser import VcfType, parse_vcf
 from src.varify.reporting.html_generator import generate_combined_report
-from src.varify.core.vcf_parser import parse_vcf, VcfType
 
 
 @pytest.fixture

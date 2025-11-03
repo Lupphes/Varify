@@ -2,10 +2,10 @@
 CLI commands for Varify.
 """
 
-import os
 import argparse
+import os
 
-from ..core import VcfType, VcfProcessor
+from ..core import VcfProcessor, VcfType
 from ..reporting.html_generator import generate_combined_report
 
 

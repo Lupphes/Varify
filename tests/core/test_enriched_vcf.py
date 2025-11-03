@@ -2,12 +2,14 @@
 Unit tests for enriched VCF generation.
 """
 
-import pytest
-import pandas as pd
-import vcfpy
 import tempfile
 from pathlib import Path
-from src.varify.core.vcf_parser import parse_vcf, write_enriched_vcf, VcfType
+
+import pandas as pd
+import pytest
+import vcfpy
+
+from src.varify.core.vcf_parser import VcfType, parse_vcf, write_enriched_vcf
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-from .core import parse_vcf, VcfType
+from .core import VcfType, parse_vcf
 from .reporting.html_generator import generate_combined_report
 
 __all__ = [

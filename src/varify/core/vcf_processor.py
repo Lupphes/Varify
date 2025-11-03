@@ -7,10 +7,11 @@ Eliminates duplication between BCF and SURVIVOR processing workflows.
 
 import os
 from typing import Optional, Tuple
+
 import pandas as pd
 
-from .vcf_parser import parse_vcf, VcfType
 from .pipeline import VcfWriter
+from .vcf_parser import VcfType, parse_vcf
 
 
 class VcfProcessor:

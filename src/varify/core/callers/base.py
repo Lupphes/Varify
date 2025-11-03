@@ -7,7 +7,8 @@ this interface with their own field parsing and normalization logic.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 import vcfpy
 

@@ -5,9 +5,11 @@ Handles Sniffles-specific INFO fields and confidence interval calculations.
 Sniffles uses CIPOS_STD and CIEND_STD (standard deviation) format.
 """
 
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 import vcfpy
+
 from .base import AbstractVariantCaller
 
 

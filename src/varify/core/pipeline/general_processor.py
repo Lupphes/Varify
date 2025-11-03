@@ -9,7 +9,8 @@ Applies universal normalizations that apply to ALL VCF files regardless of calle
 These are minimal, caller-agnostic transformations.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import vcfpy
 
 

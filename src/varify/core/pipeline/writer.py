@@ -9,8 +9,9 @@ Writes enriched VCF files with all modifications from processing pipeline:
 Uses shared field configuration to avoid hardcoding.
 """
 
-from typing import Dict, Any, Callable, Optional
 import os
+from typing import Any, Callable, Dict, Optional
+
 import pandas as pd
 import vcfpy
 

@@ -6,7 +6,8 @@ GRIDSS represents structural variants as breakends (BND) and may omit SVTYPE
 for singleton breakends without mate pairs.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 from .generic import GenericVariantCaller
 
 

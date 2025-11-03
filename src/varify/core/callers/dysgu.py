@@ -5,8 +5,10 @@ Handles Dysgu-specific INFO fields and confidence interval calculations.
 Dysgu uses CIPOS95 and CIEND95 (95% CI size) format.
 """
 
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import vcfpy
+
 from .base import AbstractVariantCaller
 
 

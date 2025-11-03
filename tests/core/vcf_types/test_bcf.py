@@ -4,6 +4,7 @@ Tests for BCF VCF Type Handler.
 
 import pytest
 import vcfpy
+
 from src.varify.core.vcf_types.bcf import BCFHandler
 from tests.doubles import FakeVcfRecord
 

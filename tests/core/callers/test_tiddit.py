@@ -2,6 +2,7 @@
 
 import pytest
 import vcfpy
+
 from src.varify.core.callers.tiddit import TIDDITVariantCaller
 
 

@@ -1,8 +1,10 @@
 """Tests for VCF reader."""
 
+from pathlib import Path
+
 import pytest
 import vcfpy
-from pathlib import Path
+
 from src.varify.core.pipeline.reader import VcfReader
 
 

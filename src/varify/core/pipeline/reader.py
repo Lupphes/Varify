@@ -6,6 +6,7 @@ Single responsibility: Read and parse VCF format.
 """
 
 from typing import Iterator, List, Tuple
+
 import vcfpy
 
 

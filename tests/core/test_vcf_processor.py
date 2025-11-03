@@ -1,7 +1,9 @@
 """Tests for VcfProcessor class."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.varify.core import VcfProcessor, VcfType
 
 

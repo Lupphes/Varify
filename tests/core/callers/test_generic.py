@@ -1,8 +1,10 @@
 """Tests for generic variant caller implementation."""
 
+from unittest.mock import Mock
+
 import pytest
 import vcfpy
-from unittest.mock import Mock
+
 from src.varify.core.callers.generic import GenericVariantCaller
 
 

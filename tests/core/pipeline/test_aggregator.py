@@ -3,8 +3,8 @@ Tests for Aggregator
 
 """
 
-import pytest
 import pandas as pd
+import pytest
 
 from src.varify.core.pipeline.aggregator import Aggregator
 from tests.doubles import create_sample_dataframe

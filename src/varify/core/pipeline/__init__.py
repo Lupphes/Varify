@@ -1,7 +1,7 @@
-from .reader import VcfReader
-from .general_processor import GeneralProcessor
-from .caller_processor import CallerProcessor
 from .aggregator import Aggregator
+from .caller_processor import CallerProcessor
+from .general_processor import GeneralProcessor
+from .reader import VcfReader
 from .writer import VcfWriter
 
 __all__ = [
