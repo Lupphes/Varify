@@ -1,4 +1,23 @@
 import os
+import json
+import hashlib
+import datetime
+
+
+def get_package_resource(relative_path):
+    """
+    Get absolute path to a package resource file.
+    Args:
+        relative_path: Path relative to the varify package directory
+                      e.g., "templates/report-template.html" or "dist/bundle.js"
+
+    Returns:
+        Absolute path to the resource file
+    """
+    reporting_dir = os.path.dirname(os.path.abspath(__file__))
+    package_dir = os.path.dirname(reporting_dir)
+
+    return os.path.join(package_dir, relative_path)
 
 
 def generate_combined_report(
@@ -147,10 +166,6 @@ def generate_combined_report(
         shutil.copy2(survivor_stats_file, survivor_stats_dest)
         copied_files.append(survivor_stats_dest)
 
-    import hashlib
-    import json
-    import datetime
-
     version_parts = []
     for file_path in source_files:
         if os.path.exists(file_path):
@@ -186,23 +201,43 @@ def generate_combined_report(
         ),
     }
 
-    package_dir = os.path.dirname(os.path.dirname(__file__))
-    prebundled_html_path = os.path.join(package_dir, "dist", "report.html")
+    template_path = get_package_resource("templates/report-template.html")
+    bundle_js_path = get_package_resource("dist/bundle.js")
+    bundle_css_path = get_package_resource("dist/bundle.css")
+    metadata_json = json.dumps(metadata, ensure_ascii=False)
 
-    if not os.path.exists(prebundled_html_path):
-        project_root = os.path.dirname(os.path.dirname(package_dir))
-        prebundled_html_path = os.path.join(project_root, "dist", "report.html")
+    for path, name in [
+        (template_path, "Template"),
+        (bundle_js_path, "JavaScript bundle"),
+        (bundle_css_path, "CSS bundle"),
+    ]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"{name} not found: {path}\n"
+                f"Run: npm run build:report && pip install -e ."
+            )
 
     try:
-        with open(prebundled_html_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-    except FileNotFoundError:
-        print(f"ERROR: Pre-bundled HTML not found at: {prebundled_html_path}")
-        print(f"Please run: npm run build:report")
-        raise
+        with open(bundle_js_path, "r", encoding="utf-8") as f:
+            bundle_js = f.read()
+        with open(bundle_css_path, "r", encoding="utf-8") as f:
+            bundle_css = f.read()
+    except FileNotFoundError as e:
+        print(f"ERROR: Bundle files not found. Please run: npm run build:report")
+        print(f"Looking for: {bundle_js_path}")
+        raise e
 
-    metadata_json = json.dumps(metadata, ensure_ascii=False)
-    html_content = html_content.replace("<!-- REPORT_METADATA -->", metadata_json)
+    with open(template_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+
+    bundled_css = f"<style>{bundle_css}</style>"
+    bundled_js = f"<script>{bundle_js}</script>"
+
+    metadata_script = f"<script>window.REPORT_METADATA = {metadata_json};</script>"
+
+    html_content = html_content.replace("<!-- BUNDLE_CSS -->", bundled_css)
+    html_content = html_content.replace("<!-- BUNDLE_JS -->", bundled_js)
+    html_content = html_content.replace("<!-- REPORT_METADATA -->", metadata_script)
 
     with open(combined_report_file, "w", encoding="utf-8") as f:
         f.write(html_content)

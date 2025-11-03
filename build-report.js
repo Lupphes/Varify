@@ -3,23 +3,15 @@
 /**
  * Build script for Varify report generation
  *
- * 1. Builds JavaScript and CSS bundles using esbuild
- * 2. Reads the static HTML template
- * 3. Injects bundles into template placeholders
- * 4. Writes self-contained HTML to dist/report.html
- *
+ * Builds JavaScript and CSS bundles using esbuild.
+ * Bundles are copied to the Python package during installation
  */
 
 import * as esbuild from "esbuild";
 import postcss from "esbuild-postcss";
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-console.log("Building Varify report...\n");
+console.log("Building Varify bundles...\n");
 
 try {
   await esbuild.build({
@@ -56,48 +48,10 @@ try {
   process.exit(1);
 }
 
-let bundledJs = fs.readFileSync("dist/bundle.js", "utf8");
-const bundledCss = fs.readFileSync("dist/bundle.css", "utf8");
-console.log(`JavaScript: ${(bundledJs.length / 1024 / 1024).toFixed(2)} MB`);
-console.log(`CSS: ${(bundledCss.length / 1024).toFixed(2)} KB\n`);
+const bundleJsSize = fs.statSync("dist/bundle.js").size;
+const bundleCssSize = fs.statSync("dist/bundle.css").size;
 
-// CRITICAL FIX: Normalize multiline template literals
-// Replace actual newlines inside template literals with escaped \n
-// This fixes the DOMPurify issue where template literals span multiple lines
-console.log("Normalizing multiline template literals...");
-const originalLength = bundledJs.length;
+console.log(`JavaScript: ${(bundleJsSize / 1024 / 1024).toFixed(2)} MB`);
+console.log(`CSS: ${(bundleCssSize / 1024).toFixed(2)} KB\n`);
 
-// Use a more conservative approach: only match short template literals with newlines
-// This specifically targets patterns like `>\n` that cause issues
-bundledJs = bundledJs.replace(/`([^`\n]{0,50})\n([^`\n]{0,50})`/g, (_match, before, after) => {
-  // Replace the newline with an escaped newline
-  return '`' + before + '\\n' + after + '`';
-});
-
-if (bundledJs.length !== originalLength) {
-  console.log(`  ✓ Normalized ${originalLength - bundledJs.length} characters\n`);
-} else {
-  console.log(`  No multiline template literals found\n`);
-}
-
-const templatePath = "src/varify/templates/report-template.html";
-let html = fs.readFileSync(templatePath, "utf8");
-
-html = html.replace("<!-- BUNDLE_CSS -->", "<style>" + bundledCss + "</style>");
-
-// CRITICAL: Escape HTML tags in the bundled JavaScript to prevent premature script tag closure
-// This includes <script>, </script>, <title>, and </title> tags that appear in IGV.js SVG code
-const escapedJs = bundledJs
-  .replace(/<\/script>/gi, '<\\/script>')
-  .replace(/<script>/gi, '<\\script>')
-  .replace(/<\/title>/gi, '<\\/title>')
-  .replace(/<title>/gi, '<\\title>');
-
-html = html.replace("<!-- BUNDLE_JS -->", "<script>" + escapedJs + "</script>");
-
-const outputPath = "dist/report.html";
-fs.writeFileSync(outputPath, html, "utf8");
-const finalSize = (html.length / 1024 / 1024).toFixed(2);
-console.log(`Self-contained HTML created: ${outputPath} (${finalSize} MB)\n`);
-
-console.log("Build complete!\n");
+console.log("Build complete! Run 'pip install -e .' to copy bundles to package.\n");

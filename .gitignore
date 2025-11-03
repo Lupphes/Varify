@@ -198,8 +198,7 @@ test_*/
 
 # JavaScript / Node.js
 node_modules/
-dist/
-package-lock.json
+src/varify/dist/
 
 # IDE
 .vscode/
