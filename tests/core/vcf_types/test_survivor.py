@@ -450,6 +450,7 @@ class TestSURVIVORHandlerRealWorldScenarios:
 
             primary_caller = handler.extract_primary_caller(info, record)
             type_fields = handler.extract_type_specific_fields(info, record)
+            assert primary_caller is None or isinstance(primary_caller, str)
 
             if "SUPP_CALLERS" in type_fields:
                 callers = type_fields["SUPP_CALLERS"]

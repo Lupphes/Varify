@@ -222,7 +222,7 @@ def generate_combined_report(
         with open(bundle_css_path, "r", encoding="utf-8") as f:
             bundle_css = f.read()
     except FileNotFoundError as e:
-        print(f"ERROR: Bundle files not found. Please run: npm run build:package")
+        print("ERROR: Bundle files not found. Please run: npm run build:package")
         print(f"Looking for: {bundle_js_path}")
         raise e
 

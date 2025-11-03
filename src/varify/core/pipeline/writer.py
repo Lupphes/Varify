@@ -98,7 +98,8 @@ class VcfWriter:
         """
         if not self.should_write:
             print(
-                f"Warning: No data to enrich (DataFrame is empty/None). Writing VCF with original records only: {self.output_path}"
+                "Warning: No data to enrich (DataFrame is empty/None). "
+                f"Writing VCF with original records only: {self.output_path}"
             )
 
         with vcfpy.Reader.from_path(self.original_vcf_path) as reader:
@@ -394,7 +395,7 @@ class VcfWriter:
             pysam.tabix_index(compressed_path, preset="vcf", force=True)
         except Exception as e:
             print(f"Warning: Could not create tabix index: {e}")
-            print(f"  VCF file may not be properly sorted")
+            print("  VCF file may not be properly sorted")
 
         if keep_uncompressed:
             print(f"Compressed and indexed enriched VCF: {compressed_path}")
@@ -402,6 +403,6 @@ class VcfWriter:
         else:
             os.remove(vcf_path)
             print(f"Compressed and indexed enriched VCF: {compressed_path}")
-            print(f"Removed uncompressed VCF to save space")
+            print("Removed uncompressed VCF to save space")
 
         return compressed_path

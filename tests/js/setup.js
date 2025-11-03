@@ -2,7 +2,7 @@
  * Vitest Setup - Test Environment Configuration
  */
 
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import "fake-indexeddb/auto";
@@ -21,15 +21,7 @@ export function getProjectRoot() {
 }
 
 /**
- * Get path to data/ directory with real VCF files.
- * @returns {string} Absolute path to data directory
- */
-export function getDataDir() {
-  return resolve(getProjectRoot(), "data");
-}
-
-/**
- * Get path to tests/fixtures/ directory.
+ * Get path to tests/fixtures/ directory containing test data files.
  * @returns {string} Absolute path to test fixtures
  */
 export function getTestFixturesDir() {
@@ -51,7 +43,7 @@ export function getTestFixturesDir() {
  * const variants = await parser.parseVCF(vcfText, 100);
  */
 export function loadRealVcf(filename) {
-  const path = resolve(getDataDir(), filename);
+  const path = resolve(getTestFixturesDir(), filename);
   try {
     return readFileSync(path, "utf-8");
   } catch (error) {
@@ -74,7 +66,7 @@ export function loadRealVcf(filename) {
  * );
  */
 export function loadRealVcfBuffer(filename) {
-  const path = resolve(getDataDir(), filename);
+  const path = resolve(getTestFixturesDir(), filename);
   try {
     return readFileSync(path);
   } catch (error) {

@@ -112,7 +112,8 @@ class SURVIVORHandler(VcfTypeHandler):
             samples: List of sample names
 
         Returns:
-            Dictionary with FORMAT field values from the active sample (single values, not pipe-separated)
+            Dictionary with FORMAT field values from the active sample
+            (single values, not pipe-separated)
         """
         import pandas as pd
 

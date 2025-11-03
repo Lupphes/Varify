@@ -221,6 +221,7 @@ class TestVcfWriterConstruction:
         # Directory should be created
         expected_dir = os.path.join(str(temp_output_dir), "new_directory")
         assert os.path.exists(expected_dir)
+        assert expected_dir in writer.output_path
 
     def test_should_write_flag_with_empty_df(self, bcf_vcf_path, temp_output_dir):
         """Test should_write flag is False for empty DataFrame."""

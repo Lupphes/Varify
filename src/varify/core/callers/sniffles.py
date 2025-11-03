@@ -7,7 +7,6 @@ Sniffles uses CIPOS_STD and CIEND_STD (standard deviation) format.
 
 from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 import vcfpy
 
 from .base import AbstractVariantCaller

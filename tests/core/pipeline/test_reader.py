@@ -1,7 +1,5 @@
 """Tests for VCF reader."""
 
-from pathlib import Path
-
 import pytest
 import vcfpy
 
