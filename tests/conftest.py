@@ -40,12 +40,12 @@ def bcf_vcf_path(test_fixtures_dir):
 
 
 @pytest.fixture(scope="session")
-def bcf_vcf_gz_path(data_dir):
+def bcf_vcf_gz_path(test_fixtures_dir):
     """Real BCF merged VCF file, compressed (bcftools_concat.vcf.gz).
 
     Use for testing compressed file handling.
     """
-    path = data_dir / "bcftools_concat.vcf.gz"
+    path = test_fixtures_dir / "bcftools_concat.vcf.gz"
     assert path.exists(), f"Compressed BCF VCF file not found: {path}"
     return path
 
