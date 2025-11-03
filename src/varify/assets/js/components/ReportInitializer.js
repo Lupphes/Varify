@@ -189,9 +189,7 @@ export class ReportInitializer {
       const bcfVcfFilename = this.metadata.bcf?.vcf_filename;
       const survivorVcfFilename = this.metadata.survivor?.vcf_filename;
 
-      logger.debug(
-        `BCF VCF: ${bcfVcfFilename}, SURVIVOR VCF: ${survivorVcfFilename}`
-      );
+      logger.debug(`BCF VCF: ${bcfVcfFilename}, SURVIVOR VCF: ${survivorVcfFilename}`);
 
       const statsFiles = [];
       if (this.metadata.bcf?.stats_filename) statsFiles.push(this.metadata.bcf.stats_filename);

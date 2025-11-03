@@ -9,14 +9,11 @@ build:
   noarch: python
   number: 0
   script: |
-    # Check if pre-bundled assets exist (critical for HTML generation)
-    if [ ! -f dist/report.html ]; then
-      echo "ERROR: dist/report.html not found!"
-      echo "Please run 'npm run build:report' before building the conda package"
+    if [ ! -f src/varify/dist/bundle.js ] || [ ! -f src/varify/dist/bundle.css ]; then
+      echo "ERROR: JavaScript/CSS bundles not found in src/varify/dist/!"
+      echo "Please run 'npm run build:package' before building the conda package"
       exit 1
     fi
-    # Copy dist into src/varify for package inclusion
-    cp -r dist src/varify/dist
     {{ PYTHON }} -m pip install . -vv
 
 requirements:

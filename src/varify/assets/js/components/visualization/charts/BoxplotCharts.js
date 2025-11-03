@@ -37,9 +37,7 @@ export function renderTypeVsSize(variants, echarts, container, eventBus) {
   let titleSuffix = "";
 
   if (variantsWithAbsSVLEN.length > 100) {
-    logger.debug(
-      `Large dataset (${variantsWithAbsSVLEN.length}), applying percentile filtering`
-    );
+    logger.debug(`Large dataset (${variantsWithAbsSVLEN.length}), applying percentile filtering`);
     filtered = PlotDataProcessor.filterPercentile(variantsWithAbsSVLEN, "SVLEN_ABS", 0.05, 0.95);
     titleSuffix = " (5th-95th percentile)";
 
@@ -49,9 +47,7 @@ export function renderTypeVsSize(variants, echarts, container, eventBus) {
       filtered = variantsWithAbsSVLEN; // Fallback to all data
     }
   } else {
-    logger.debug(
-      `Small dataset (${variantsWithAbsSVLEN.length}), skipping percentile filtering`
-    );
+    logger.debug(`Small dataset (${variantsWithAbsSVLEN.length}), skipping percentile filtering`);
   }
 
   const title = `Structural Variant Type vs Size Distribution${titleSuffix}`;
@@ -172,9 +168,7 @@ export function renderQualityByCaller(variants, echarts, container, eventBus) {
   logger.debug(`After percentile filtering: ${filtered.length} observations`);
 
   if (filtered.length === 0) {
-    logger.debug(
-      "No observations after percentile filtering, rendering empty chart"
-    );
+    logger.debug("No observations after percentile filtering, rendering empty chart");
     return renderEmptyChart(echarts, container, title);
   }
 

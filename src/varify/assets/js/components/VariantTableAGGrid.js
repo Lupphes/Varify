@@ -716,9 +716,7 @@ export class VariantTableAGGrid {
             {},
             { limit: 10 }
           );
-          logger.debug(
-            "No variants matched QUAL filter. Sample QUAL values from DB:"
-          );
+          logger.debug("No variants matched QUAL filter. Sample QUAL values from DB:");
           sampleVariants.forEach((v, i) => {
             logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
           });

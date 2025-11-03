@@ -45,9 +45,7 @@ export function renderSizeVsQuality(variants, echarts, container, eventBus) {
     const excludedByNullQual = variants.filter(
       (v) => v.QUAL === null || v.QUAL === undefined
     ).length;
-    logger.debug(
-      `SV Size vs Quality: ${filtered.length}/${totalVariants} variants displayed`
-    );
+    logger.debug(`SV Size vs Quality: ${filtered.length}/${totalVariants} variants displayed`);
     if (zeroLengthCount > 0) {
       logger.debug(
         `Note: ${zeroLengthCount} variants with SVLEN=0 shown at 1bp (log scale minimum)`

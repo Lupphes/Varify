@@ -11,7 +11,7 @@ A Python-based tool to generate rich, interactive HTML reports from structural v
 ![Vitest](https://img.shields.io/badge/vitest-575%20tests-green)
 ![esbuild](https://img.shields.io/badge/esbuild-bundler-orange)
 
-> **⚠️ v3.0.0 Major Release**: This version includes significant architectural changes. JavaScript assets must be built with `npm run build:report` before packaging. See [BUILD.md](BUILD.md) for details.
+> **⚠️ v3.0.0 Major Release**: This version includes significant architectural changes. JavaScript assets must be built with `npm run build:package` before packaging. See [BUILD.md](BUILD.md) for details.
 
 ---
 
@@ -52,7 +52,7 @@ pip install -r requirements.txt
 
 # Build JavaScript assets (required for v3.0.0+)
 npm install
-npm run build:report
+npm run build:package
 
 # Install package
 pip install .
@@ -62,7 +62,7 @@ pip install .
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
 npm install
-npm run build:report
+npm run build:package
 pip install -e .
 ```
 
@@ -183,14 +183,11 @@ The frontend is built with modern JavaScript tooling:
 # Install dependencies
 npm install
 
-# Build JavaScript bundle (esbuild)
+# Build JavaScript bundle to dist/ (for development)
 npm run build
 
-# Build report with CSS processing
-npm run build:report
-
-# Build everything
-npm run build:all
+# Build bundles directly to src/varify/dist/ (for packaging)
+npm run build:package
 
 # Development mode (watch for changes)
 npm run dev
