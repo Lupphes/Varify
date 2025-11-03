@@ -6,6 +6,9 @@
  */
 
 import { VariantFlattener } from "./VariantFlattener.js";
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("VariantStorage");
 
 export class VariantStorage {
   constructor(databaseManager) {
@@ -22,7 +25,7 @@ export class VariantStorage {
     const db = await this.dbManager.getDB();
     const storeName = this.dbManager.getVariantStoreName(prefix);
 
-    console.log(`Storing ${variants.length} variants in ${storeName}...`);
+    logger.debug(`Storing ${variants.length} variants in ${storeName}...`);
     const startTime = Date.now();
 
     return new Promise((resolve, reject) => {
@@ -38,18 +41,18 @@ export class VariantStorage {
         request.onsuccess = () => {
           completed++;
           if (completed % 100 === 0) {
-            console.log(`Stored ${completed}/${variants.length} variants...`);
+            logger.debug(`Stored ${completed}/${variants.length} variants...`);
           }
         };
 
         request.onerror = () => {
-          console.error(`Failed to store variant:`, request.error);
+          logger.error(`Failed to store variant:`, request.error);
         };
       }
 
       transaction.oncomplete = () => {
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`Stored ${variants.length} variants in ${duration}s`);
+        logger.debug(`Stored ${variants.length} variants in ${duration}s`);
         resolve();
       };
 
@@ -115,7 +118,7 @@ export class VariantStorage {
       const request = objectStore.clear();
 
       request.onsuccess = () => {
-        console.log(`Cleared all variants from ${storeName}`);
+        logger.debug(`Cleared all variants from ${storeName}`);
         resolve();
       };
 

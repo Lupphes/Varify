@@ -7,6 +7,9 @@
 
 import { HeaderParser } from "./parsers/HeaderParser.js";
 import { VariantParser } from "./parsers/VariantParser.js";
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("VCFParser");
 
 class VCFParser {
   constructor() {
@@ -82,7 +85,7 @@ class VCFParser {
         try {
           decompressed = pako.inflate(uint8Array);
         } catch (e) {
-          console.log("pako.inflate failed, trying pako.ungzip for BGZF...");
+          logger.debug("pako.inflate failed, trying pako.ungzip for BGZF...");
           decompressed = pako.ungzip(uint8Array);
         }
       } else {
@@ -96,8 +99,8 @@ class VCFParser {
 
       return await this.parseVCF(decompressedBuffer, maxVariants);
     } catch (error) {
-      console.error("Error decompressing VCF:", error.message);
-      console.error("Error details:", error);
+      logger.error("Error decompressing VCF:", error.message);
+      logger.error("Error details:", error);
       throw new Error(`Failed to decompress VCF file: ${error.message}`);
     }
   }

@@ -8,6 +8,10 @@
  * - Lazy-load tab content when first accessed
  */
 
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("TabManager");
+
 export class TabManager {
   constructor(onTabSwitch) {
     this.activeTab = "bcf";
@@ -32,7 +36,7 @@ export class TabManager {
       }
     });
 
-    console.log("[TabManager] Initialized");
+    logger.info("Initialized");
   }
 
   /**
@@ -41,16 +45,16 @@ export class TabManager {
    */
   switchTab(tabId) {
     if (!this.tabs.includes(tabId)) {
-      console.error(`[TabManager] Invalid tab ID: ${tabId}`);
+      logger.error(`Invalid tab ID: ${tabId}`);
       return;
     }
 
     if (this.activeTab === tabId) {
-      console.log(`[TabManager] Tab ${tabId} already active`);
+      logger.debug(`Tab ${tabId} already active`);
       return;
     }
 
-    console.log(`[TabManager] Switching from ${this.activeTab} to ${tabId}`);
+    logger.info(`Switching from ${this.activeTab} to ${tabId}`);
 
     // Update active tab
     const previousTab = this.activeTab;
@@ -66,7 +70,7 @@ export class TabManager {
 
     // If tab not initialized, trigger load via callback
     if (!this.initialized[tabId]) {
-      console.log(`[TabManager] Tab ${tabId} not initialized, showing empty state`);
+      logger.debug(`Tab ${tabId} not initialized, showing empty state`);
       this.showEmptyState(tabId);
     }
   }
@@ -124,17 +128,17 @@ export class TabManager {
     const igvBrowser = window[`${tabId}IGVBrowser`];
 
     if (!table || !igvBrowser) {
-      console.log(`[TabManager] Table or IGV browser not found for ${tabId}`);
+      logger.debug(`Table or IGV browser not found for ${tabId}`);
       return;
     }
 
     const lastSelected = window.lastSelectedVariant && window.lastSelectedVariant[tabId];
 
     if (lastSelected) {
-      console.log(`[TabManager] Restoring last selected variant for ${tabId}`);
+      logger.debug(`Restoring last selected variant for ${tabId}`);
       table.navigateToVariant(lastSelected, igvBrowser, false);
     } else {
-      console.log(`[TabManager] Navigating to first variant for ${tabId}`);
+      logger.debug(`Navigating to first variant for ${tabId}`);
       this.navigateToFirstVariantInTab(tabId, table, igvBrowser);
     }
   }
@@ -149,7 +153,7 @@ export class TabManager {
     try {
       const dbManager = window.genomeDBManager;
       if (!dbManager) {
-        console.warn(`[TabManager] Database manager not found`);
+        logger.warn(`Database manager not found`);
         return;
       }
 
@@ -157,7 +161,7 @@ export class TabManager {
 
       if (variants && variants.length > 0) {
         const firstVariant = variants[0];
-        console.log(`[TabManager] Got first variant for ${tabId}:`, firstVariant);
+        logger.debug(`Got first variant for ${tabId}:`, firstVariant);
         table.navigateToVariant(firstVariant, igvBrowser, false); // Don't scroll
 
         if (!window.lastSelectedVariant) {
@@ -165,10 +169,10 @@ export class TabManager {
         }
         window.lastSelectedVariant[tabId] = firstVariant;
       } else {
-        console.warn(`[TabManager] No first variant found for ${tabId}`);
+        logger.warn(`No first variant found for ${tabId}`);
       }
     } catch (error) {
-      console.error(`[TabManager] Error navigating to first variant:`, error);
+      logger.error(`Error navigating to first variant:`, error);
     }
   }
 
@@ -179,7 +183,7 @@ export class TabManager {
   resizeChartsInTab(tabId) {
     const plotsComponent = window[`${tabId}Plots`];
     if (plotsComponent && plotsComponent.charts) {
-      console.log(`[TabManager] Resizing ${plotsComponent.charts.size} charts in ${tabId} tab`);
+      logger.debug(`Resizing ${plotsComponent.charts.size} charts in ${tabId} tab`);
       plotsComponent.charts.forEach((chart, chartId) => {
         if (chart && typeof chart.resize === "function") {
           chart.resize();
@@ -194,11 +198,11 @@ export class TabManager {
    */
   markTabInitialized(tabId) {
     if (!this.tabs.includes(tabId)) {
-      console.error(`[TabManager] Invalid tab ID: ${tabId}`);
+      logger.error(`Invalid tab ID: ${tabId}`);
       return;
     }
 
-    console.log(`[TabManager] Marking tab ${tabId} as initialized`);
+    logger.info(`Marking tab ${tabId} as initialized`);
     this.initialized[tabId] = true;
     this.hideEmptyState(tabId);
     this.showContent(tabId);
@@ -262,11 +266,11 @@ export class TabManager {
    */
   resetTab(tabId) {
     if (!this.tabs.includes(tabId)) {
-      console.error(`[TabManager] Invalid tab ID: ${tabId}`);
+      logger.error(`Invalid tab ID: ${tabId}`);
       return;
     }
 
-    console.log(`[TabManager] Resetting tab ${tabId}`);
+    logger.info(`Resetting tab ${tabId}`);
     this.initialized[tabId] = false;
     this.showEmptyState(tabId);
   }
@@ -275,7 +279,7 @@ export class TabManager {
    * Reset all tabs to uninitialized state
    */
   resetAllTabs() {
-    console.log("[TabManager] Resetting all tabs");
+    logger.info("Resetting all tabs");
     this.tabs.forEach((tabId) => this.resetTab(tabId));
   }
 

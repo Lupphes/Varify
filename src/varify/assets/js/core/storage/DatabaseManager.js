@@ -5,6 +5,10 @@
  * Responsible for creating stores, managing upgrades, and database operations.
  */
 
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("DatabaseManager");
+
 export class DatabaseManager {
   constructor(dbName = "varify-genome-data", version = 3) {
     this.dbName = dbName;
@@ -31,23 +35,23 @@ export class DatabaseManager {
         );
       }, 10000);
 
-      console.log("Opening IndexedDB...");
+      logger.info("Opening IndexedDB...");
       const request = indexedDB.open(this.dbName, this.version);
 
       request.onerror = () => {
         clearTimeout(timeout);
-        console.error("IndexedDB error:", request.error);
+        logger.error("IndexedDB error:", request.error);
         reject(new Error(`Failed to open IndexedDB: ${request.error}`));
       };
 
       request.onblocked = () => {
-        console.warn("IndexedDB open request is blocked - close other tabs using this database");
+        logger.warn("IndexedDB open request is blocked - close other tabs using this database");
       };
 
       request.onsuccess = () => {
         clearTimeout(timeout);
         this.db = request.result;
-        console.log(`IndexedDB "${this.dbName}" opened successfully`);
+        logger.info(`IndexedDB "${this.dbName}" opened successfully`);
         resolve(this.db);
       };
 
@@ -55,14 +59,14 @@ export class DatabaseManager {
         const db = event.target.result;
         const oldVersion = event.oldVersion;
 
-        console.log(`Upgrading IndexedDB from version ${oldVersion} to ${this.version}...`);
+        logger.info(`Upgrading IndexedDB from version ${oldVersion} to ${this.version}...`);
 
         if (!db.objectStoreNames.contains(this.storeName)) {
           const objectStore = db.createObjectStore(this.storeName, {
             keyPath: "name",
           });
           objectStore.createIndex("uploaded", "uploaded", { unique: false });
-          console.log(`Created object store "${this.storeName}"`);
+          logger.debug(`Created object store "${this.storeName}"`);
         }
 
         if (oldVersion < 2) {
@@ -73,11 +77,11 @@ export class DatabaseManager {
         if (oldVersion < 3) {
           if (db.objectStoreNames.contains("bcf_variants")) {
             db.deleteObjectStore("bcf_variants");
-            console.log("Deleted old bcf_variants store");
+            logger.debug("Deleted old bcf_variants store");
           }
           if (db.objectStoreNames.contains("survivor_variants")) {
             db.deleteObjectStore("survivor_variants");
-            console.log("Deleted old survivor_variants store");
+            logger.debug("Deleted old survivor_variants store");
           }
 
           this.createVariantStore(db, "bcf_variants");
@@ -111,7 +115,7 @@ export class DatabaseManager {
     store.createIndex("PR", "_computed.PR", { unique: false });
     store.createIndex("DP", "_computed.DP", { unique: false });
 
-    console.log(`Created variant store "${storeName}" with indexes`);
+    logger.debug(`Created variant store "${storeName}" with indexes`);
   }
 
   /**
@@ -124,13 +128,13 @@ export class DatabaseManager {
       if (this.db) {
         this.db.close();
         this.db = null;
-        console.log("Closed IndexedDB connection");
+        logger.debug("Closed IndexedDB connection");
       }
 
       const request = indexedDB.deleteDatabase(this.dbName);
 
       request.onsuccess = () => {
-        console.log(`IndexedDB database "${this.dbName}" deleted successfully`);
+        logger.info(`IndexedDB database "${this.dbName}" deleted successfully`);
         resolve();
       };
 
@@ -139,7 +143,7 @@ export class DatabaseManager {
       };
 
       request.onblocked = () => {
-        console.warn("Database deletion blocked - close all tabs using this database");
+        logger.warn("Database deletion blocked - close all tabs using this database");
       };
     });
   }
@@ -151,7 +155,7 @@ export class DatabaseManager {
     if (this.db) {
       this.db.close();
       this.db = null;
-      console.log("IndexedDB connection closed");
+      logger.debug("IndexedDB connection closed");
     }
   }
 

@@ -35,7 +35,7 @@ if (typeof window !== "undefined") {
 /**
  * Logger class for structured logging
  */
-class Logger {
+export class LoggerService {
   constructor(context = "") {
     this.context = context;
   }
@@ -49,7 +49,7 @@ class Logger {
   }
 
   /**
-   * Log error message (always shown)
+   * Log error message
    */
   error(message, ...args) {
     if (config.level >= LogLevel.ERROR) {
@@ -76,7 +76,7 @@ class Logger {
   }
 
   /**
-   * Log debug message (only in debug mode)
+   * Log debug message
    */
   debug(message, ...args) {
     if (config.debugMode && config.level >= LogLevel.DEBUG) {
@@ -85,7 +85,7 @@ class Logger {
   }
 
   /**
-   * Log table data (useful for debugging)
+   * Log table data
    */
   table(data, columns) {
     if (config.debugMode) {
@@ -101,13 +101,6 @@ class Logger {
    */
   child(subContext) {
     const newContext = this.context ? `${this.context}:${subContext}` : subContext;
-    return new Logger(newContext);
+    return new LoggerService(newContext);
   }
-}
-
-/**
- * Create a logger instance with optional context
- */
-export function createLogger(context = "") {
-  return new Logger(context);
 }

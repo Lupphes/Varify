@@ -15,6 +15,9 @@
 import { variantHandlerRegistry } from "../core/variant-handlers/VariantHandlerRegistry.js";
 import { VCF_COLUMNS } from "../config/vcf.js";
 import { isMissing, parseNumericValue } from "../utils/DataValidation.js";
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("MetadataService");
 
 export class MetadataService {
   /**
@@ -199,7 +202,7 @@ export class MetadataService {
       try {
         handler = variantHandlerRegistry.getHandler(variant);
       } catch (error) {
-        console.warn(`Could not get handler for variant: ${error.message}`);
+        logger.warn(`Could not get handler for variant: ${error.message}`);
         values.push(null);
         continue;
       }

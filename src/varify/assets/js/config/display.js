@@ -117,20 +117,20 @@ export const FORMAT_FIELD_PRIORITY = [
  * Human-readable descriptions for each BCFtools stats section type.
  */
 export const BCFTOOLS_SECTION_DESCRIPTIONS = {
-  SN: `<strong>Summary Numbers</strong> – Provides a high-level overview of variant counts,
+  SN: `<strong>Summary Numbers</strong> - Provides a high-level overview of variant counts,
     including total variants, SNPs (single nucleotide polymorphisms), indels (insertions/deletions), and other types.`,
-  TSTV: `<strong>Transition/Transversion Ratio</strong> – Displays the ratio of transitions
+  TSTV: `<strong>Transition/Transversion Ratio</strong> - Displays the ratio of transitions
     (e.g. A↔G, C↔T) to transversions (e.g. A↔C, G↔T) for each chromosome. This is a common metric for assessing variant call quality.`,
-  SiS: `<strong>Singleton Site Statistics</strong> – Shows statistics for variants that occur only once in the dataset,
+  SiS: `<strong>Singleton Site Statistics</strong> - Shows statistics for variants that occur only once in the dataset,
     including breakdowns by variant type and whether they appear in repeat regions.`,
-  AF: `<strong>Allele Frequency Bins</strong> – Groups variants by allele frequency,
+  AF: `<strong>Allele Frequency Bins</strong> - Groups variants by allele frequency,
     and summarizes the types of changes (SNPs, transitions, transversions, indels) for each frequency range.`,
-  QUAL: `<strong>Quality Score Distribution</strong> – Summarizes how variant calls are distributed across quality score bins,
+  QUAL: `<strong>Quality Score Distribution</strong> - Summarizes how variant calls are distributed across quality score bins,
     including SNP and indel breakdowns, helping you identify low-confidence variants.`,
-  IDD: `<strong>Indel Distribution Details</strong> – Provides detailed information on insertions and deletions,
+  IDD: `<strong>Indel Distribution Details</strong> - Provides detailed information on insertions and deletions,
     including lengths, variant counts, genotype counts, and mean variant allele frequency.`,
-  ST: `<strong>Simple Variant Type Counts</strong> – Counts the number of variants by type
+  ST: `<strong>Simple Variant Type Counts</strong> - Counts the number of variants by type
     (e.g. SNPs, indels) across the dataset.`,
-  DP: `<strong>Depth of Coverage</strong> – Distribution of sequencing read depth across genotypes and variant sites,
+  DP: `<strong>Depth of Coverage</strong> - Distribution of sequencing read depth across genotypes and variant sites,
     helping assess data completeness and reliability.`,
 };

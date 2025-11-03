@@ -54,4 +54,13 @@ const bundleCssSize = fs.statSync("dist/bundle.css").size;
 console.log(`JavaScript: ${(bundleJsSize / 1024 / 1024).toFixed(2)} MB`);
 console.log(`CSS: ${(bundleCssSize / 1024).toFixed(2)} KB\n`);
 
-console.log("Build complete! Run 'pip install -e .' to copy bundles to package.\n");
+const targetDir = "src/varify/dist";
+if (!fs.existsSync(targetDir)) {
+  fs.mkdirSync(targetDir, { recursive: true });
+}
+
+fs.copyFileSync("dist/bundle.js", `${targetDir}/bundle.js`);
+fs.copyFileSync("dist/bundle.css", `${targetDir}/bundle.css`);
+console.log("Bundles copied to src/varify/dist/\n");
+
+console.log("Build complete! Bundles ready for Python package.\n");

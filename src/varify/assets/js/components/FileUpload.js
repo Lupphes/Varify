@@ -5,9 +5,9 @@
  * Shows progress, handles validation, and persists files for future sessions.
  */
 
-import { createLogger } from "../utils/LoggerService.js";
+import { LoggerService } from "../utils/LoggerService.js";
 
-const logger = createLogger("FileUpload");
+const logger = new LoggerService("FileUpload");
 
 class FileUploadUI {
   constructor(dbManager, requiredFiles = {}) {

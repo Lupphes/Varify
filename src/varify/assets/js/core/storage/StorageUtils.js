@@ -5,6 +5,10 @@
  * calculating storage size, and managing version metadata.
  */
 
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("StorageUtils");
+
 export class StorageUtils {
   /**
    * Format bytes to human-readable string
@@ -62,7 +66,7 @@ export class StorageUtils {
       const request = objectStore.put(versionObject);
 
       request.onsuccess = () => {
-        console.log(`Stored report version: ${version}`);
+        logger.debug(`Stored report version: ${version}`);
         resolve();
       };
 

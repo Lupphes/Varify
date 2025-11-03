@@ -24,6 +24,9 @@ import { ReportInitializer } from "./components/ReportInitializer.js";
 import { TabManager } from "./components/TabManager.js";
 import { EmptyState } from "./components/EmptyState.js";
 import { SectionGenerator } from "./components/SectionGenerator.js";
+import { LoggerService } from "./utils/LoggerService.js";
+
+const logger = new LoggerService("Index");
 
 const genomeDBManager = new IndexedDBManager();
 const igvLoader = new IGVIndexedDBLoader(genomeDBManager);
@@ -40,7 +43,7 @@ const reportInitializer = new ReportInitializer(genomeDBManager, igvIntegration,
 
 window.igv = igvNamespace.default || igvNamespace;
 
-console.log("IGV import check:", {
+logger.debug("IGV import check:", {
   hasNamespace: !!igvNamespace,
   hasDefault: !!igvNamespace.default,
   usingDefault: !!igvNamespace.default,
@@ -80,7 +83,7 @@ window.vcfParser = vcfParser;
 window.igvIntegration = igvIntegration;
 window.reportInitializer = reportInitializer;
 
-console.log("Varify JavaScript modules loaded successfully");
+logger.debug("Varify JavaScript modules loaded successfully");
 
 document.addEventListener("DOMContentLoaded", () => {
   reportInitializer.initialize();

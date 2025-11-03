@@ -5,6 +5,10 @@
  * Handles sample-specific genotype data.
  */
 
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("GenotypeParser");
+
 export class GenotypeParser {
   /**
    * Parse genotype fields for a variant
@@ -34,7 +38,7 @@ export class GenotypeParser {
           try {
             value = decodeURIComponent(value);
           } catch (e) {
-            console.warn(`Failed to decode FORMAT value for ${key}: ${value}`);
+            logger.warn(`Failed to decode FORMAT value for ${key}: ${value}`);
           }
         }
 
@@ -71,7 +75,7 @@ export class GenotypeParser {
         try {
           value = decodeURIComponent(value);
         } catch (e) {
-          console.warn(`Failed to decode FORMAT value for ${key}: ${value}`);
+          logger.warn(`Failed to decode FORMAT value for ${key}: ${value}`);
         }
       }
 

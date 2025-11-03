@@ -10,6 +10,9 @@ import { PlotDataProcessor } from "../PlotDataProcessor.js";
 import { getSVTypeColor, getCallerColor } from "../../../utils/ColorSchemes.js";
 import { groupBy, boxplotStats } from "../../../utils/StatisticsUtils.js";
 import { getGridConfig, AXIS_CONFIGS } from "../../../config/plots.js";
+import { LoggerService } from "../../../utils/LoggerService.js";
+
+const logger = new LoggerService("BoxplotCharts");
 
 /**
  * Render SV Type vs Size (boxplot with scatter overlay)
@@ -21,7 +24,7 @@ import { getGridConfig, AXIS_CONFIGS } from "../../../config/plots.js";
  * @returns {Object} - ECharts instance
  */
 export function renderTypeVsSize(variants, echarts, container, eventBus) {
-  console.log(`[TypeVsSize] Starting with ${variants.length} variants`);
+  logger.debug(`Starting with ${variants.length} variants`);
 
   const variantsWithAbsSVLEN = variants.map((v) => ({
     ...v,
@@ -34,36 +37,36 @@ export function renderTypeVsSize(variants, echarts, container, eventBus) {
   let titleSuffix = "";
 
   if (variantsWithAbsSVLEN.length > 100) {
-    console.log(
-      `[TypeVsSize] Large dataset (${variantsWithAbsSVLEN.length}), applying percentile filtering`
+    logger.debug(
+      `Large dataset (${variantsWithAbsSVLEN.length}), applying percentile filtering`
     );
     filtered = PlotDataProcessor.filterPercentile(variantsWithAbsSVLEN, "SVLEN_ABS", 0.05, 0.95);
-    titleSuffix = " (5th–95th percentile)";
+    titleSuffix = " (5th-95th percentile)";
 
-    console.log(`[TypeVsSize] After percentile filtering: ${filtered.length} variants`);
+    logger.debug(`After percentile filtering: ${filtered.length} variants`);
     if (filtered.length === 0) {
-      console.log("[TypeVsSize] Percentile filtering removed all data, fallback to unfiltered");
+      logger.debug("Percentile filtering removed all data, fallback to unfiltered");
       filtered = variantsWithAbsSVLEN; // Fallback to all data
     }
   } else {
-    console.log(
-      `[TypeVsSize] Small dataset (${variantsWithAbsSVLEN.length}), skipping percentile filtering`
+    logger.debug(
+      `Small dataset (${variantsWithAbsSVLEN.length}), skipping percentile filtering`
     );
   }
 
   const title = `Structural Variant Type vs Size Distribution${titleSuffix}`;
 
   if (filtered.length === 0) {
-    console.log("[TypeVsSize] No variants after filtering, rendering empty chart");
+    logger.debug("No variants after filtering, rendering empty chart");
     return renderEmptyChart(echarts, container, title);
   }
 
   const grouped = groupBy(filtered, "SVTYPE");
   const svTypes = Object.keys(grouped).sort();
-  console.log(`[TypeVsSize] Found ${svTypes.length} SV types:`, svTypes);
+  logger.debug(`Found ${svTypes.length} SV types:`, svTypes);
 
   if (svTypes.length === 0) {
-    console.log("[TypeVsSize] No SV types found, rendering empty chart");
+    logger.debug("No SV types found, rendering empty chart");
     return renderEmptyChart(echarts, container, title);
   }
 
@@ -155,32 +158,32 @@ export function renderTypeVsSize(variants, echarts, container, eventBus) {
 export function renderQualityByCaller(variants, echarts, container, eventBus) {
   const title = "Quality Spread of Structural Variants by Supporting Callers";
 
-  console.log(`[QualitySpread] Starting with ${variants.length} variants`);
+  logger.debug(`Starting with ${variants.length} variants`);
 
   const exploded = PlotDataProcessor.extractCallers(variants);
-  console.log(`[QualitySpread] After extracting callers: ${exploded.length} observations`);
+  logger.debug(`After extracting callers: ${exploded.length} observations`);
 
   if (exploded.length === 0) {
-    console.log("[QualitySpread] No observations after caller extraction, rendering empty chart");
+    logger.debug("No observations after caller extraction, rendering empty chart");
     return renderEmptyChart(echarts, container, title);
   }
 
   const filtered = PlotDataProcessor.filterPercentile(exploded, "QUAL", 0.05, 0.95);
-  console.log(`[QualitySpread] After percentile filtering: ${filtered.length} observations`);
+  logger.debug(`After percentile filtering: ${filtered.length} observations`);
 
   if (filtered.length === 0) {
-    console.log(
-      "[QualitySpread] No observations after percentile filtering, rendering empty chart"
+    logger.debug(
+      "No observations after percentile filtering, rendering empty chart"
     );
     return renderEmptyChart(echarts, container, title);
   }
 
   const grouped = groupBy(filtered, "Caller");
   const callers = Object.keys(grouped).sort();
-  console.log(`[QualitySpread] Found ${callers.length} callers:`, callers);
+  logger.debug(`Found ${callers.length} callers:`, callers);
 
   if (callers.length === 0) {
-    console.log("[QualitySpread] No callers found, rendering empty chart");
+    logger.debug("No callers found, rendering empty chart");
     return renderEmptyChart(echarts, container, title);
   }
 
@@ -196,8 +199,8 @@ export function renderQualityByCaller(variants, echarts, container, eventBus) {
     const min = Math.min(...values);
     const max = Math.max(...values);
 
-    console.log(
-      `[QualitySpread] Caller "${caller}": ${values.length} values, ${uniqueValues} unique, range [${min.toFixed(2)}, ${max.toFixed(2)}]`
+    logger.debug(
+      `Caller "${caller}": ${values.length} values, ${uniqueValues} unique, range [${min.toFixed(2)}, ${max.toFixed(2)}]`
     );
 
     if (uniqueValues === 1) {
@@ -208,8 +211,8 @@ export function renderQualityByCaller(variants, echarts, container, eventBus) {
       stats[2] = value; // median (unchanged)
       stats[3] = value + 0.05; // Q3
       stats[4] = value + 0.1; // max
-      console.log(
-        `[QualitySpread] -> Adding artificial spread ±0.1 for visibility (boxplot: [${stats[0].toFixed(2)}, ${stats[1].toFixed(2)}, ${stats[2].toFixed(2)}, ${stats[3].toFixed(2)}, ${stats[4].toFixed(2)}])`
+      logger.debug(
+        `-> Adding artificial spread ±0.1 for visibility (boxplot: [${stats[0].toFixed(2)}, ${stats[1].toFixed(2)}, ${stats[2].toFixed(2)}, ${stats[3].toFixed(2)}, ${stats[4].toFixed(2)}])`
       );
     }
 
@@ -232,17 +235,17 @@ export function renderQualityByCaller(variants, echarts, container, eventBus) {
     tooltip: {
       trigger: "item",
       formatter: (params) => {
-        console.log(`[QualitySpread] Tooltip params:`, params);
+        logger.debug(`Tooltip params:`, params);
 
         if (params.seriesType === "boxplot") {
           const data = params.data.value || params.data;
           const caller = params.name;
 
-          console.log(`[QualitySpread] Tooltip data:`, data);
-          console.log(`[QualitySpread] Tooltip caller:`, caller);
+          logger.debug(`Tooltip data:`, data);
+          logger.debug(`Tooltip caller:`, caller);
 
           if (!data || data.length < 5) {
-            console.log(`[QualitySpread] Invalid data format:`, data);
+            logger.debug(`Invalid data format:`, data);
             return "";
           }
 
@@ -262,7 +265,7 @@ export function renderQualityByCaller(variants, echarts, container, eventBus) {
             Max: ${data[4].toFixed(2)}
           `;
         }
-        console.log(`[QualitySpread] Non-boxplot tooltip, returning empty`);
+        logger.debug(`Non-boxplot tooltip, returning empty`);
         return "";
       },
     },

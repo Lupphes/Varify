@@ -11,6 +11,9 @@ import { PlotDataProcessor } from "../PlotDataProcessor.js";
 import { getSVTypeColor } from "../../../utils/ColorSchemes.js";
 import { histogram, histogramLog } from "../../../utils/StatisticsUtils.js";
 import { getGridConfig, AXIS_CONFIGS, SV_SIZE_BINS } from "../../../config/plots.js";
+import { LoggerService } from "../../../utils/LoggerService.js";
+
+const logger = new LoggerService("Histograms");
 
 /**
  * Render SV Type Distribution histogram
@@ -198,7 +201,7 @@ export function renderSizeDistribution(variants, echarts, container, eventBus) {
  * Render Quality Score Distribution with KDE overlay
  */
 export function renderQualityDistribution(variants, echarts, container, eventBus) {
-  const title = "Quality Score Distribution (5th–95th percentile)";
+  const title = "Quality Score Distribution (5th-95th percentile)";
 
   const filtered = PlotDataProcessor.filterNA(variants, "QUAL");
 
@@ -218,8 +221,8 @@ export function renderQualityDistribution(variants, echarts, container, eventBus
   const hasLowVariation = uniqueQuals < 10;
 
   if (hasLowVariation) {
-    console.log(
-      `[QualityDist] Low variation detected: ${uniqueQuals} unique QUAL values in ${qualValues.length} variants`
+    logger.debug(
+      `Low variation detected: ${uniqueQuals} unique QUAL values in ${qualValues.length} variants`
     );
   }
 
@@ -356,8 +359,8 @@ export function renderQualityDistribution(variants, echarts, container, eventBus
       if (maxQual - minQual < 0.01) {
         minQual = Math.max(0, minQual - 0.5);
         maxQual = maxQual + 0.5;
-        console.log(
-          `[QualityDist] Bin click with identical min/max (${histData.binEdges[dataIndex]}), expanding range to [${minQual}, ${maxQual}]`
+        logger.debug(
+          `Bin click with identical min/max (${histData.binEdges[dataIndex]}), expanding range to [${minQual}, ${maxQual}]`
         );
       }
 

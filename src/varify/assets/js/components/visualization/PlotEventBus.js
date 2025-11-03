@@ -10,9 +10,9 @@
  * - plotsNeedUpdate: Plots should refresh from new data
  */
 
-import { createLogger } from "../../utils/LoggerService.js";
+import { LoggerService } from "../../utils/LoggerService.js";
 
-const logger = createLogger("PlotEventBus");
+const logger = new LoggerService("PlotEventBus");
 
 export class PlotEventBus extends EventTarget {
   constructor() {

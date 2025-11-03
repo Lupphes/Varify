@@ -8,6 +8,9 @@
 import { getSVTypeColor } from "../../../utils/ColorSchemes.js";
 import { groupBy, quantiles } from "../../../utils/StatisticsUtils.js";
 import { getGridConfig } from "../../../config/plots.js";
+import { LoggerService } from "../../../utils/LoggerService.js";
+
+const logger = new LoggerService("ScatterCharts");
 
 /**
  * Render SV Size vs Quality scatter plot
@@ -42,17 +45,17 @@ export function renderSizeVsQuality(variants, echarts, container, eventBus) {
     const excludedByNullQual = variants.filter(
       (v) => v.QUAL === null || v.QUAL === undefined
     ).length;
-    console.log(
-      `[ScatterPlot] SV Size vs Quality: ${filtered.length}/${totalVariants} variants displayed`
+    logger.debug(
+      `SV Size vs Quality: ${filtered.length}/${totalVariants} variants displayed`
     );
     if (zeroLengthCount > 0) {
-      console.log(
-        `[ScatterPlot] Note: ${zeroLengthCount} variants with SVLEN=0 shown at 1bp (log scale minimum)`
+      logger.debug(
+        `Note: ${zeroLengthCount} variants with SVLEN=0 shown at 1bp (log scale minimum)`
       );
     }
     if (excluded > 0) {
-      console.log(
-        `[ScatterPlot] Excluded: ${excluded} total (SVLEN=null: ${excludedByNullLen}, QUAL=null: ${excludedByNullQual})`
+      logger.debug(
+        `Excluded: ${excluded} total (SVLEN=null: ${excludedByNullLen}, QUAL=null: ${excludedByNullQual})`
       );
     }
   }
@@ -80,7 +83,7 @@ export function renderSizeVsQuality(variants, echarts, container, eventBus) {
         v.SVLEN >= svlenLower && v.SVLEN <= svlenUpper && v.QUAL >= qualLower && v.QUAL <= qualUpper
     );
 
-    titleSuffix = " (5th–95th percentile)";
+    titleSuffix = " (5th-95th percentile)";
 
     if (plotData.length === 0) {
       plotData = filtered; // Fallback to all data if percentile filtering removes everything

@@ -5,6 +5,10 @@
  * Mirrors the Python logic from stats_parser.py::parse_survivor_stats()
  */
 
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("SURVIVORStatsParser");
+
 /**
  * Parse SURVIVOR stats TSV file
  * @param {string} fileContent - Raw text content of SURVIVOR stats file
@@ -32,7 +36,7 @@ export function parseSURVIVORStats(fileContent) {
     const parts = line.split("\t").map((p) => p.trim());
 
     if (parts.length !== header.length) {
-      console.warn(`SURVIVOR stats: skipping malformed row ${i}: ${line}`);
+      logger.warn(`SURVIVOR stats: skipping malformed row ${i}: ${line}`);
       continue;
     }
 

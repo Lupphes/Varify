@@ -7,6 +7,10 @@
  * - Chart containers (for ECharts plots)
  */
 
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("SectionGenerator");
+
 export class SectionGenerator {
   /**
    * Generate summary cards for a tab
@@ -58,7 +62,7 @@ export class SectionGenerator {
   static populateSummaryCards(type, summary) {
     const container = document.getElementById(`${type}-summary-cards`);
     if (!container) {
-      console.warn(`[SectionGenerator] Summary cards container not found: ${type}-summary-cards`);
+      logger.warn(`Summary cards container not found: ${type}-summary-cards`);
       return;
     }
 
@@ -67,7 +71,7 @@ export class SectionGenerator {
     const cards = this.generateSummaryCards(type, summary);
     cards.forEach((card) => container.appendChild(card));
 
-    console.log(`[SectionGenerator] Populated summary cards for ${type}`);
+    logger.debug(`Populated summary cards for ${type}`);
   }
 
   /**
@@ -114,7 +118,7 @@ export class SectionGenerator {
   static populateChartContainers(type) {
     const container = document.getElementById(`${type}-charts-container`);
     if (!container) {
-      console.warn(`[SectionGenerator] Charts container not found: ${type}-charts-container`);
+      logger.warn(`Charts container not found: ${type}-charts-container`);
       return;
     }
 
@@ -123,7 +127,7 @@ export class SectionGenerator {
     const chartContainers = this.generateChartContainers(type);
     chartContainers.forEach((chart) => container.appendChild(chart));
 
-    console.log(`[SectionGenerator] Populated chart containers for ${type}`);
+    logger.debug(`Populated chart containers for ${type}`);
   }
 
   /**
@@ -132,7 +136,7 @@ export class SectionGenerator {
    * @param {Object} metadata - { summary, vcf_filename, stats_filename }
    */
   static initializeTab(type, metadata) {
-    console.log(`[SectionGenerator] Initializing tab: ${type}`);
+    logger.debug(`Initializing tab: ${type}`);
 
     if (metadata.summary) {
       this.populateSummaryCards(type, metadata.summary);
@@ -140,7 +144,7 @@ export class SectionGenerator {
 
     this.populateChartContainers(type);
 
-    console.log(`[SectionGenerator] Tab ${type} initialized`);
+    logger.debug(`Tab ${type} initialized`);
   }
 
   /**
@@ -167,7 +171,7 @@ export class SectionGenerator {
       `;
     }
 
-    console.log(`[SectionGenerator] Cleared tab: ${type}`);
+    logger.debug(`Cleared tab: ${type}`);
   }
 
   /**

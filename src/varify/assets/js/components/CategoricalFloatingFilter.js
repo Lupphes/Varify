@@ -5,9 +5,9 @@
  * and provides a button to open the main filter popup.
  */
 
-import { createLogger } from "../utils/LoggerService.js";
+import { LoggerService } from "../utils/LoggerService.js";
 
-const logger = createLogger("CategoricalFloatingFilter");
+const logger = new LoggerService("CategoricalFloatingFilter");
 
 export class CategoricalFloatingFilter {
   /**

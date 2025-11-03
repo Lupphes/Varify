@@ -8,9 +8,9 @@
 import { FORMAT_FIELD_PRIORITY } from "../../config/display.js";
 import { UI_COLORS as THEME } from "../../config/colors.js";
 import { isValidCaller, isMissing, formatValue } from "../../utils/DataValidation.js";
-import { createLogger } from "../../utils/LoggerService.js";
+import { LoggerService } from "../../utils/LoggerService.js";
 
-const logger = createLogger("CallerDetailsModal");
+const logger = new LoggerService("CallerDetailsModal");
 
 export class CallerDetailsModal {
   /**

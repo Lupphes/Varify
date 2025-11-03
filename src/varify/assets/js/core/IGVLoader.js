@@ -5,6 +5,10 @@
  * Supports FASTA, VCF, BAM, and their index files (.fai, .tbi, .bai).
  */
 
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("IGVLoader");
+
 class IGVIndexedDBLoader {
   constructor(dbManager) {
     this.dbManager = dbManager;
@@ -13,7 +17,7 @@ class IGVIndexedDBLoader {
 
   async loadFile(filename) {
     if (this.fileCache.has(filename)) {
-      console.log(`Using cached file: ${filename}`);
+      logger.debug(`Using cached file: ${filename}`);
       return this.fileCache.get(filename);
     }
 
@@ -29,7 +33,7 @@ class IGVIndexedDBLoader {
 
     this.fileCache.set(filename, file);
 
-    console.log(
+    logger.debug(
       `Loaded file from IndexedDB: ${filename} (${this.dbManager.formatBytes(arrayBuffer.byteLength)})`
     );
     return file;
@@ -73,7 +77,7 @@ class IGVIndexedDBLoader {
 
   clearCache() {
     this.fileCache.clear();
-    console.log("Cleared file cache");
+    logger.debug("Cleared file cache");
   }
 
   async createIGVConfig(options = {}) {
@@ -160,7 +164,7 @@ class IGVIndexedDBLoader {
         features: roiFeatures,
       };
       config.roi.push(roiConfig);
-      console.log(`Added ROI overlay with ${roiFeatures.length} features`);
+      logger.debug(`Added ROI overlay with ${roiFeatures.length} features`);
     } else if (roiFiles && roiFiles.length > 0) {
       for (const roiFile of roiFiles) {
         const roiFileObj = await this.loadFile(roiFile);
@@ -181,7 +185,7 @@ class IGVIndexedDBLoader {
         }
 
         config.roi.push(roiConfig);
-        console.log(`Added ROI from VCF: ${roiFile}`);
+        logger.debug(`Added ROI from VCF: ${roiFile}`);
       }
     }
 

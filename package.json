@@ -4,9 +4,9 @@
   "description": "JavaScript assets for Varify - VCF analysis and reporting tool",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/varify/assets/js/index.js --bundle --outfile=dist/bundle.js --format=iife --global-name=Varify --minify --main-fields=module,main",
+    "build": "node build-report.js",
+    "build:quick": "esbuild src/varify/assets/js/index.js --bundle --outfile=dist/bundle.js --format=iife --global-name=Varify --minify --main-fields=module,main",
     "build:report": "node build-report.js",
-    "build:all": "npm run build && npm run build:report",
     "dev": "esbuild src/varify/assets/js/index.js --bundle --outfile=dist/bundle.js --format=iife --global-name=Varify --watch --main-fields=module,main",
     "test": "vitest",
     "test:ui": "vitest --ui",

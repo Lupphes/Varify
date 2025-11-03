@@ -41,6 +41,9 @@ import * as BoxplotCharts from "./charts/BoxplotCharts.js";
 import * as ScatterCharts from "./charts/ScatterCharts.js";
 import * as Heatmaps from "./charts/Heatmaps.js";
 import * as InteractiveCharts from "./charts/InteractiveCharts.js";
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("VarifyPlots");
 
 /**
  * VarifyPlots Component
@@ -62,25 +65,25 @@ export class VarifyPlots {
    */
   async initialize() {
     if (this.isInitialized) {
-      console.warn("VarifyPlots already initialized");
+      logger.warn("VarifyPlots already initialized");
       return;
     }
 
-    console.log(`[VarifyPlots] Initializing ${this.vcfType} plots...`);
-    console.log(`[VarifyPlots] vcfType: ${this.vcfType}, containerPrefix: ${this.containerPrefix}`);
+    logger.debug(`Initializing ${this.vcfType} plots...`);
+    logger.debug(`vcfType: ${this.vcfType}, containerPrefix: ${this.containerPrefix}`);
 
     try {
-      console.log(`[VarifyPlots] Querying IndexedDB for variants with type: ${this.vcfType}`);
+      logger.debug(`Querying IndexedDB for variants with type: ${this.vcfType}`);
       this.variants = await this.dbManager.queryVariants(this.vcfType, {}, { limit: Infinity });
-      console.log(`[VarifyPlots] Loaded ${this.variants.length} variants from IndexedDB`);
+      logger.debug(`Loaded ${this.variants.length} variants from IndexedDB`);
 
       if (this.variants.length === 0) {
-        console.error(`[VarifyPlots] No variants found in IndexedDB for type: ${this.vcfType}`);
-        console.log(`[VarifyPlots] Checking what's stored in IndexedDB...`);
+        logger.error(`No variants found in IndexedDB for type: ${this.vcfType}`);
+        logger.debug(`Checking what's stored in IndexedDB...`);
         const allBcf = await this.dbManager.queryVariants("bcf", {}, { limit: 10 });
         const allSurvivor = await this.dbManager.queryVariants("survivor", {}, { limit: 10 });
-        console.log(
-          `[VarifyPlots] BCF variants in DB: ${allBcf.length}, SURVIVOR variants in DB: ${allSurvivor.length}`
+        logger.debug(
+          `BCF variants in DB: ${allBcf.length}, SURVIVOR variants in DB: ${allSurvivor.length}`
         );
         return;
       }
@@ -91,9 +94,9 @@ export class VarifyPlots {
       window.addEventListener("resize", this.handleResize);
 
       this.isInitialized = true;
-      console.log("[VarifyPlots] Initialization complete");
+      logger.debug("Initialization complete");
     } catch (error) {
-      console.error("[VarifyPlots] Initialization error:", error);
+      logger.error("Initialization error:", error);
       throw error;
     }
   }
@@ -173,7 +176,7 @@ export class VarifyPlots {
       const container = document.getElementById(containerId);
 
       if (!container) {
-        console.warn(`[VarifyPlots] Container not found: ${containerId}`);
+        logger.warn(`Container not found: ${containerId}`);
         continue;
       }
 
@@ -185,13 +188,13 @@ export class VarifyPlots {
 
         this.charts.set(id, chart);
         renderedCount++;
-        console.log(`[VarifyPlots] Rendered: ${name}`);
+        logger.debug(`Rendered: ${name}`);
       } catch (error) {
-        console.error(`[VarifyPlots] Error rendering ${name}:`, error);
+        logger.error(`Error rendering ${name}:`, error);
       }
     }
 
-    console.log(`[VarifyPlots] Rendered ${renderedCount}/${chartDefinitions.length} charts`);
+    logger.debug(`Rendered ${renderedCount}/${chartDefinitions.length} charts`);
   }
 
   /**
@@ -199,10 +202,10 @@ export class VarifyPlots {
    * @param {Array} filteredVariants - Filtered variants from AG-Grid
    */
   async updateFromFilteredData(filteredVariants) {
-    console.log(`[VarifyPlots] Updating plots with ${filteredVariants.length} filtered variants`);
+    logger.debug(`Updating plots with ${filteredVariants.length} filtered variants`);
 
     if (!this.isInitialized) {
-      console.warn("[VarifyPlots] Cannot update - not initialized");
+      logger.warn("Cannot update - not initialized");
       return;
     }
 
@@ -218,7 +221,7 @@ export class VarifyPlots {
         const chartDef = this.getChartDefinition(id);
 
         if (!chartDef) {
-          console.warn(`[VarifyPlots] Chart definition not found: ${id}`);
+          logger.warn(`Chart definition not found: ${id}`);
           continue;
         }
 
@@ -229,12 +232,12 @@ export class VarifyPlots {
 
         this.charts.set(id, newChart);
       } catch (error) {
-        console.error(`[VarifyPlots] Error updating chart ${id}:`, error);
+        logger.error(`Error updating chart ${id}:`, error);
         this.variants = previousVariants;
       }
     }
 
-    console.log("[VarifyPlots] Charts updated");
+    logger.debug("Charts updated");
   }
 
   /**
@@ -287,7 +290,7 @@ export class VarifyPlots {
       try {
         chart.resize();
       } catch (error) {
-        console.warn("[VarifyPlots] Error resizing chart:", error);
+        logger.warn("Error resizing chart:", error);
       }
     });
   }
@@ -314,13 +317,13 @@ export class VarifyPlots {
    * Cleanup - dispose all charts and remove listeners
    */
   destroy() {
-    console.log("[VarifyPlots] Destroying component...");
+    logger.debug("Destroying component...");
 
     this.charts.forEach((chart, id) => {
       try {
         chart.dispose();
       } catch (error) {
-        console.warn(`[VarifyPlots] Error disposing chart ${id}:`, error);
+        logger.warn(`Error disposing chart ${id}:`, error);
       }
     });
 
@@ -333,7 +336,7 @@ export class VarifyPlots {
     this.eventBus.clearAllListeners();
 
     this.isInitialized = false;
-    console.log("[VarifyPlots] Component destroyed");
+    logger.debug("Component destroyed");
   }
 
   /**

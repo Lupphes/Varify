@@ -6,6 +6,9 @@
  */
 
 import { VariantFilter } from "./VariantFilter.js";
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("VariantQuery");
 
 export class VariantQuery {
   constructor(databaseManager) {
@@ -36,7 +39,7 @@ export class VariantQuery {
         const isFormatField = typeof indexPath === "string" && indexPath.startsWith("_computed.");
 
         if (isFormatField) {
-          console.log(
+          logger.debug(
             `Multi-caller mode: Disabling FORMAT field index "${indexName}" (keyPath: ${indexPath}) for full scan`
           );
           indexName = null;
@@ -68,7 +71,7 @@ export class VariantQuery {
           ? VariantFilter.buildKeyRange(filters, sort.field)
           : null;
         source = sortIndex.openCursor(keyRange, cursorDirection);
-        console.log(
+        logger.debug(
           `Using index "${sort.field}" with cursor direction "${cursorDirection}" for fast sorting`
         );
       } else if (indexName) {
@@ -89,7 +92,7 @@ export class VariantQuery {
           let results = allMatches;
 
           if (needsInMemorySort) {
-            console.log(`Sorting ${results.length} variants in memory by ${sort.field}`);
+            logger.debug(`Sorting ${results.length} variants in memory by ${sort.field}`);
             results.sort((a, b) => {
               const aVal = a[sort.field];
               const bVal = b[sort.field];

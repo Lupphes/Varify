@@ -6,6 +6,9 @@
  */
 
 import { StorageUtils } from "./StorageUtils.js";
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("FileStorage");
 
 export class FileStorage {
   constructor(databaseManager) {
@@ -46,7 +49,7 @@ export class FileStorage {
       const request = objectStore.put(fileObject);
 
       request.onsuccess = () => {
-        console.log(`Stored file "${name}" (${StorageUtils.formatBytes(arrayBuffer.byteLength)})`);
+        logger.debug(`Stored file "${name}" (${StorageUtils.formatBytes(arrayBuffer.byteLength)})`);
         resolve(name);
       };
 
@@ -70,7 +73,7 @@ export class FileStorage {
 
       request.onsuccess = () => {
         if (request.result) {
-          console.log(
+          logger.debug(
             `Retrieved file "${name}" (${StorageUtils.formatBytes(request.result.size)})`
           );
 
@@ -80,11 +83,11 @@ export class FileStorage {
           } else if (data && data.buffer instanceof ArrayBuffer) {
             resolve(data.buffer);
           } else {
-            console.error(`Unexpected data type for "${name}":`, typeof data, data);
+            logger.error(`Unexpected data type for "${name}":`, typeof data, data);
             reject(new Error(`File "${name}" data is not an ArrayBuffer (got ${typeof data})`));
           }
         } else {
-          console.warn(`File "${name}" not found in IndexedDB`);
+          logger.warn(`File "${name}" not found in IndexedDB`);
           resolve(null);
         }
       };
@@ -174,7 +177,7 @@ export class FileStorage {
       const request = objectStore.delete(name);
 
       request.onsuccess = () => {
-        console.log(`Deleted file "${name}"`);
+        logger.debug(`Deleted file "${name}"`);
         resolve();
       };
 
@@ -197,7 +200,7 @@ export class FileStorage {
       const request = objectStore.clear();
 
       request.onsuccess = () => {
-        console.log("Cleared all files from IndexedDB");
+        logger.debug("Cleared all files from IndexedDB");
         resolve();
       };
 

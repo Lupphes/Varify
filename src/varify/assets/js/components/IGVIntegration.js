@@ -5,6 +5,10 @@
  * Includes loading indicators, progress tracking, and lazy loading functionality.
  */
 
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("IGVIntegration");
+
 export class IGVIntegration {
   constructor(genomeDBManager, igvLoader, vcfParser) {
     this.genomeDBManager = genomeDBManager;
@@ -36,7 +40,7 @@ export class IGVIntegration {
   async loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename) {
     // Early return if variants already loaded
     if (this.variantsLoaded) {
-      console.log("Variants already loaded, skipping parse");
+      logger.info("Variants already loaded, skipping parse");
       return {
         bcfVariants: this.bcfVariants,
         survivorVariants: this.survivorVariants,
@@ -46,7 +50,7 @@ export class IGVIntegration {
     try {
       // Load and parse BCF VCF
       if (bcfVcfFilename) {
-        console.log("Loading BCF VCF from IndexedDB...");
+        logger.info("Loading BCF VCF from IndexedDB...");
 
         let bcfData;
         let useCompressed = false;
@@ -57,10 +61,10 @@ export class IGVIntegration {
           bcfData = await this.genomeDBManager.getFile(uncompressedName);
 
           if (bcfData) {
-            console.log(`Using uncompressed VCF for table parsing: ${uncompressedName}`);
+            logger.debug(`Using uncompressed VCF for table parsing: ${uncompressedName}`);
             useCompressed = false;
           } else {
-            console.log(`Uncompressed VCF not found, using compressed: ${bcfVcfFilename}`);
+            logger.debug(`Uncompressed VCF not found, using compressed: ${bcfVcfFilename}`);
             bcfData = await this.genomeDBManager.getFile(bcfVcfFilename);
             useCompressed = true;
           }
@@ -68,7 +72,7 @@ export class IGVIntegration {
           bcfData = await this.genomeDBManager.getFile(bcfVcfFilename);
         }
 
-        console.log("Parsing BCF variants...");
+        logger.info("Parsing BCF variants...");
         if (useCompressed) {
           this.bcfVariants = await this.vcfParser.parseCompressedVCF(bcfData, 10000);
         } else {
@@ -77,13 +81,13 @@ export class IGVIntegration {
 
         // Add index for table display
         this.bcfVariants.forEach((v, i) => (v.index = i + 1));
-        console.log(`Parsed ${this.bcfVariants.length} BCF variants`);
+        logger.info(`Parsed ${this.bcfVariants.length} BCF variants`);
 
         // Store in IndexedDB for AG-Grid
-        console.log("Storing BCF variants in IndexedDB...");
+        logger.debug("Storing BCF variants in IndexedDB...");
         await this.genomeDBManager.clearVariants("bcf"); // Clear old data
         await this.genomeDBManager.storeVariants("bcf", this.bcfVariants);
-        console.log("BCF variants stored in IndexedDB");
+        logger.debug("BCF variants stored in IndexedDB");
 
         // Save BCF header before parsing SURVIVOR
         this.bcfHeader = {
@@ -94,7 +98,7 @@ export class IGVIntegration {
 
       // Load and parse SURVIVOR VCF
       if (survivorVcfFilename) {
-        console.log("Loading SURVIVOR VCF from IndexedDB...");
+        logger.info("Loading SURVIVOR VCF from IndexedDB...");
         let survivorData;
         let useCompressedSurvivor = false;
 
@@ -104,10 +108,10 @@ export class IGVIntegration {
           survivorData = await this.genomeDBManager.getFile(uncompressedName);
 
           if (survivorData) {
-            console.log(`Using uncompressed VCF for table parsing: ${uncompressedName}`);
+            logger.debug(`Using uncompressed VCF for table parsing: ${uncompressedName}`);
             useCompressedSurvivor = false;
           } else {
-            console.log(`Uncompressed VCF not found, using compressed: ${survivorVcfFilename}`);
+            logger.debug(`Uncompressed VCF not found, using compressed: ${survivorVcfFilename}`);
             survivorData = await this.genomeDBManager.getFile(survivorVcfFilename);
             useCompressedSurvivor = true;
           }
@@ -115,7 +119,7 @@ export class IGVIntegration {
           survivorData = await this.genomeDBManager.getFile(survivorVcfFilename);
         }
 
-        console.log("Parsing SURVIVOR variants...");
+        logger.info("Parsing SURVIVOR variants...");
         if (useCompressedSurvivor) {
           this.survivorVariants = await this.vcfParser.parseCompressedVCF(survivorData, 10000);
         } else {
@@ -124,13 +128,13 @@ export class IGVIntegration {
 
         // Add index for table display
         this.survivorVariants.forEach((v, i) => (v.index = i + 1));
-        console.log(`Parsed ${this.survivorVariants.length} SURVIVOR variants`);
+        logger.info(`Parsed ${this.survivorVariants.length} SURVIVOR variants`);
 
         // Store in IndexedDB for AG-Grid
-        console.log("Storing SURVIVOR variants in IndexedDB...");
+        logger.debug("Storing SURVIVOR variants in IndexedDB...");
         await this.genomeDBManager.clearVariants("survivor"); // Clear old data
         await this.genomeDBManager.storeVariants("survivor", this.survivorVariants);
-        console.log("SURVIVOR variants stored in IndexedDB");
+        logger.debug("SURVIVOR variants stored in IndexedDB");
 
         // Save SURVIVOR header
         this.survivorHeader = {
@@ -147,7 +151,7 @@ export class IGVIntegration {
         survivorVariants: this.survivorVariants,
       };
     } catch (error) {
-      console.error("VCF parsing error:", error);
+      logger.error("VCF parsing error:", error);
       throw new Error(`Failed to parse VCF files: ${error.message}`);
     }
   }
@@ -158,14 +162,14 @@ export class IGVIntegration {
    */
   async initializeBCFIGV(onTableCreated) {
     try {
-      console.log("Initializing BCF IGV browser...");
+      logger.info("Initializing BCF IGV browser...");
 
       const vcfFiles = this.requiredFiles.vcf.filter((f) => f);
 
       // Convert variants to ROI features array for IGV
       let roiFeatures = [];
       if (this.bcfVariants && this.bcfVariants.length > 0) {
-        console.log("Creating ROI features from BCF variants...");
+        logger.debug("Creating ROI features from BCF variants...");
 
         roiFeatures = this.bcfVariants
           .map((v) => {
@@ -181,7 +185,7 @@ export class IGVIntegration {
           })
           .filter((f) => f.chr && !isNaN(f.start) && !isNaN(f.end));
 
-        console.log(
+        logger.debug(
           `Created ${roiFeatures.length} ROI features from ${this.bcfVariants.length} variants`
         );
       }
@@ -195,7 +199,7 @@ export class IGVIntegration {
       });
 
       this.bcfIGVBrowser = await igv.createBrowser(document.getElementById("bcf-igv-div"), config);
-      console.log("BCF IGV browser initialized");
+      logger.info("BCF IGV browser initialized");
 
       window.bcfIGVBrowser = this.bcfIGVBrowser;
 
@@ -203,9 +207,9 @@ export class IGVIntegration {
         onTableCreated("bcf", this.bcfVariants, this.bcfIGVBrowser, this.bcfHeader);
       }
 
-      console.log("BCF IGV browser and table ready");
+      logger.info("BCF IGV browser and table ready");
     } catch (error) {
-      console.error("BCF IGV initialization error:", error);
+      logger.error("BCF IGV initialization error:", error);
       const igvDiv = document.getElementById("bcf-igv-div");
       if (igvDiv) {
         igvDiv.innerHTML = `
@@ -224,14 +228,14 @@ export class IGVIntegration {
    */
   async initializeSURVIVORIGV(onTableCreated) {
     try {
-      console.log("Initializing SURVIVOR IGV browser...");
+      logger.info("Initializing SURVIVOR IGV browser...");
 
       const vcfFiles = this.requiredFiles.vcf.filter((f) => f);
 
       // Convert variants to ROI features array for IGV
       let roiFeatures = [];
       if (this.survivorVariants && this.survivorVariants.length > 0) {
-        console.log("Creating ROI features from SURVIVOR variants...");
+        logger.debug("Creating ROI features from SURVIVOR variants...");
 
         roiFeatures = this.survivorVariants
           .map((v) => {
@@ -247,7 +251,7 @@ export class IGVIntegration {
           })
           .filter((f) => f.chr && !isNaN(f.start) && !isNaN(f.end));
 
-        console.log(
+        logger.debug(
           `Created ${roiFeatures.length} ROI features from ${this.survivorVariants.length} variants`
         );
       }
@@ -264,7 +268,7 @@ export class IGVIntegration {
         document.getElementById("survivor-igv-div"),
         config
       );
-      console.log("SURVIVOR IGV browser initialized");
+      logger.info("SURVIVOR IGV browser initialized");
 
       // Expose IGV browser globally for tab switching
       window.survivorIGVBrowser = this.survivorIGVBrowser;
@@ -278,9 +282,9 @@ export class IGVIntegration {
         );
       }
 
-      console.log("SURVIVOR IGV browser and table ready");
+      logger.info("SURVIVOR IGV browser and table ready");
     } catch (error) {
-      console.error("SURVIVOR IGV initialization error:", error);
+      logger.error("SURVIVOR IGV initialization error:", error);
       const igvDiv = document.getElementById("survivor-igv-div");
       if (igvDiv) {
         igvDiv.innerHTML = `
@@ -306,7 +310,7 @@ export class IGVIntegration {
     let initialized = false;
     details.addEventListener("toggle", function () {
       if (details.open && !initialized) {
-        console.log(`Lazy loading ${sectionId}...`);
+        logger.debug(`Lazy loading ${sectionId}...`);
         initialized = true;
         initFunction();
       }

@@ -6,6 +6,9 @@
  */
 
 import { reconstructINFO } from "../../utils/InfoField.js";
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("TableExporter");
 
 export class TableExporter {
   constructor(gridApi) {
@@ -44,7 +47,7 @@ export class TableExporter {
 
     const csvContent = csvRows.join("\n");
     this.downloadFile(csvContent, `${prefix}_variants.csv`, "text/csv");
-    console.log(`Exported ${selectedRows.length} variants to CSV`);
+    logger.debug(`Exported ${selectedRows.length} variants to CSV`);
   }
 
   /**
@@ -62,7 +65,7 @@ export class TableExporter {
 
     if (!header) {
       alert("VCF header not available. Cannot export to VCF format.");
-      console.error(`Header for ${prefix} is null`);
+      logger.error(`Header for ${prefix} is null`);
       return;
     }
 
@@ -73,7 +76,7 @@ export class TableExporter {
       const variant = row._variant;
 
       if (!variant) {
-        console.warn("Original variant not found in row, reconstructing");
+        logger.warn("Original variant not found in row, reconstructing");
         const infoFields = [];
         for (const [key, value] of Object.entries(row)) {
           if (
@@ -119,7 +122,7 @@ export class TableExporter {
 
     const vcfContent = [metaLines, columnLine, ...dataLines].join("\n");
     this.downloadFile(vcfContent, `${prefix}_variants.vcf`, "text/vcf");
-    console.log(`Exported ${selectedRows.length} variants to VCF`);
+    logger.debug(`Exported ${selectedRows.length} variants to VCF`);
   }
 
   /**

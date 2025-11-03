@@ -13,6 +13,9 @@
 
 import { BCFHandler } from "./BCFHandler.js";
 import { SURVIVORHandler } from "./SURVIVORHandler.js";
+import { LoggerService } from "../../utils/LoggerService.js";
+
+const logger = new LoggerService("VariantHandlerRegistry");
 
 export class VariantHandlerRegistry {
   constructor() {
@@ -37,7 +40,7 @@ export class VariantHandlerRegistry {
     }
 
     this.handlers.push(handler);
-    console.log(`[VariantHandlerRegistry] Registered handler: ${handler.constructor.name}`);
+    logger.debug(`Registered handler: ${handler.constructor.name}`);
   }
 
   /**
@@ -129,5 +132,5 @@ export const variantHandlerRegistry = new VariantHandlerRegistry();
 variantHandlerRegistry.register(new SURVIVORHandler());
 variantHandlerRegistry.register(new BCFHandler()); // Default/catch-all
 
-console.log("[VariantHandlerRegistry] Initialization complete:");
-console.log(JSON.stringify(variantHandlerRegistry.getInfo(), null, 2));
+logger.debug("Initialization complete:");
+logger.debug(JSON.stringify(variantHandlerRegistry.getInfo(), null, 2));

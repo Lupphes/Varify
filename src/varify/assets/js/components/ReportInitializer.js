@@ -8,6 +8,9 @@ import { MetadataService } from "../services/MetadataService.js";
 import { SectionGenerator } from "./SectionGenerator.js";
 import { TabManager } from "./TabManager.js";
 import { EmptyState } from "./EmptyState.js";
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("ReportInitializer");
 
 export class ReportInitializer {
   constructor(genomeDBManager, igvIntegration, vcfParser, parsers) {
@@ -32,13 +35,13 @@ export class ReportInitializer {
    * Checks cache and auto-loads data if files are already cached
    */
   async initialize() {
-    console.log("[ReportInitializer] Initializing report (tab-based UI)...");
+    logger.info("Initializing report (tab-based UI)...");
 
     this.metadata = await this.loadMetadata();
     this.populateHeader(this.metadata);
 
     this.tabManager = new TabManager((newTab, previousTab) => {
-      console.log(`[ReportInitializer] Tab switched: ${previousTab} -> ${newTab}`);
+      logger.debug(`Tab switched: ${previousTab} -> ${newTab}`);
     });
 
     this.setupButtonHandlers();
@@ -48,16 +51,16 @@ export class ReportInitializer {
     const filesAreCached = await this.checkIfFilesAreCached();
 
     if (filesAreCached) {
-      console.log("[ReportInitializer] Files cached - auto-loading data...");
+      logger.info("Files cached - auto-loading data...");
       await this.loadAllData(true);
     } else {
-      console.log("[ReportInitializer] Files not cached - showing empty state");
+      logger.info("Files not cached - showing empty state");
       this.setupEmptyStates();
     }
 
     await this.updateCacheStatus();
 
-    console.log("[ReportInitializer] Report initialized");
+    logger.info("Report initialized");
   }
 
   /**
@@ -95,7 +98,7 @@ export class ReportInitializer {
       const filesCached =
         allExist && !versionCheck.mismatch && versionCheck.reason === "version-match";
 
-      console.log("[ReportInitializer] Cache check:", {
+      logger.debug("Cache check:", {
         allExist,
         versionMatch: !versionCheck.mismatch,
         filesCached,
@@ -103,7 +106,7 @@ export class ReportInitializer {
 
       return filesCached;
     } catch (error) {
-      console.error("[ReportInitializer] Error checking cache:", error);
+      logger.error("Error checking cache:", error);
       return false;
     }
   }
@@ -170,11 +173,11 @@ export class ReportInitializer {
    */
   async loadAllData(skipFileCheck = false) {
     if (this.dataLoaded) {
-      console.log("[ReportInitializer] Data already loaded");
+      logger.info("Data already loaded");
       return;
     }
 
-    console.log("[ReportInitializer] Loading all data (BCF + SURVIVOR)...");
+    logger.info("Loading all data (BCF + SURVIVOR)...");
 
     try {
       this.showLoadingIndicator(skipFileCheck ? "Loading data..." : "Checking for genome files...");
@@ -184,8 +187,8 @@ export class ReportInitializer {
       const bcfVcfFilename = this.metadata.bcf?.vcf_filename;
       const survivorVcfFilename = this.metadata.survivor?.vcf_filename;
 
-      console.log(
-        `[ReportInitializer] BCF VCF: ${bcfVcfFilename}, SURVIVOR VCF: ${survivorVcfFilename}`
+      logger.debug(
+        `BCF VCF: ${bcfVcfFilename}, SURVIVOR VCF: ${survivorVcfFilename}`
       );
 
       const statsFiles = [];
@@ -208,19 +211,19 @@ export class ReportInitializer {
 
         const filesReady = await uploadUI.showModal(window.REPORT_VERSION);
         if (!filesReady) {
-          console.error("[ReportInitializer] Files not uploaded");
+          logger.error("Files not uploaded");
           this.hideLoadingIndicator();
           return;
         }
       }
 
-      console.log("[ReportInitializer] All files ready, parsing VCFs...");
+      logger.info("All files ready, parsing VCFs...");
       this.showLoadingIndicator("Parsing VCF files...");
 
       await this.igvIntegration.loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename);
 
-      console.log("[ReportInitializer] VCFs parsed, initializing tabs...");
-      console.log("[ReportInitializer] Metadata check:", {
+      logger.info("VCFs parsed, initializing tabs...");
+      logger.debug("Metadata check:", {
         hasBcf: !!this.metadata.bcf,
         hasSurvivor: !!this.metadata.survivor,
         bcfVcfFilename,
@@ -228,21 +231,21 @@ export class ReportInitializer {
       });
 
       if (this.metadata.bcf && bcfVcfFilename) {
-        console.log("[ReportInitializer] Initializing BCF tab...");
+        logger.info("Initializing BCF tab...");
         this.showLoadingIndicator("Initializing BCFtools genome browser...");
         await this.initializeTabContent("bcf", bcfVcfFilename);
-        console.log("[ReportInitializer] BCF tab content initialized, marking as ready...");
+        logger.debug("BCF tab content initialized, marking as ready...");
         this.tabManager.markTabInitialized("bcf");
-        console.log("[ReportInitializer] BCF tab marked as initialized");
+        logger.debug("BCF tab marked as initialized");
       }
 
       if (this.metadata.survivor && survivorVcfFilename) {
-        console.log("[ReportInitializer] Initializing SURVIVOR tab...");
+        logger.info("Initializing SURVIVOR tab...");
         this.showLoadingIndicator("Initializing SURVIVOR genome browser...");
         await this.initializeTabContent("survivor", survivorVcfFilename);
-        console.log("[ReportInitializer] SURVIVOR tab content initialized, marking as ready...");
+        logger.debug("SURVIVOR tab content initialized, marking as ready...");
         this.tabManager.markTabInitialized("survivor");
-        console.log("[ReportInitializer] SURVIVOR tab marked as initialized");
+        logger.debug("SURVIVOR tab marked as initialized");
       }
 
       this.showLoadingIndicator("Finalizing report...");
@@ -250,8 +253,8 @@ export class ReportInitializer {
 
       this.dataLoaded = true;
 
-      console.log("[ReportInitializer] All data loaded successfully");
-      console.log("[ReportInitializer] Tab initialized status:", this.tabManager.initialized);
+      logger.info("All data loaded successfully");
+      logger.debug("Tab initialized status:", this.tabManager.initialized);
 
       await this.updateCacheStatus();
 
@@ -263,7 +266,7 @@ export class ReportInitializer {
       }
     } catch (error) {
       this.hideLoadingIndicator();
-      console.error("[ReportInitializer] Error loading data:", error);
+      logger.error("Error loading data:", error);
       alert(`Failed to load data: ${error.message}`);
     }
   }
@@ -273,7 +276,7 @@ export class ReportInitializer {
    * Note: VCF parsing is done BEFORE this is called in loadAllData()
    */
   async initializeTabContent(tabId, vcfFilename) {
-    console.log(`[ReportInitializer] Initializing content for ${tabId}`);
+    logger.info(`Initializing content for ${tabId}`);
 
     try {
       const tabMetadata = this.metadata[tabId];
@@ -281,10 +284,10 @@ export class ReportInitializer {
         throw new Error(`No metadata found for ${tabId}`);
       }
 
-      console.log(`[ReportInitializer] Initializing UI for ${tabId}...`);
+      logger.debug(`Initializing UI for ${tabId}...`);
       SectionGenerator.initializeTab(tabId, tabMetadata);
 
-      console.log(`[ReportInitializer] Initializing IGV for ${tabId}...`);
+      logger.debug(`Initializing IGV for ${tabId}...`);
       if (tabId === "bcf") {
         await this.igvIntegration.initializeBCFIGV(this.createVariantTableWithHandlers.bind(this));
       } else {
@@ -293,12 +296,12 @@ export class ReportInitializer {
         );
       }
 
-      console.log(`[ReportInitializer] Loading stats for ${tabId}...`);
+      logger.debug(`Loading stats for ${tabId}...`);
       await this.loadStatsForTab(tabId);
 
-      console.log(`[ReportInitializer] Tab ${tabId} fully initialized`);
+      logger.info(`Tab ${tabId} fully initialized`);
     } catch (error) {
-      console.error(`[ReportInitializer] ERROR initializing ${tabId}:`, error);
+      logger.error(`ERROR initializing ${tabId}:`, error);
       throw error;
     }
   }
@@ -307,7 +310,7 @@ export class ReportInitializer {
    * Create variant table with handlers
    */
   async createVariantTableWithHandlers(prefix, variants, igvBrowser, header) {
-    console.log(`[ReportInitializer] Creating table for ${prefix}`);
+    logger.debug(`Creating table for ${prefix}`);
 
     const metadataService = new MetadataService();
     const fieldMetadata = metadataService.buildFieldMetadata(variants);
@@ -323,15 +326,15 @@ export class ReportInitializer {
     window[`${prefix}Table`] = agTable;
 
     plotsComponent.onPlotSelection((event) => {
-      console.log(`Plot selection for ${prefix}:`, event.criteria);
+      logger.debug(`Plot selection for ${prefix}:`, event.criteria);
       agTable.applyFilterFromPlot(event.criteria);
     });
 
     try {
       await plotsComponent.initialize();
-      console.log(`[ReportInitializer] Plots initialized for ${prefix}`);
+      logger.info(`Plots initialized for ${prefix}`);
     } catch (error) {
-      console.error(`[ReportInitializer] Plot initialization error for ${prefix}:`, error);
+      logger.error(`Plot initialization error for ${prefix}:`, error);
     }
   }
 
@@ -372,11 +375,11 @@ export class ReportInitializer {
         const container = document.getElementById("bcf-stats-container");
         if (container) {
           container.innerHTML = statsHTML;
-          console.log("[ReportInitializer] BCF stats loaded");
+          logger.info("BCF stats loaded");
         }
       }
     } catch (error) {
-      console.error("[ReportInitializer] Error loading BCF stats:", error);
+      logger.error("Error loading BCF stats:", error);
     }
   }
 
@@ -395,11 +398,11 @@ export class ReportInitializer {
         const container = document.getElementById("survivor-stats-container");
         if (container) {
           container.innerHTML = statsHTML;
-          console.log("[ReportInitializer] SURVIVOR stats loaded");
+          logger.info("SURVIVOR stats loaded");
         }
       }
     } catch (error) {
-      console.error("[ReportInitializer] Error loading SURVIVOR stats:", error);
+      logger.error("Error loading SURVIVOR stats:", error);
     }
   }
 
@@ -420,7 +423,7 @@ export class ReportInitializer {
    */
   async loadMetadata() {
     if (window.REPORT_METADATA) {
-      console.log("[ReportInitializer] Loaded embedded metadata");
+      logger.info("Loaded embedded metadata");
       return window.REPORT_METADATA;
     }
 
@@ -453,7 +456,7 @@ export class ReportInitializer {
    */
   toggleMultiCallerFilter(enabled) {
     window.survivorMultiCallerMode = enabled;
-    console.log(`[ReportInitializer] Multi-caller filter: ${enabled ? "ANY" : "PRIMARY"}`);
+    logger.info(`Multi-caller filter: ${enabled ? "ANY" : "PRIMARY"}`);
 
     const grid = window.survivorGridApi;
     if (grid) {
@@ -497,7 +500,7 @@ export class ReportInitializer {
 
       setTimeout(() => location.reload(), 1000);
     } catch (error) {
-      console.error("[ReportInitializer] Clear cache error:", error);
+      logger.error("Clear cache error:", error);
       alert(`Failed to clear cache: ${error.message}`);
       if (btn) {
         btn.disabled = false;
@@ -527,7 +530,7 @@ export class ReportInitializer {
         }
       }
     } catch (error) {
-      console.error("[ReportInitializer] Cache status error:", error);
+      logger.error("Cache status error:", error);
     }
   }
 

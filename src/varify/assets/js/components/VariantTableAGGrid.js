@@ -17,6 +17,9 @@ import { FORMAT_FIELD_PRIORITY, COLUMN_PRIORITY_ORDER, COLUMN_WIDTHS } from "../
 import { UI_COLORS as THEME } from "../config/colors.js";
 import { CallerDetailsModal } from "./table/CallerDetailsModal.js";
 import { TableExporter } from "./table/TableExporter.js";
+import { LoggerService } from "../utils/LoggerService.js";
+
+const logger = new LoggerService("VariantTableAGGrid");
 
 export class VariantTableAGGrid {
   constructor(vcfParser, genomeDBManager, plotsComponent = null) {
@@ -36,7 +39,7 @@ export class VariantTableAGGrid {
     const containerEl = document.getElementById(tableId);
 
     if (!containerEl) {
-      console.error(`Container ${tableId} not found`);
+      logger.error(`Container ${tableId} not found`);
       return null;
     }
 
@@ -81,7 +84,7 @@ export class VariantTableAGGrid {
     window[`${prefix}GridApi`] = this.gridApi;
     this.setupExportHandlers(prefix, header);
 
-    console.log(
+    logger.info(
       `AG-Grid table created for ${prefix} with ${Object.keys(fieldMetadata).length} columns`
     );
 
@@ -406,7 +409,7 @@ export class VariantTableAGGrid {
 
           const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
 
-          console.log(
+          logger.debug(
             `Querying IndexedDB: offset=${params.startRow}, limit=${params.endRow - params.startRow}`,
             { filters, sort, multiCallerMode }
           );
@@ -421,17 +424,17 @@ export class VariantTableAGGrid {
 
           const totalCount = await this.genomeDBManager.getVariantCount(prefix, filters);
 
-          console.log(`Retrieved ${variants.length} variants (total: ${totalCount})`);
+          logger.debug(`Retrieved ${variants.length} variants (total: ${totalCount})`);
 
           const flattenedVariants = variants.map((v) => this.flattenVariant(v));
 
           if (prefix === "survivor" && flattenedVariants.length > 0 && !window._loggedAllCallers) {
             window._loggedAllCallers = true;
             const firstVariant = flattenedVariants[0];
-            console.log("=== First Grid Variant ===");
-            console.log("Has _allCallers:", !!firstVariant._allCallers);
-            console.log("_allCallers length:", firstVariant._allCallers?.length);
-            console.log("_allCallers:", firstVariant._allCallers);
+            logger.debug("=== First Grid Variant ===");
+            logger.debug("Has _allCallers:", !!firstVariant._allCallers);
+            logger.debug("_allCallers length:", firstVariant._allCallers?.length);
+            logger.debug("_allCallers:", firstVariant._allCallers);
           }
 
           params.successCallback(flattenedVariants, totalCount);
@@ -441,7 +444,7 @@ export class VariantTableAGGrid {
             this.navigateToVariant(flattenedVariants[0], null, false);
           }
         } catch (error) {
-          console.error("Error loading variants from IndexedDB:", error);
+          logger.error("Error loading variants from IndexedDB:", error);
           params.failCallback();
         }
       },
@@ -495,7 +498,7 @@ export class VariantTableAGGrid {
     const browser = igvBrowser || this.igvBrowser;
 
     if (!browser) {
-      console.warn("IGV browser not initialized");
+      logger.warn("IGV browser not initialized");
       return;
     }
 
@@ -514,17 +517,17 @@ export class VariantTableAGGrid {
       const locus1 = `${variant.CHROM}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
       const locus2 = `${variant.CHR2}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
       locus = `${locus1} ${locus2}`;
-      console.log(`Navigating IGV to translocation (multi-locus): ${locus}`);
+      logger.debug(`Navigating IGV to translocation (multi-locus): ${locus}`);
     } else if (isLargeSV && variant.END) {
       const pos1 = parseInt(variant.POS);
       const pos2 = parseInt(variant.END);
       const locus1 = `${variant.CHROM}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
       const locus2 = `${variant.CHROM}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
       locus = `${locus1} ${locus2}`;
-      console.log(`Navigating IGV to large SV (multi-locus): ${locus}`);
+      logger.debug(`Navigating IGV to large SV (multi-locus): ${locus}`);
     } else {
       locus = variant.locus || `${variant.CHROM || variant.chr}:${variant.POS || variant.pos}`;
-      console.log(`Navigating IGV to: ${locus}`);
+      logger.debug(`Navigating IGV to: ${locus}`);
     }
 
     browser.search(locus);
@@ -566,7 +569,7 @@ export class VariantTableAGGrid {
       return window[`${prefix}FieldMetadata`];
     }
 
-    console.log(`Analyzing field metadata for ${prefix}...`);
+    logger.info(`Analyzing field metadata for ${prefix}...`);
     const metadata = {};
 
     const variants = await this.genomeDBManager.queryVariants(prefix, {}, { limit: 10000 });
@@ -653,8 +656,8 @@ export class VariantTableAGGrid {
     this._filterTimeout = setTimeout(async () => {
       try {
         const filterModel = this.gridApi.getFilterModel();
-        console.log("[VariantTable] AG-Grid filter model:", filterModel);
-        console.log("[VariantTable] Filter model details:", JSON.stringify(filterModel, null, 2));
+        logger.debug("AG-Grid filter model:", filterModel);
+        logger.debug("Filter model details:", JSON.stringify(filterModel, null, 2));
 
         if (Object.keys(filterModel).length === 0) {
           const allVariants = await this.genomeDBManager.queryVariants(
@@ -662,24 +665,24 @@ export class VariantTableAGGrid {
             {},
             { limit: Infinity }
           );
-          console.log(`[VariantTable] No filters active: ${allVariants.length} variants`);
+          logger.debug(`No filters active: ${allVariants.length} variants`);
           await this.plotsComponent.updateFromFilteredData(allVariants);
           return;
         }
 
         const dbFilters = this.extractFilters(filterModel);
-        console.log("[VariantTable] Converted to DB filters:", dbFilters);
+        logger.debug("Converted to DB filters:", dbFilters);
 
         const filteredData = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
           limit: Infinity,
         });
 
-        console.log(`[VariantTable] Filter changed: ${filteredData.length} variants`);
+        logger.debug(`Filter changed: ${filteredData.length} variants`);
 
         if (filteredData.length > 0 && dbFilters.QUAL) {
-          console.log("[VariantTable] Sample QUAL values from filtered data:");
+          logger.debug("Sample QUAL values from filtered data:");
           filteredData.slice(0, 5).forEach((v, i) => {
-            console.log(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
+            logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
           });
         } else if (filteredData.length === 0 && dbFilters.QUAL) {
           const sampleVariants = await this.genomeDBManager.queryVariants(
@@ -687,17 +690,17 @@ export class VariantTableAGGrid {
             {},
             { limit: 10 }
           );
-          console.log(
-            "[VariantTable] No variants matched QUAL filter. Sample QUAL values from DB:"
+          logger.debug(
+            "No variants matched QUAL filter. Sample QUAL values from DB:"
           );
           sampleVariants.forEach((v, i) => {
-            console.log(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
+            logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
           });
         }
 
         await this.plotsComponent.updateFromFilteredData(filteredData);
       } catch (error) {
-        console.error("[VariantTable] Error updating plots:", error);
+        logger.error("Error updating plots:", error);
       }
     }, 300);
   }
@@ -705,7 +708,7 @@ export class VariantTableAGGrid {
   applyFilterFromPlot(filterCriteria) {
     if (!this.gridApi) return;
 
-    console.log("[VariantTable] Applying filter from plot:", filterCriteria);
+    logger.debug("Applying filter from plot:", filterCriteria);
 
     if (filterCriteria.SVTYPE) {
       this.genomeDBManager
@@ -717,8 +720,8 @@ export class VariantTableAGGrid {
           const matchingContains = allVariants.filter(
             (v) => v.SVTYPE && v.SVTYPE.includes(filterCriteria.SVTYPE)
           ).length;
-          console.log(
-            `[VariantTable] SVTYPE="${filterCriteria.SVTYPE}" - Exact matches: ${matchingExact}, Contains matches: ${matchingContains}`
+          logger.debug(
+            `SVTYPE="${filterCriteria.SVTYPE}" - Exact matches: ${matchingExact}, Contains matches: ${matchingContains}`
           );
         });
     }
