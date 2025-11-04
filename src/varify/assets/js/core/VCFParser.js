@@ -27,7 +27,6 @@ class VCFParser {
    * @returns {Promise<Array>} - Array of variant objects
    */
   async parseVCF(data, maxVariants = 10000) {
-    // Handle both ArrayBuffer and Blob inputs
     let arrayBuffer;
     if (data instanceof Blob) {
       arrayBuffer = await data.arrayBuffer();
@@ -83,7 +82,6 @@ class VCFParser {
     }
 
     try {
-      // Handle both ArrayBuffer and Blob inputs
       let arrayBuffer;
       if (data instanceof Blob) {
         arrayBuffer = await data.arrayBuffer();

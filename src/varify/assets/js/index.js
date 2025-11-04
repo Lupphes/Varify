@@ -28,7 +28,8 @@ import { LoggerService } from "./utils/LoggerService.js";
 
 const logger = new LoggerService("Index");
 
-const genomeDBManager = new IndexedDBManager();
+const reportHash = window.REPORT_METADATA?.file_version;
+const genomeDBManager = new IndexedDBManager("varify-genome-data", 3, reportHash);
 const igvLoader = new IGVIndexedDBLoader(genomeDBManager);
 const vcfParser = new VCFParser();
 const igvIntegration = new IGVIntegration(genomeDBManager, igvLoader, vcfParser);
