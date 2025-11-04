@@ -66,12 +66,15 @@ export class FileStorage {
         const request = objectStore.put(fileObject);
 
         request.onsuccess = () => {
-          logger.debug(`Stored file "${name}" (${StorageUtils.formatBytes(arrayBuffer.byteLength)})`);
+          logger.debug(
+            `Stored file "${name}" (${StorageUtils.formatBytes(arrayBuffer.byteLength)})`
+          );
           if (onProgress) onProgress(1, 1, arrayBuffer.byteLength, arrayBuffer.byteLength);
           resolve(name);
         };
 
-        request.onerror = () => reject(new Error(`Failed to store file "${name}": ${request.error}`));
+        request.onerror = () =>
+          reject(new Error(`Failed to store file "${name}": ${request.error}`));
       });
     }
 
@@ -98,7 +101,8 @@ export class FileStorage {
       const request = objectStore.put(metadataObject);
 
       request.onsuccess = () => resolve();
-      request.onerror = () => reject(new Error(`Failed to store metadata for "${name}": ${request.error}`));
+      request.onerror = () =>
+        reject(new Error(`Failed to store metadata for "${name}": ${request.error}`));
     });
 
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -129,18 +133,23 @@ export class FileStorage {
         const request = objectStore.put(chunkObject);
 
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(new Error(`Failed to store chunk ${chunkIndex} for "${name}": ${request.error}`));
+        request.onerror = () =>
+          reject(new Error(`Failed to store chunk ${chunkIndex} for "${name}": ${request.error}`));
       });
 
       bytesProcessed += chunkData.byteLength;
-      logger.debug(`Stored chunk ${chunkIndex + 1}/${totalChunks} for "${name}" (${StorageUtils.formatBytes(chunkData.byteLength)})`);
+      logger.debug(
+        `Stored chunk ${chunkIndex + 1}/${totalChunks} for "${name}" (${StorageUtils.formatBytes(chunkData.byteLength)})`
+      );
 
       if (onProgress) {
         onProgress(chunkIndex + 1, totalChunks, bytesProcessed, fileSize);
       }
     }
 
-    logger.debug(`Completed chunked storage of "${name}" (${totalChunks} chunks, ${StorageUtils.formatBytes(fileSize)})`);
+    logger.debug(
+      `Completed chunked storage of "${name}" (${totalChunks} chunks, ${StorageUtils.formatBytes(fileSize)})`
+    );
     return name;
   }
 
@@ -171,9 +180,7 @@ export class FileStorage {
     }
 
     if (!mainEntry.chunked) {
-      logger.debug(
-        `Retrieved file "${name}" (${StorageUtils.formatBytes(mainEntry.size)})`
-      );
+      logger.debug(`Retrieved file "${name}" (${StorageUtils.formatBytes(mainEntry.size)})`);
 
       const data = mainEntry.data;
       if (data instanceof ArrayBuffer) {
@@ -205,7 +212,9 @@ export class FileStorage {
 
         request.onsuccess = () => resolve(request.result);
         request.onerror = () =>
-          reject(new Error(`Failed to retrieve chunk ${chunkIndex} for "${name}": ${request.error}`));
+          reject(
+            new Error(`Failed to retrieve chunk ${chunkIndex} for "${name}": ${request.error}`)
+          );
       });
 
       if (!chunkEntry || !chunkEntry.data) {
@@ -218,7 +227,7 @@ export class FileStorage {
     // Use Blob for large files to avoid 2GB ArrayBuffer limit
     if (useBlob) {
       logger.debug(`Using Blob-based retrieval for large file "${name}"`);
-      const blobs = chunks.map(chunk => new Blob([chunk]));
+      const blobs = chunks.map((chunk) => new Blob([chunk]));
       const blob = new Blob(blobs);
       logger.debug(`Reassembled file "${name}" as Blob (${StorageUtils.formatBytes(blob.size)})`);
       return blob;
@@ -346,7 +355,9 @@ export class FileStorage {
       }
     }
 
-    logger.debug(`Deleted file "${name}"${mainEntry && mainEntry.chunked ? ' and all chunks' : ''}`);
+    logger.debug(
+      `Deleted file "${name}"${mainEntry && mainEntry.chunked ? " and all chunks" : ""}`
+    );
   }
 
   /**

@@ -208,7 +208,7 @@ export function renderCumulativeSVLength(variants, echarts, container, eventBus)
         show: true,
         xAxisIndex: [0],
         start: 0,
-        end: Math.min(100, (30 / numChromosomes) * 100), 
+        end: Math.min(100, (30 / numChromosomes) * 100),
         bottom: "5%",
       },
       {
@@ -327,7 +327,7 @@ function calculateXAxisConfig(numChromosomes) {
     return {
       fontSize: 9,
       rotate: 60,
-      interval: 0, 
+      interval: 0,
       nameGap: 40,
       gridBottom: "22%",
     };
@@ -335,7 +335,7 @@ function calculateXAxisConfig(numChromosomes) {
     return {
       fontSize: 8,
       rotate: 60,
-      interval: 1, 
+      interval: 1,
       nameGap: 40,
       gridBottom: "22%",
     };

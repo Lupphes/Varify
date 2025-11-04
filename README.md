@@ -36,16 +36,19 @@ A Python-based tool to generate rich, interactive HTML reports from structural v
 ## 🧰 Requirements
 
 ### Python Dependencies
+
 - Python 3.10+
 - pandas, numpy, pysam, vcfpy (auto-installed)
 
 ### JavaScript Dependencies (for building)
+
 - Node.js 18+
 - npm (comes with Node.js)
 
 ### Installation
 
 **Option 1: Install from source**
+
 ```bash
 # Install Python dependencies
 pip install -r requirements.txt
@@ -59,6 +62,7 @@ pip install .
 ```
 
 **Option 2: Development mode**
+
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
 npm install
@@ -71,6 +75,7 @@ pip install -e .
 ## 🚀 Usage
 
 ### After Installation
+
 ```bash
 varify \
   --output-dir results/ \
@@ -83,6 +88,7 @@ varify \
 ```
 
 ### From Source (Without Installation)
+
 ```bash
 # Activate virtual environment
 source venv/bin/activate
@@ -102,25 +108,25 @@ python -m src.varify.varify \
 
 ### Required Inputs
 
-| Argument | Description |
-|----------|-------------|
-| `--output-dir` | Directory to write plots and reports |
-| `--bcf-vcf-file` | VCF file from BCFtools merge |
-| `--survivor-vcf-file` | VCF file from SURVIVOR merge |
-| `--bcf-stats-file` | Output from `bcftools stats` on the BCF VCF |
+| Argument                | Description                                                |
+| ----------------------- | ---------------------------------------------------------- |
+| `--output-dir`          | Directory to write plots and reports                       |
+| `--bcf-vcf-file`        | VCF file from BCFtools merge                               |
+| `--survivor-vcf-file`   | VCF file from SURVIVOR merge                               |
+| `--bcf-stats-file`      | Output from `bcftools stats` on the BCF VCF                |
 | `--survivor-stats-file` | Tabular SURVIVOR summary file (e.g. SV types per size bin) |
-| `--fasta-file` | Reference genome used for alignment |
-| `--report-file` | Path to output HTML file |
+| `--fasta-file`          | Reference genome used for alignment                        |
+| `--report-file`         | Path to output HTML file                                   |
 
 ---
 
 ### Optional Inputs
 
-| Argument | Description |
-|----------|-------------|
-| `--sample-vcf-files` | List of individual sample VCFs (optional, not yet used) |
-| `--bam-files` | One or more BAM files for IGV iframe views |
-| `--profile` | Pipeline or execution profile label (e.g. "default", "nextflow") |
+| Argument             | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| `--sample-vcf-files` | List of individual sample VCFs (optional, not yet used)          |
+| `--bam-files`        | One or more BAM files for IGV iframe views                       |
+| `--profile`          | Pipeline or execution profile label (e.g. "default", "nextflow") |
 
 ---
 
@@ -139,8 +145,8 @@ python -m src.varify.varify \
 
 ## 🖼️ Example Screenshots
 
-| Summary | Interactive Plot | IGV Section |
-|--------|------------------|-------------|
+| Summary                  | Interactive Plot                   | IGV Section          |
+| ------------------------ | ---------------------------------- | -------------------- |
 | ![Plots](docs/index.png) | ![Statistics](docs/statistics.png) | ![IGV](docs/IGV.png) |
 
 ---
@@ -150,6 +156,7 @@ python -m src.varify.varify \
 Varify is built with a modern, modular architecture:
 
 ### Python Backend
+
 - `src/varify/varify.py`: Main CLI entry point and report generator
 - `src/varify/cli/`: Command-line interface components
 - `src/varify/core/`: Core parsing and processing logic
@@ -157,6 +164,7 @@ Varify is built with a modern, modular architecture:
 - Generates a single HTML file with embedded assets
 
 ### JavaScript Frontend (ES6 Modules)
+
 - **Components**: UI components (tables, charts, file upload, IGV integration)
   - `VariantTableAGGrid`: High-performance data tables
   - `VarifyPlots`: ECharts visualization engine
@@ -200,6 +208,7 @@ npm run format:check
 ```
 
 **Key Dependencies:**
+
 - **esbuild**: Ultra-fast JavaScript bundler
 - **Tailwind CSS v4**: Utility-first CSS framework
 - **AG-Grid Community**: High-performance data tables
@@ -232,6 +241,7 @@ npm test -- --coverage
 **Test Coverage: 44% (18/41 source files)**
 
 #### Test Files
+
 - ✅ Variant Handlers (BCF, SURVIVOR, Registry)
 - ✅ VCF Parsers (Variant, Genotype, Header)
 - ✅ Query & Filtering (VariantFilter)
@@ -252,4 +262,3 @@ Created with ❤️ by **Luppo** for structural variant exploration.
 ---
 
 Contributions welcome! If you'd like to add filters, annotation support, pipeline integration, or new visualizations, open a PR!
-

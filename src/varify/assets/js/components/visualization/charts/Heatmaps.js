@@ -137,14 +137,14 @@ function calculateYAxisConfig(numChromosomes) {
   if (numChromosomes <= 15) {
     return {
       fontSize: 11,
-      interval: 0, 
+      interval: 0,
       nameGap: 100,
       gridLeft: "10%",
     };
   } else if (numChromosomes <= 25) {
     return {
       fontSize: 9,
-      interval: 0, 
+      interval: 0,
       nameGap: 80,
       gridLeft: "8%",
     };
@@ -158,7 +158,7 @@ function calculateYAxisConfig(numChromosomes) {
   } else {
     return {
       fontSize: 7,
-      interval: 2, 
+      interval: 2,
       nameGap: 60,
       gridLeft: "6%",
     };
