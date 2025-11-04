@@ -38,6 +38,9 @@ export function renderTypeHeatmap(variants, echarts, container, eventBus) {
     }
   }
 
+  const numChromosomes = rows.length;
+  const yAxisConfig = calculateYAxisConfig(numChromosomes);
+
   const option = {
     title: { text: title },
     tooltip: {
@@ -52,6 +55,7 @@ export function renderTypeHeatmap(variants, echarts, container, eventBus) {
     grid: {
       ...getGridConfig("heatmap"),
       top: "12%",
+      left: yAxisConfig.gridLeft,
     },
     xAxis: {
       type: "category",
@@ -71,11 +75,11 @@ export function renderTypeHeatmap(variants, echarts, container, eventBus) {
       data: rows,
       name: "Chromosome",
       nameLocation: "middle",
-      nameGap: 100, // Increased to push name further left from Y-axis labels
+      nameGap: yAxisConfig.nameGap,
       splitArea: { show: true },
       axisLabel: {
-        interval: 0,
-        fontSize: 11,
+        interval: yAxisConfig.interval,
+        fontSize: yAxisConfig.fontSize,
       },
     },
     visualMap: {
@@ -124,6 +128,41 @@ export function renderTypeHeatmap(variants, echarts, container, eventBus) {
   });
 
   return chart;
+}
+
+/**
+ * Calculate dynamic Y-axis configuration based on number of chromosomes
+ */
+function calculateYAxisConfig(numChromosomes) {
+  if (numChromosomes <= 15) {
+    return {
+      fontSize: 11,
+      interval: 0, 
+      nameGap: 100,
+      gridLeft: "10%",
+    };
+  } else if (numChromosomes <= 25) {
+    return {
+      fontSize: 9,
+      interval: 0, 
+      nameGap: 80,
+      gridLeft: "8%",
+    };
+  } else if (numChromosomes <= 40) {
+    return {
+      fontSize: 8,
+      interval: 1,
+      nameGap: 70,
+      gridLeft: "7%",
+    };
+  } else {
+    return {
+      fontSize: 7,
+      interval: 2, 
+      nameGap: 60,
+      gridLeft: "6%",
+    };
+  }
 }
 
 /**
