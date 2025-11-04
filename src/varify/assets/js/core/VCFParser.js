@@ -26,7 +26,7 @@ class VCFParser {
    * @param {number} maxVariants - Maximum variants to parse (optional)
    * @returns {Promise<Array>} - Array of variant objects
    */
-  async parseVCF(data, maxVariants = 10000) {
+  async parseVCF(data, maxVariants = Infinity) {
     let arrayBuffer;
     if (data instanceof Blob) {
       arrayBuffer = await data.arrayBuffer();
@@ -74,7 +74,7 @@ class VCFParser {
    * @param {number} maxVariants - Maximum variants to parse
    * @returns {Promise<Array>} - Array of variant objects
    */
-  async parseCompressedVCF(data, maxVariants = 10000) {
+  async parseCompressedVCF(data, maxVariants = Infinity) {
     if (typeof pako === "undefined") {
       throw new Error(
         "Pako library required for compressed VCF files. Include: https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"

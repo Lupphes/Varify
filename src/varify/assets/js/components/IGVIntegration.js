@@ -74,9 +74,9 @@ export class IGVIntegration {
 
         logger.info("Parsing BCF variants...");
         if (useCompressed) {
-          this.bcfVariants = await this.vcfParser.parseCompressedVCF(bcfData, 10000);
+          this.bcfVariants = await this.vcfParser.parseCompressedVCF(bcfData);
         } else {
-          this.bcfVariants = await this.vcfParser.parseVCF(bcfData, 10000);
+          this.bcfVariants = await this.vcfParser.parseVCF(bcfData);
         }
 
         // Add index for table display
@@ -121,9 +121,9 @@ export class IGVIntegration {
 
         logger.info("Parsing SURVIVOR variants...");
         if (useCompressedSurvivor) {
-          this.survivorVariants = await this.vcfParser.parseCompressedVCF(survivorData, 10000);
+          this.survivorVariants = await this.vcfParser.parseCompressedVCF(survivorData);
         } else {
-          this.survivorVariants = await this.vcfParser.parseVCF(survivorData, 10000);
+          this.survivorVariants = await this.vcfParser.parseVCF(survivorData);
         }
 
         // Add index for table display
