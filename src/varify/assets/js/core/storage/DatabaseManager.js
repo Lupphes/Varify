@@ -10,8 +10,8 @@ import { LoggerService } from "../../utils/LoggerService.js";
 const logger = new LoggerService("DatabaseManager");
 
 export class DatabaseManager {
-  constructor(dbName = "varify-genome-data", version = 3) {
-    this.dbName = dbName;
+  constructor(dbName = "varify-genome-data", version = 3, reportHash = null) {
+    this.dbName = reportHash ? `${dbName}-${reportHash}` : dbName;
     this.version = version;
     this.db = null;
     this.storeName = "files";

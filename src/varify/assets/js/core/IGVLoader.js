@@ -21,21 +21,30 @@ class IGVIndexedDBLoader {
       return this.fileCache.get(filename);
     }
 
-    const arrayBuffer = await this.dbManager.getFile(filename);
-    if (!arrayBuffer) {
+    const data = await this.dbManager.getFile(filename);
+    if (!data) {
       throw new Error(`File not found in IndexedDB: ${filename}`);
     }
 
-    const blob = new Blob([arrayBuffer]);
-    const file = new File([blob], filename, {
-      type: this.getMimeType(filename),
-    });
+    let file;
+    if (data instanceof Blob) {
+      file = new File([data], filename, {
+        type: this.getMimeType(filename),
+      });
+      logger.debug(
+        `Loaded large file from IndexedDB: ${filename} (${this.dbManager.formatBytes(data.size)})`
+      );
+    } else {
+      const blob = new Blob([data]);
+      file = new File([blob], filename, {
+        type: this.getMimeType(filename),
+      });
+      logger.debug(
+        `Loaded file from IndexedDB: ${filename} (${this.dbManager.formatBytes(data.byteLength)})`
+      );
+    }
 
     this.fileCache.set(filename, file);
-
-    logger.debug(
-      `Loaded file from IndexedDB: ${filename} (${this.dbManager.formatBytes(arrayBuffer.byteLength)})`
-    );
     return file;
   }
 

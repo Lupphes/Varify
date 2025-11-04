@@ -214,3 +214,4 @@ html/
 backup/
 conda-build-output
 coverage/
+data_horse

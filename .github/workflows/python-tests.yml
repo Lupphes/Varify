@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout code
@@ -26,8 +26,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
-          cache: 'npm'
+          node-version: "20.x"
+          cache: "npm"
 
       - name: Build JavaScript bundle
         run: |
@@ -38,7 +38,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -61,7 +61,7 @@ jobs:
       - name: Run mypy type checking
         run: |
           mypy src/varify
-        continue-on-error: true  # Continue even if type checking fails
+        continue-on-error: true # Continue even if type checking fails
 
       - name: Run pytest with coverage
         run: |
@@ -74,4 +74,4 @@ jobs:
           files: ./coverage.xml
           flags: python
           name: python-coverage
-        continue-on-error: true  # Don't fail if codecov upload fails
+        continue-on-error: true # Don't fail if codecov upload fails

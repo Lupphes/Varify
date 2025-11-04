@@ -156,6 +156,9 @@ export function renderCumulativeSVLength(variants, echarts, container, eventBus)
 
   const values = chroms.map((c) => chromLengths[c]);
 
+  const numChromosomes = chroms.length;
+  const xAxisConfig = calculateXAxisConfig(numChromosomes);
+
   const option = {
     title: { text: title },
     tooltip: {
@@ -166,11 +169,22 @@ export function renderCumulativeSVLength(variants, echarts, container, eventBus)
         return `${params[0].name}<br/>Total: ${formatLargeNumber(value)} bp`;
       },
     },
-    grid: getGridConfig("withRotatedLabels"),
+    grid: {
+      ...getGridConfig("withRotatedLabels"),
+      bottom: xAxisConfig.gridBottom,
+    },
     xAxis: {
-      ...AXIS_CONFIGS.categoryWithRotation,
+      type: "category",
       data: chroms,
       name: "Chromosome",
+      nameLocation: "middle",
+      nameGap: xAxisConfig.nameGap,
+      axisLabel: {
+        interval: xAxisConfig.interval,
+        rotate: xAxisConfig.rotate,
+        fontSize: xAxisConfig.fontSize,
+        overflow: "none",
+      },
     },
     yAxis: {
       type: "value",
@@ -186,6 +200,25 @@ export function renderCumulativeSVLength(variants, echarts, container, eventBus)
       },
     ],
   };
+
+  if (numChromosomes > 30) {
+    option.dataZoom = [
+      {
+        type: "slider",
+        show: true,
+        xAxisIndex: [0],
+        start: 0,
+        end: Math.min(100, (30 / numChromosomes) * 100),
+        bottom: "5%",
+      },
+      {
+        type: "inside",
+        xAxisIndex: [0],
+        start: 0,
+        end: Math.min(100, (30 / numChromosomes) * 100),
+      },
+    ];
+  }
 
   const chart = echarts.init(container);
   chart.setOption(option);
@@ -276,6 +309,45 @@ export function renderTypesByCaller(variants, echarts, container, eventBus) {
   });
 
   return chart;
+}
+
+/**
+ * Calculate dynamic X-axis configuration based on number of chromosomes
+ */
+function calculateXAxisConfig(numChromosomes) {
+  if (numChromosomes <= 15) {
+    return {
+      fontSize: 11,
+      rotate: 45,
+      interval: 0,
+      nameGap: 35,
+      gridBottom: "20%",
+    };
+  } else if (numChromosomes <= 25) {
+    return {
+      fontSize: 9,
+      rotate: 60,
+      interval: 0,
+      nameGap: 40,
+      gridBottom: "22%",
+    };
+  } else if (numChromosomes <= 40) {
+    return {
+      fontSize: 8,
+      rotate: 60,
+      interval: 1,
+      nameGap: 40,
+      gridBottom: "22%",
+    };
+  } else {
+    return {
+      fontSize: 7,
+      rotate: 60,
+      interval: 2,
+      nameGap: 40,
+      gridBottom: "25%",
+    };
+  }
 }
 
 /**

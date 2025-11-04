@@ -19,13 +19,13 @@ import { VariantQuery } from "./query/VariantQuery.js";
 import { StorageUtils } from "./storage/StorageUtils.js";
 
 class IndexedDBManager {
-  constructor(dbName = "varify-genome-data", version = 3) {
-    this.dbManager = new DatabaseManager(dbName, version);
+  constructor(dbName = "varify-genome-data", version = 3, reportHash = null) {
+    this.dbManager = new DatabaseManager(dbName, version, reportHash);
     this.fileStorage = new FileStorage(this.dbManager);
     this.variantStorage = new VariantStorage(this.dbManager);
     this.variantQuery = new VariantQuery(this.dbManager);
 
-    this.dbName = dbName;
+    this.dbName = reportHash ? `${dbName}-${reportHash}` : dbName;
     this.version = version;
   }
 
@@ -45,8 +45,8 @@ class IndexedDBManager {
     this.db = null;
   }
 
-  async storeFile(name, data, metadata = {}) {
-    return this.fileStorage.storeFile(name, data, metadata);
+  async storeFile(name, data, metadata = {}, onProgress = null) {
+    return this.fileStorage.storeFile(name, data, metadata, onProgress);
   }
 
   async getFile(name) {

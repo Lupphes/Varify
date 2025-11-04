@@ -21,12 +21,19 @@ class VCFParser {
   }
 
   /**
-   * Parse VCF file from ArrayBuffer
-   * @param {ArrayBuffer} arrayBuffer - VCF file data
+   * Parse VCF file from ArrayBuffer or Blob
+   * @param {ArrayBuffer|Blob} data - VCF file data
    * @param {number} maxVariants - Maximum variants to parse (optional)
    * @returns {Promise<Array>} - Array of variant objects
    */
-  async parseVCF(arrayBuffer, maxVariants = 10000) {
+  async parseVCF(data, maxVariants = Infinity) {
+    let arrayBuffer;
+    if (data instanceof Blob) {
+      arrayBuffer = await data.arrayBuffer();
+    } else {
+      arrayBuffer = data;
+    }
+
     const decoder = new TextDecoder("utf-8");
     const text = decoder.decode(arrayBuffer);
 
@@ -63,11 +70,11 @@ class VCFParser {
    * Parse compressed VCF (.vcf.gz) file
    * Requires pako library for gzip decompression
    * Handles both regular gzip and BGZF (Blocked GNU Zip Format)
-   * @param {ArrayBuffer} arrayBuffer - Compressed VCF data
+   * @param {ArrayBuffer|Blob} data - Compressed VCF data
    * @param {number} maxVariants - Maximum variants to parse
    * @returns {Promise<Array>} - Array of variant objects
    */
-  async parseCompressedVCF(arrayBuffer, maxVariants = 10000) {
+  async parseCompressedVCF(data, maxVariants = Infinity) {
     if (typeof pako === "undefined") {
       throw new Error(
         "Pako library required for compressed VCF files. Include: https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"
@@ -75,6 +82,13 @@ class VCFParser {
     }
 
     try {
+      let arrayBuffer;
+      if (data instanceof Blob) {
+        arrayBuffer = await data.arrayBuffer();
+      } else {
+        arrayBuffer = data;
+      }
+
       const uint8Array = new Uint8Array(arrayBuffer);
       const isBGZF = uint8Array[0] === 0x1f && uint8Array[1] === 0x8b;
 
