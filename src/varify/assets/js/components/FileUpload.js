@@ -539,7 +539,22 @@ class FileUploadUI {
       progressBar.style.width = `${fileProgress}%`;
       progressText.textContent = `${i}/${total} files`;
 
-      await this.dbManager.storeFile(name, file);
+      const onChunkProgress = (chunkIndex, totalChunks, bytesProcessed, totalBytes) => {
+        const filesCompleted = i;
+        const bytesFromCompletedFiles = uploadedSize;
+        const currentFileBytesProcessed = bytesProcessed;
+        const overallBytesProcessed = bytesFromCompletedFiles + currentFileBytesProcessed;
+        const overallProgress = (overallBytesProcessed / totalSize) * 100;
+
+        progressBar.style.width = `${overallProgress.toFixed(1)}%`;
+        progressText.textContent = `${filesCompleted}/${total} files (${chunkIndex}/${totalChunks} chunks)`;
+
+        if (totalChunks > 1) {
+          statusText.textContent = `Uploading ${name} - chunk ${chunkIndex}/${totalChunks} (${this.dbManager.formatBytes(currentFileBytesProcessed)} / ${this.dbManager.formatBytes(totalBytes)})`;
+        }
+      };
+
+      await this.dbManager.storeFile(name, file, {}, onChunkProgress);
 
       uploadedSize += file.size;
       const elapsedMs = Date.now() - startTime;

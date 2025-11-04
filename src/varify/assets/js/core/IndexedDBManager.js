@@ -45,8 +45,8 @@ class IndexedDBManager {
     this.db = null;
   }
 
-  async storeFile(name, data, metadata = {}) {
-    return this.fileStorage.storeFile(name, data, metadata);
+  async storeFile(name, data, metadata = {}, onProgress = null) {
+    return this.fileStorage.storeFile(name, data, metadata, onProgress);
   }
 
   async getFile(name) {

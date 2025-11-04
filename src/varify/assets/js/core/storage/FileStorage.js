@@ -16,49 +16,136 @@ export class FileStorage {
   }
 
   /**
-   * Store a file in IndexedDB
+   * Store a file in IndexedDB 
    * @param {string} name - File name
    * @param {File|Blob|ArrayBuffer} data - File data
    * @param {Object} metadata - Additional metadata
+   * @param {Function} onProgress - Optional progress callback (chunkIndex, totalChunks, bytesProcessed, totalBytes)
    * @returns {Promise<string>} File name
    */
-  async storeFile(name, data, metadata = {}) {
+  async storeFile(name, data, metadata = {}, onProgress = null) {
+    const CHUNK_SIZE = 64 * 1024 * 1024; // 64MB chunks
+    const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB threshold for chunking
+
     const db = await this.dbManager.getDB();
     const storeName = this.dbManager.getStoreName();
 
-    let arrayBuffer;
+    let fileSize;
+    let isLargeFile;
+
     if (data instanceof ArrayBuffer) {
-      arrayBuffer = data;
+      fileSize = data.byteLength;
+      isLargeFile = fileSize > LARGE_FILE_THRESHOLD;
     } else if (data instanceof Blob || data instanceof File) {
-      arrayBuffer = await data.arrayBuffer();
+      fileSize = data.size;
+      isLargeFile = fileSize > LARGE_FILE_THRESHOLD;
     } else {
       throw new Error("Data must be File, Blob, or ArrayBuffer");
     }
 
-    const fileObject = {
+    if (!isLargeFile) {
+      let arrayBuffer;
+      if (data instanceof ArrayBuffer) {
+        arrayBuffer = data;
+      } else {
+        arrayBuffer = await data.arrayBuffer();
+      }
+
+      const fileObject = {
+        name: name,
+        data: arrayBuffer,
+        size: arrayBuffer.byteLength,
+        uploaded: new Date().toISOString(),
+        chunked: false,
+        ...metadata,
+      };
+
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readwrite");
+        const objectStore = transaction.objectStore(storeName);
+        const request = objectStore.put(fileObject);
+
+        request.onsuccess = () => {
+          logger.debug(`Stored file "${name}" (${StorageUtils.formatBytes(arrayBuffer.byteLength)})`);
+          if (onProgress) onProgress(1, 1, arrayBuffer.byteLength, arrayBuffer.byteLength);
+          resolve(name);
+        };
+
+        request.onerror = () => reject(new Error(`Failed to store file "${name}": ${request.error}`));
+      });
+    }
+
+    logger.debug(`Storing large file "${name}" in chunks (${StorageUtils.formatBytes(fileSize)})`);
+
+    const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+    let bytesProcessed = 0;
+
+    await this.deleteFile(name).catch(() => {});
+
+    const metadataObject = {
       name: name,
-      data: arrayBuffer,
-      size: arrayBuffer.byteLength,
+      size: fileSize,
       uploaded: new Date().toISOString(),
+      chunked: true,
+      totalChunks: totalChunks,
+      chunkSize: CHUNK_SIZE,
       ...metadata,
     };
 
-    return new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], "readwrite");
       const objectStore = transaction.objectStore(storeName);
-      const request = objectStore.put(fileObject);
+      const request = objectStore.put(metadataObject);
 
-      request.onsuccess = () => {
-        logger.debug(`Stored file "${name}" (${StorageUtils.formatBytes(arrayBuffer.byteLength)})`);
-        resolve(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error(`Failed to store metadata for "${name}": ${request.error}`));
+    });
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, fileSize);
+
+      let chunkData;
+      if (data instanceof ArrayBuffer) {
+        chunkData = data.slice(start, end);
+      } else if (data instanceof Blob || data instanceof File) {
+        const chunkBlob = data.slice(start, end);
+        chunkData = await chunkBlob.arrayBuffer();
+      }
+
+      const chunkObject = {
+        name: `${name}__chunk_${chunkIndex}`,
+        data: chunkData,
+        size: chunkData.byteLength,
+        uploaded: new Date().toISOString(),
+        isChunk: true,
+        parentFile: name,
+        chunkIndex: chunkIndex,
       };
 
-      request.onerror = () => reject(new Error(`Failed to store file "${name}": ${request.error}`));
-    });
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readwrite");
+        const objectStore = transaction.objectStore(storeName);
+        const request = objectStore.put(chunkObject);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(new Error(`Failed to store chunk ${chunkIndex} for "${name}": ${request.error}`));
+      });
+
+      bytesProcessed += chunkData.byteLength;
+      logger.debug(`Stored chunk ${chunkIndex + 1}/${totalChunks} for "${name}" (${StorageUtils.formatBytes(chunkData.byteLength)})`);
+
+      if (onProgress) {
+        onProgress(chunkIndex + 1, totalChunks, bytesProcessed, fileSize);
+      }
+    }
+
+    logger.debug(`Completed chunked storage of "${name}" (${totalChunks} chunks, ${StorageUtils.formatBytes(fileSize)})`);
+    return name;
   }
 
   /**
-   * Retrieve a file from IndexedDB
+   * Retrieve a file from IndexedDB 
    * @param {string} name - File name
    * @returns {Promise<ArrayBuffer|null>}
    */
@@ -66,35 +153,72 @@ export class FileStorage {
     const db = await this.dbManager.getDB();
     const storeName = this.dbManager.getStoreName();
 
-    return new Promise((resolve, reject) => {
+    const mainEntry = await new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], "readonly");
       const objectStore = transaction.objectStore(storeName);
       const request = objectStore.get(name);
 
-      request.onsuccess = () => {
-        if (request.result) {
-          logger.debug(
-            `Retrieved file "${name}" (${StorageUtils.formatBytes(request.result.size)})`
-          );
-
-          const data = request.result.data;
-          if (data instanceof ArrayBuffer) {
-            resolve(data);
-          } else if (data && data.buffer instanceof ArrayBuffer) {
-            resolve(data.buffer);
-          } else {
-            logger.error(`Unexpected data type for "${name}":`, typeof data, data);
-            reject(new Error(`File "${name}" data is not an ArrayBuffer (got ${typeof data})`));
-          }
-        } else {
-          logger.warn(`File "${name}" not found in IndexedDB`);
-          resolve(null);
-        }
-      };
-
+      request.onsuccess = () => resolve(request.result);
       request.onerror = () =>
         reject(new Error(`Failed to retrieve file "${name}": ${request.error}`));
     });
+
+    if (!mainEntry) {
+      logger.warn(`File "${name}" not found in IndexedDB`);
+      return null;
+    }
+
+    if (!mainEntry.chunked) {
+      logger.debug(
+        `Retrieved file "${name}" (${StorageUtils.formatBytes(mainEntry.size)})`
+      );
+
+      const data = mainEntry.data;
+      if (data instanceof ArrayBuffer) {
+        return data;
+      } else if (data && data.buffer instanceof ArrayBuffer) {
+        return data.buffer;
+      } else {
+        logger.error(`Unexpected data type for "${name}":`, typeof data, data);
+        throw new Error(`File "${name}" data is not an ArrayBuffer (got ${typeof data})`);
+      }
+    }
+
+    logger.debug(
+      `Reassembling chunked file "${name}" (${mainEntry.totalChunks} chunks, ${StorageUtils.formatBytes(mainEntry.size)})`
+    );
+
+    const chunks = [];
+    for (let chunkIndex = 0; chunkIndex < mainEntry.totalChunks; chunkIndex++) {
+      const chunkName = `${name}__chunk_${chunkIndex}`;
+      const chunkEntry = await new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readonly");
+        const objectStore = transaction.objectStore(storeName);
+        const request = objectStore.get(chunkName);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () =>
+          reject(new Error(`Failed to retrieve chunk ${chunkIndex} for "${name}": ${request.error}`));
+      });
+
+      if (!chunkEntry || !chunkEntry.data) {
+        throw new Error(`Missing chunk ${chunkIndex} for file "${name}"`);
+      }
+
+      chunks.push(chunkEntry.data);
+    }
+
+    const totalSize = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+    const reassembled = new Uint8Array(totalSize);
+    let offset = 0;
+
+    for (const chunk of chunks) {
+      reassembled.set(new Uint8Array(chunk), offset);
+      offset += chunk.byteLength;
+    }
+
+    logger.debug(`Reassembled file "${name}" (${StorageUtils.formatBytes(totalSize)})`);
+    return reassembled.buffer;
   }
 
   /**
@@ -171,19 +295,41 @@ export class FileStorage {
     const db = await this.dbManager.getDB();
     const storeName = this.dbManager.getStoreName();
 
-    return new Promise((resolve, reject) => {
+    const mainEntry = await new Promise((resolve) => {
+      const transaction = db.transaction([storeName], "readonly");
+      const objectStore = transaction.objectStore(storeName);
+      const request = objectStore.get(name);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null); // Don't fail if file doesn't exist
+    });
+
+    await new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], "readwrite");
       const objectStore = transaction.objectStore(storeName);
       const request = objectStore.delete(name);
 
-      request.onsuccess = () => {
-        logger.debug(`Deleted file "${name}"`);
-        resolve();
-      };
-
+      request.onsuccess = () => resolve();
       request.onerror = () =>
         reject(new Error(`Failed to delete file "${name}": ${request.error}`));
     });
+
+    if (mainEntry && mainEntry.chunked && mainEntry.totalChunks) {
+      logger.debug(`Deleting ${mainEntry.totalChunks} chunks for "${name}"`);
+      for (let chunkIndex = 0; chunkIndex < mainEntry.totalChunks; chunkIndex++) {
+        const chunkName = `${name}__chunk_${chunkIndex}`;
+        await new Promise((resolve) => {
+          const transaction = db.transaction([storeName], "readwrite");
+          const objectStore = transaction.objectStore(storeName);
+          const request = objectStore.delete(chunkName);
+
+          request.onsuccess = () => resolve();
+          request.onerror = () => resolve(); // Don't fail if chunk doesn't exist
+        });
+      }
+    }
+
+    logger.debug(`Deleted file "${name}"${mainEntry && mainEntry.chunked ? ' and all chunks' : ''}`);
   }
 
   /**
