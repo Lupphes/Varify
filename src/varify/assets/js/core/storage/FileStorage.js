@@ -145,11 +145,13 @@ export class FileStorage {
   }
 
   /**
-   * Retrieve a file from IndexedDB 
+   * Retrieve a file from IndexedDB
    * @param {string} name - File name
-   * @returns {Promise<ArrayBuffer|null>}
+   * @param {Object} options - Retrieval options
+   * @param {boolean} options.asBlob - Return as Blob instead of ArrayBuffer for chunked files (default: true for large files)
+   * @returns {Promise<ArrayBuffer|Blob|null>}
    */
-  async getFile(name) {
+  async getFile(name, options = {}) {
     const db = await this.dbManager.getDB();
     const storeName = this.dbManager.getStoreName();
 
@@ -188,6 +190,11 @@ export class FileStorage {
       `Reassembling chunked file "${name}" (${mainEntry.totalChunks} chunks, ${StorageUtils.formatBytes(mainEntry.size)})`
     );
 
+    // Determine if we should use Blob-based retrieval
+    // For files >100MB, use Blob to avoid ArrayBuffer allocation limits
+    const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
+    const useBlob = options.asBlob !== false && mainEntry.size > LARGE_FILE_THRESHOLD;
+
     const chunks = [];
     for (let chunkIndex = 0; chunkIndex < mainEntry.totalChunks; chunkIndex++) {
       const chunkName = `${name}__chunk_${chunkIndex}`;
@@ -208,6 +215,16 @@ export class FileStorage {
       chunks.push(chunkEntry.data);
     }
 
+    // Use Blob for large files to avoid 2GB ArrayBuffer limit
+    if (useBlob) {
+      logger.debug(`Using Blob-based retrieval for large file "${name}"`);
+      const blobs = chunks.map(chunk => new Blob([chunk]));
+      const blob = new Blob(blobs);
+      logger.debug(`Reassembled file "${name}" as Blob (${StorageUtils.formatBytes(blob.size)})`);
+      return blob;
+    }
+
+    // Fallback to ArrayBuffer for smaller files (backwards compatibility)
     const totalSize = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
     const reassembled = new Uint8Array(totalSize);
     let offset = 0;

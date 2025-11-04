@@ -362,8 +362,15 @@ export class ReportInitializer {
    */
   async loadBCFStats(filename) {
     try {
-      const arrayBuffer = await this.genomeDBManager.getFile(filename);
-      if (arrayBuffer) {
+      const data = await this.genomeDBManager.getFile(filename);
+      if (data) {
+        let arrayBuffer;
+        if (data instanceof Blob) {
+          arrayBuffer = await data.arrayBuffer();
+        } else {
+          arrayBuffer = data;
+        }
+
         const decoder = new TextDecoder("utf-8");
         const text = decoder.decode(arrayBuffer);
         const statsData = this.parseBCFToolsStats(text);
@@ -388,8 +395,15 @@ export class ReportInitializer {
    */
   async loadSURVIVORStats(filename) {
     try {
-      const arrayBuffer = await this.genomeDBManager.getFile(filename);
-      if (arrayBuffer) {
+      const data = await this.genomeDBManager.getFile(filename);
+      if (data) {
+        let arrayBuffer;
+        if (data instanceof Blob) {
+          arrayBuffer = await data.arrayBuffer();
+        } else {
+          arrayBuffer = data;
+        }
+
         const decoder = new TextDecoder("utf-8");
         const text = decoder.decode(arrayBuffer);
         const statsData = this.parseSURVIVORStats(text);
