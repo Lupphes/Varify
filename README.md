@@ -4,14 +4,14 @@
 A Python-based tool to generate rich, interactive HTML reports from structural variant (SV) VCF files, such as those produced by [bcftools](http://samtools.github.io/bcftools/) and [SURVIVOR](https://github.com/fritzsedlazeck/SURVIVOR).
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-![Version](https://img.shields.io/badge/version-3.0.0-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![JavaScript](https://img.shields.io/badge/javascript-ES6-yellow)
 ![Node.js](https://img.shields.io/badge/node.js-18%2B-green)
 ![Vitest](https://img.shields.io/badge/vitest-575%20tests-green)
 ![esbuild](https://img.shields.io/badge/esbuild-bundler-orange)
 
-> **⚠️ v3.0.0 Major Release**: This version includes significant architectural changes. JavaScript assets must be built with `npm run build:package` before packaging. See [BUILD.md](BUILD.md) for details.
+> **⚠️ v1.0.0 Major Release**: This version includes significant architectural changes. JavaScript assets must be built with `npm run build:package` before packaging. See [BUILD.md](BUILD.md) for details.
 
 ---
 
