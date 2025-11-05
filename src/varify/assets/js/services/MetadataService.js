@@ -73,8 +73,13 @@ export class MetadataService {
     if (hasNumeric && !hasNonNumeric) {
       stats.type = "numeric";
       if (numericValues.length > 0) {
-        stats.min = Math.min(...numericValues);
-        stats.max = Math.max(...numericValues);
+        // Use iterative approach to avoid stack overflow with large arrays
+        stats.min = numericValues[0];
+        stats.max = numericValues[0];
+        for (let i = 1; i < numericValues.length; i++) {
+          if (numericValues[i] < stats.min) stats.min = numericValues[i];
+          if (numericValues[i] > stats.max) stats.max = numericValues[i];
+        }
       }
     } else if (stats.uniqueValues.size <= 2 && !stats.hasMultiple) {
       stats.type = "boolean";
@@ -95,8 +100,13 @@ export class MetadataService {
         }
       });
       if (allNumbers.length > 0) {
-        stats.min = Math.min(...allNumbers);
-        stats.max = Math.max(...allNumbers);
+        // Use iterative approach to avoid stack overflow with large arrays
+        stats.min = allNumbers[0];
+        stats.max = allNumbers[0];
+        for (let i = 1; i < allNumbers.length; i++) {
+          if (allNumbers[i] < stats.min) stats.min = allNumbers[i];
+          if (allNumbers[i] > stats.max) stats.max = allNumbers[i];
+        }
       }
     }
 
