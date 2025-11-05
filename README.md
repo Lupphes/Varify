@@ -238,8 +238,6 @@ npm test -- tests/js/core/query/VariantFilter.test.js
 npm test -- --coverage
 ```
 
-**Test Coverage: 44% (18/41 source files)**
-
 #### Test Files
 
 - ✅ Variant Handlers (BCF, SURVIVOR, Registry)
@@ -249,8 +247,6 @@ npm test -- --coverage
 - ✅ Services (MetadataService)
 - ✅ Components (AG-Grid Table, Export Handlers)
 - ✅ Utilities (StatisticsUtils)
-
-See [CLAUDE_SESSION_SUMMARY.md](CLAUDE_SESSION_SUMMARY.md) for detailed test documentation.
 
 ---
 
