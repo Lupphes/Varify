@@ -4,6 +4,28 @@ import json
 import os
 
 
+def summarize_sv(df):
+    """
+    Summarize structural variants from a DataFrame.
+    Args:
+        df: pandas DataFrame with structural variant data
+    Returns:
+        Dictionary with total_sv, unique_sv, and mqs (median quality score)
+    """
+
+    total_sv = len(df)
+    unique_sv = df["SVTYPE"].nunique() if "SVTYPE" in df.columns else "N/A"
+    if "QUAL" in df.columns and not df["QUAL"].isna().all():
+        mqs = round(df["QUAL"].median(), 2)
+    else:
+        mqs = "N/A"
+    return {
+        "total_sv": total_sv,
+        "unique_sv": unique_sv,
+        "mqs": mqs,
+    }
+
+
 def get_package_resource(relative_path):
     """
     Get absolute path to a package resource file.
@@ -38,32 +60,8 @@ def generate_combined_report(
     Stats files are copied to genome_files/ and parsed in browser (not in Python).
     """
 
-    bcf_summary = (
-        {
-            "total_sv": len(bcf_df),
-            "unique_sv": bcf_df["SVTYPE"].nunique(),
-            "mqs": (
-                round(bcf_df["QUAL"].median(), 2) if not bcf_df["QUAL"].isna().all() else "N/A"
-            ),
-        }
-        if bcf_df is not None
-        else None
-    )
-
-    survivor_summary = (
-        {
-            "total_sv": len(survivor_df),
-            "unique_sv": survivor_df["SVTYPE"].nunique(),
-            "mqs": (
-                round(survivor_df["QUAL"].median(), 2)
-                if not survivor_df["QUAL"].isna().all()
-                else "N/A"
-            ),
-        }
-        if survivor_df is not None
-        else None
-    )
-
+    bcf_summary = summarize_sv(bcf_df)
+    survivor_summary = summarize_sv(survivor_df)
     output_dir = os.path.dirname(combined_report_file)
     if not output_dir:
         output_dir = "."

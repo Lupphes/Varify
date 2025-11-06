@@ -32,21 +32,23 @@ export class SectionGenerator {
     cards.push(totalCard);
 
     // Card 2: Unique SV Types
+    const uniqueSv = (typeof summary.unique_sv === "number" && !isNaN(summary.unique_sv)) ? summary.unique_sv : "N/A";
     const typesCard = document.createElement("div");
     typesCard.className = "stat-card";
     typesCard.innerHTML = `
       <div class="stat-card-title">Unique SV Types</div>
-      <div class="stat-card-value">${summary.unique_sv}</div>
+      <div class="stat-card-value">${uniqueSv}</div>
       <div class="stat-card-label">Different variant classes</div>
     `;
     cards.push(typesCard);
 
     // Card 3: Median Quality Score
+    const mqsValue = (typeof summary.mqs === "number" && !isNaN(summary.mqs)) ? summary.mqs.toFixed(1) : "N/A";
     const mqsCard = document.createElement("div");
     mqsCard.className = "stat-card";
     mqsCard.innerHTML = `
       <div class="stat-card-title">Median Quality</div>
-      <div class="stat-card-value">${summary.mqs.toFixed(1)}</div>
+      <div class="stat-card-value">${mqsValue}</div>
       <div class="stat-card-label">Quality score (MQS)</div>
     `;
     cards.push(mqsCard);

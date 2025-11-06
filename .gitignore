@@ -215,3 +215,5 @@ backup/
 conda-build-output
 coverage/
 data_horse
+data_bench/
+verify_fail/
