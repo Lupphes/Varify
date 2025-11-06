@@ -16,11 +16,6 @@ class IGVIndexedDBLoader {
   }
 
   async loadFile(filename) {
-    if (this.fileCache.has(filename)) {
-      logger.debug(`Using cached file: ${filename}`);
-      return this.fileCache.get(filename);
-    }
-
     const data = await this.dbManager.getFile(filename);
     if (!data) {
       throw new Error(`File not found in IndexedDB: ${filename}`);
@@ -44,7 +39,6 @@ class IGVIndexedDBLoader {
       );
     }
 
-    this.fileCache.set(filename, file);
     return file;
   }
 

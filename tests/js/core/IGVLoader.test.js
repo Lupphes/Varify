@@ -30,15 +30,16 @@ describe("IGVIndexedDBLoader - File Loading", () => {
     expect(file.size).toBe(5);
   });
 
-  it("caches loaded files", async () => {
+  it("loads fresh file each time (no caching to avoid stale references)", async () => {
     const testData = new Uint8Array([10, 20, 30]).buffer;
     await db.storeFile("cached.vcf", testData);
 
     const file1 = await loader.loadFile("cached.vcf");
     const file2 = await loader.loadFile("cached.vcf");
 
-    expect(file1).toBe(file2);
-    expect(loader.fileCache.has("cached.vcf")).toBe(true);
+    expect(file1).not.toBe(file2);
+    expect(file1.name).toBe(file2.name);
+    expect(file1.size).toBe(file2.size);
   });
 
   it("throws error for missing file", async () => {
@@ -63,12 +64,12 @@ describe("IGVIndexedDBLoader - File Loading", () => {
     expect(bamFile.type).toBe("application/octet-stream");
   });
 
-  it("clears file cache", async () => {
+  it("clearCache is a no-op (no caching to avoid stale references)", async () => {
     const testData = new Uint8Array([1, 2, 3]).buffer;
     await db.storeFile("cached.vcf", testData);
 
     await loader.loadFile("cached.vcf");
-    expect(loader.fileCache.size).toBe(1);
+    expect(loader.fileCache.size).toBe(0);
 
     loader.clearCache();
     expect(loader.fileCache.size).toBe(0);
@@ -270,23 +271,18 @@ describe("IGVIndexedDBLoader - Integration Tests with Real Data", () => {
     expect(missing).not.toContain(vcfFiles.referenceFasta);
   });
 
-  it("caches real files for performance", async () => {
+  it("loads real files fresh each time to avoid stale references", async () => {
     const vcfFiles = getRealVcfFiles();
     const fastaBuffer = loadRealVcfBuffer(vcfFiles.referenceFasta);
     await db.storeFile(vcfFiles.referenceFasta, fastaBuffer.buffer);
 
-    const start1 = Date.now();
     const file1 = await loader.loadFile(vcfFiles.referenceFasta);
-    const duration1 = Date.now() - start1;
-
-    const start2 = Date.now();
     const file2 = await loader.loadFile(vcfFiles.referenceFasta);
-    const duration2 = Date.now() - start2;
 
-    console.log(`First load: ${duration1}ms, Second load (cached): ${duration2}ms`);
-
-    expect(file1).toBe(file2);
-    expect(duration2).toBeLessThanOrEqual(duration1);
+    expect(file1).not.toBe(file2);
+    expect(file1.name).toBe(file2.name);
+    expect(file1.size).toBe(file2.size);
+    expect(file1.size).toBe(fastaBuffer.byteLength);
   });
 });
 

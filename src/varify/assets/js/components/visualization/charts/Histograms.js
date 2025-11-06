@@ -257,8 +257,12 @@ export function renderQualityDistribution(variants, echarts, container, eventBus
   if (uniqueQuals > 1) {
     const kde = PlotDataProcessor.computeKDE(qualValues, 1000);
 
-    const minQual = Math.min(...qualValues);
-    const maxQual = Math.max(...qualValues);
+    let minQual = qualValues[0];
+    let maxQual = qualValues[0];
+    for (let i = 1; i < qualValues.length; i++) {
+      if (qualValues[i] < minQual) minQual = qualValues[i];
+      if (qualValues[i] > maxQual) maxQual = qualValues[i];
+    }
 
     const filteredKDE = kde.x
       .map((x, i) => ({ x, y: kde.y[i] }))

@@ -133,14 +133,36 @@ export class VariantParser {
 
     if (sample.SR) {
       const srValues = this.parseNumericArray(sample.SR);
-      computed.SR_MIN = srValues.length > 0 ? Math.min(...srValues) : null;
-      computed.SR_MAX = srValues.length > 0 ? Math.max(...srValues) : null;
+      if (srValues.length > 0) {
+        let srMin = srValues[0];
+        let srMax = srValues[0];
+        for (let i = 1; i < srValues.length; i++) {
+          if (srValues[i] < srMin) srMin = srValues[i];
+          if (srValues[i] > srMax) srMax = srValues[i];
+        }
+        computed.SR_MIN = srMin;
+        computed.SR_MAX = srMax;
+      } else {
+        computed.SR_MIN = null;
+        computed.SR_MAX = null;
+      }
     }
 
     if (sample.PL) {
       const plValues = this.parseNumericArray(sample.PL);
-      computed.PL_MIN = plValues.length > 0 ? Math.min(...plValues) : null;
-      computed.PL_MAX = plValues.length > 0 ? Math.max(...plValues) : null;
+      if (plValues.length > 0) {
+        let plMin = plValues[0];
+        let plMax = plValues[0];
+        for (let i = 1; i < plValues.length; i++) {
+          if (plValues[i] < plMin) plMin = plValues[i];
+          if (plValues[i] > plMax) plMax = plValues[i];
+        }
+        computed.PL_MIN = plMin;
+        computed.PL_MAX = plMax;
+      } else {
+        computed.PL_MIN = null;
+        computed.PL_MAX = null;
+      }
     }
 
     return computed;

@@ -637,11 +637,17 @@ export class VariantTableAGGrid {
       const isNumeric = data.numericValues.length > data.count * 0.8;
 
       if (isNumeric) {
+        let min = data.numericValues[0];
+        let max = data.numericValues[0];
+        for (let i = 1; i < data.numericValues.length; i++) {
+          if (data.numericValues[i] < min) min = data.numericValues[i];
+          if (data.numericValues[i] > max) max = data.numericValues[i];
+        }
         metadata[field] = {
           type: "numeric",
           count: data.count,
-          min: Math.min(...data.numericValues),
-          max: Math.max(...data.numericValues),
+          min: min,
+          max: max,
         };
       } else {
         const uniqueValues = [...new Set(data.values)];
