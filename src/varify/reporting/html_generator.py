@@ -12,7 +12,8 @@ def summarize_sv(df):
     Returns:
         Dictionary with total_sv, unique_sv, and mqs (median quality score)
     """
-
+    if df is None:
+        return None
     total_sv = len(df)
     unique_sv = df["SVTYPE"].nunique() if "SVTYPE" in df.columns else "N/A"
     if "QUAL" in df.columns and not df["QUAL"].isna().all():
