@@ -32,7 +32,10 @@ export class SectionGenerator {
     cards.push(totalCard);
 
     // Card 2: Unique SV Types
-    const uniqueSv = (typeof summary.unique_sv === "number" && !isNaN(summary.unique_sv)) ? summary.unique_sv : "N/A";
+    const uniqueSv =
+      typeof summary.unique_sv === "number" && !isNaN(summary.unique_sv)
+        ? summary.unique_sv
+        : "N/A";
     const typesCard = document.createElement("div");
     typesCard.className = "stat-card";
     typesCard.innerHTML = `
@@ -43,7 +46,8 @@ export class SectionGenerator {
     cards.push(typesCard);
 
     // Card 3: Median Quality Score
-    const mqsValue = (typeof summary.mqs === "number" && !isNaN(summary.mqs)) ? summary.mqs.toFixed(1) : "N/A";
+    const mqsValue =
+      typeof summary.mqs === "number" && !isNaN(summary.mqs) ? summary.mqs.toFixed(1) : "N/A";
     const mqsCard = document.createElement("div");
     mqsCard.className = "stat-card";
     mqsCard.innerHTML = `
