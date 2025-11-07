@@ -752,10 +752,11 @@ export class VariantTableAGGrid {
 
     this._filterTimeout = setTimeout(async () => {
       if (this._chartUpdateQueryId) {
-        this.genomeDBManager.cancelQuery(this._chartUpdateQueryId);
+        this.genomeDBManager.cancelAllQueries();
       }
 
-      this._chartUpdateQueryId = `chart-update-${Date.now()}`;
+      const currentQueryId = `chart-update-${Date.now()}`;
+      this._chartUpdateQueryId = currentQueryId;
 
       try {
         const filterModel = this.gridApi.getFilterModel();
@@ -764,12 +765,27 @@ export class VariantTableAGGrid {
         const dbFilters = this.extractFilters(filterModel);
         logger.debug("Converted to DB filters:", dbFilters);
 
+        this.showChartLoadingOverlay(`Counting variants...`);
+
         const totalCount = await this.genomeDBManager.getVariantCount(this.prefix, dbFilters, {
-          queryId: `${this._chartUpdateQueryId}-count`,
+          queryId: `${currentQueryId}-count`,
         });
+
+        // Check if this query was cancelled while counting
+        if (this._chartUpdateQueryId !== currentQueryId) {
+          logger.debug('Query superseded during count');
+          return;
+        }
+
         logger.debug(`Filter changed: ${totalCount} variants match`);
 
-        // Show global loading overlay
+        if (totalCount === 0) {
+          logger.info('No variants match filters, updating charts with empty data');
+          await this.plotsComponent.updateFromFilteredData([]);
+          this.hideChartLoadingOverlay();
+          return;
+        }
+
         this.showChartLoadingOverlay(`Loading ${totalCount.toLocaleString()} variants...`);
 
         const chunkSize = 10000;
@@ -777,10 +793,16 @@ export class VariantTableAGGrid {
         const filteredData = [];
 
         for (let i = 0; i < numChunks; i++) {
+          // Check if cancelled before each chunk
+          if (this._chartUpdateQueryId !== currentQueryId) {
+            logger.debug('Query cancelled during chunk loading');
+            return;
+          }
+
           const chunk = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
             offset: i * chunkSize,
             limit: chunkSize,
-            queryId: `${this._chartUpdateQueryId}-chunk-${i}`,
+            queryId: `${currentQueryId}-chunk-${i}`,
           });
 
           filteredData.push(...chunk);
@@ -796,6 +818,11 @@ export class VariantTableAGGrid {
           }
         }
 
+        if (this._chartUpdateQueryId !== currentQueryId) {
+          logger.debug('Query cancelled before chart update');
+          return;
+        }
+
         logger.info(`Loaded ${filteredData.length} variants for charts`);
 
         this.showChartLoadingOverlay(`Updating ${this.plotsComponent.charts.size} charts...`);
@@ -805,6 +832,8 @@ export class VariantTableAGGrid {
         this.hideChartLoadingOverlay();
         if (error.message !== 'Query cancelled') {
           logger.error("Error updating plots:", error);
+        } else {
+          logger.debug('Query was cancelled');
         }
       }
     }, 300);
@@ -858,9 +887,12 @@ export class VariantTableAGGrid {
   }
 
   showChartLoadingOverlay(message) {
-    const containerId = `${this.prefix}-plots-section`;
+    const containerId = `${this.prefix}-charts-container`;
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+      logger.warn(`Charts container not found: ${containerId}`);
+      return;
+    }
 
     let overlay = container.querySelector('.chart-loading-overlay');
     if (!overlay) {
@@ -919,7 +951,6 @@ export class VariantTableAGGrid {
         document.head.appendChild(style);
       }
 
-      // Store update function globally so VarifyPlots can use it
       window.updateChartLoadingProgress = (msg) => {
         const textEl = overlay.querySelector('.loading-text');
         if (textEl) textEl.textContent = msg;
@@ -932,9 +963,12 @@ export class VariantTableAGGrid {
   }
 
   hideChartLoadingOverlay() {
-    const containerId = `${this.prefix}-plots-section`;
+    const containerId = `${this.prefix}-charts-container`;
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+      logger.warn(`Charts container not found for cleanup: ${containerId}`);
+      return;
+    }
 
     const overlay = container.querySelector('.chart-loading-overlay');
     if (overlay) {

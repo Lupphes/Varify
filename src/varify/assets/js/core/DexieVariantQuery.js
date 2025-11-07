@@ -39,70 +39,116 @@ export class DexieVariantQuery {
     const hasFilters = Object.keys(filters).length > 0;
     let collection;
 
-    let usedIndexForFilter = false;
-    if (hasFilters && !sort) {
-      const bestIndex = VariantFilter.selectBestIndex(filters);
-      if (bestIndex) {
-        const indexExists = table.schema.indexes.some(idx => idx.name === bestIndex);
-        if (indexExists) {
-          const keyRange = VariantFilter.buildKeyRange(filters, bestIndex);
-          if (keyRange) {
-            try {
-              collection = table.where(bestIndex).between(
+    const queryController = queryId ? this.activeQueries.get(queryId) : null;
+
+    try {
+      // Strategy 1: Use anyOf() for categorical filters with indexes (FASTEST)
+      if (hasFilters && !multiCallerMode) {
+        const singleCategoricalFilter = this.detectSingleCategoricalFilter(filters);
+        if (singleCategoricalFilter) {
+          const { field, values } = singleCategoricalFilter;
+          const indexExists = table.schema.indexes.some(idx => idx.name === field);
+
+          if (indexExists && values.length > 0) {
+            logger.debug(`Using anyOf() index query on ${field} with ${values.length} values`);
+
+            let collection = table.where(field).anyOf(values);
+
+            // Apply remaining filters
+            const remainingFilters = { ...filters };
+            delete remainingFilters[field];
+
+            if (Object.keys(remainingFilters).length > 0) {
+              collection = collection.filter(variant => {
+                if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+                return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
+              });
+            }
+
+            // Handle sorting
+            if (sort && sort.field) {
+              let results = await collection.toArray();
+              results.sort((a, b) => {
+                const aVal = a[sort.field];
+                const bVal = b[sort.field];
+                if (aVal < bVal) return sort.direction === 'desc' ? 1 : -1;
+                if (aVal > bVal) return sort.direction === 'desc' ? -1 : 1;
+                return 0;
+              });
+              return results.slice(offset, offset + limit);
+            }
+
+            return await collection.offset(offset).limit(limit).toArray();
+          }
+        }
+      }
+
+      // Strategy 2: Use between() for numeric range filters with indexes
+      if (hasFilters && !multiCallerMode && !sort) {
+        const bestIndex = VariantFilter.selectBestIndex(filters);
+        if (bestIndex && bestIndex !== 'CHROM_POS') {
+          const indexExists = table.schema.indexes.some(idx => idx.name === bestIndex);
+          if (indexExists) {
+            const keyRange = VariantFilter.buildKeyRange(filters, bestIndex);
+            if (keyRange) {
+              logger.debug(`Using index ${bestIndex} for range query`);
+
+              let collection = table.where(bestIndex).between(
                 keyRange.lower,
                 keyRange.upper,
                 !keyRange.lowerOpen,
                 !keyRange.upperOpen
               );
-              usedIndexForFilter = true;
-              logger.debug(`Using index ${bestIndex} for query optimization`);
-            } catch (e) {
-              collection = table.toCollection();
+
+              const remainingFilters = { ...filters };
+              delete remainingFilters[bestIndex];
+
+              if (Object.keys(remainingFilters).length > 0) {
+                collection = collection.filter(variant => {
+                  if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+                  return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
+                });
+              }
+
+              return await collection.offset(offset).limit(limit).toArray();
             }
           }
         }
       }
-    }
 
-    if (!usedIndexForFilter) {
+      // Strategy 3: Fallback to full scan (slowest)
+      logger.debug('Using full table scan');
+      let collection = table.toCollection();
+
       if (sort && sort.field) {
         const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
-
         if (indexExists) {
           collection = table.orderBy(sort.field);
           if (sort.direction === 'desc') {
             collection = collection.reverse();
           }
-        } else {
-          collection = table.toCollection();
         }
-      } else {
-        collection = table.toCollection();
       }
-    }
 
-    if (hasFilters || multiCallerMode) {
-      const queryController = queryId ? this.activeQueries.get(queryId) : null;
+      if (hasFilters || multiCallerMode) {
+        collection = collection.filter(variant => {
+          if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+          return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
+        });
+      }
 
-      collection = collection.filter(variant => {
-        if (queryController && queryController.cancelled) {
-          throw new Error('Query cancelled');
-        }
-        return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
-      });
-    }
-
-    try {
       let results;
-
-      if (sort && sort.field && !usedIndexForFilter) {
+      if (sort && sort.field) {
         const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
-
         if (!indexExists) {
-          results = await collection.sortBy(sort.field);
-          if (sort.direction === 'desc') {
-            results.reverse();
-          }
+          results = await collection.toArray();
+          results.sort((a, b) => {
+            const aVal = a[sort.field];
+            const bVal = b[sort.field];
+            if (aVal < bVal) return sort.direction === 'desc' ? 1 : -1;
+            if (aVal > bVal) return sort.direction === 'desc' ? -1 : 1;
+            return 0;
+          });
           results = results.slice(offset, offset + limit);
         } else {
           results = await collection.offset(offset).limit(limit).toArray();
@@ -129,6 +175,18 @@ export class DexieVariantQuery {
     }
   }
 
+  detectSingleCategoricalFilter(filters) {
+    const categoricalFields = ['SVTYPE', 'CHROM', 'FILTER', 'PRIMARY_CALLER'];
+
+    for (const field of categoricalFields) {
+      if (filters[field] && typeof filters[field] === 'object' && filters[field].values) {
+        return { field, values: filters[field].values };
+      }
+    }
+
+    return null;
+  }
+
   async getVariantCount(prefix, filters = {}, options = {}) {
     const { multiCallerMode = false, queryId = null } = options;
 
@@ -138,8 +196,9 @@ export class DexieVariantQuery {
     }
 
     const table = this.db.getVariantTable(prefix);
+    const hasFilters = Object.keys(filters).length > 0;
 
-    if (Object.keys(filters).length === 0 && !multiCallerMode) {
+    if (!hasFilters && !multiCallerMode) {
       const count = await table.count();
       if (queryId) {
         this.activeQueries.delete(queryId);
@@ -150,6 +209,38 @@ export class DexieVariantQuery {
     try {
       const queryController = queryId ? this.activeQueries.get(queryId) : null;
 
+      // Use same index optimization strategy as queryVariants
+      if (hasFilters && !multiCallerMode) {
+        const singleCategoricalFilter = this.detectSingleCategoricalFilter(filters);
+        if (singleCategoricalFilter) {
+          const { field, values } = singleCategoricalFilter;
+          const indexExists = table.schema.indexes.some(idx => idx.name === field);
+
+          if (indexExists && values.length > 0) {
+            logger.debug(`Using anyOf() index for count on ${field}`);
+
+            let collection = table.where(field).anyOf(values);
+
+            const remainingFilters = { ...filters };
+            delete remainingFilters[field];
+
+            if (Object.keys(remainingFilters).length > 0) {
+              collection = collection.filter(variant => {
+                if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+                return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
+              });
+            }
+
+            const count = await collection.count();
+            if (queryId) {
+              this.activeQueries.delete(queryId);
+            }
+            return count;
+          }
+        }
+      }
+
+      // Fallback to full scan
       const count = await table.filter(variant => {
         if (queryController && queryController.cancelled) {
           throw new Error('Query cancelled');

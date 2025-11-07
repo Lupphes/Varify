@@ -209,7 +209,7 @@ export class VarifyPlots {
    * @param {Array} filteredVariants - Filtered variants from AG-Grid
    */
   async updateFromFilteredData(filteredVariants) {
-    logger.debug(`Updating plots with ${filteredVariants.length} filtered variants`);
+    logger.info(`Updating ${this.charts.size} charts with ${filteredVariants.length} filtered variants`);
 
     if (!this.isInitialized) {
       logger.warn("Cannot update - not initialized");
@@ -221,7 +221,15 @@ export class VarifyPlots {
 
     const chartEntries = Array.from(this.charts.entries());
 
+    if (chartEntries.length === 0) {
+      logger.warn("No charts to update");
+      return;
+    }
+
     const batchSize = 3;
+    let successCount = 0;
+    let errorCount = 0;
+
     for (let i = 0; i < chartEntries.length; i += batchSize) {
       const batch = chartEntries.slice(i, i + batchSize);
 
@@ -234,11 +242,19 @@ export class VarifyPlots {
         batch.map(async ([id, chart]) => {
           try {
             const container = chart.getDom();
+
+            if (!container) {
+              logger.error(`No container found for chart ${id}`);
+              errorCount++;
+              return;
+            }
+
             chart.dispose();
 
             const chartDef = this.getChartDefinition(id);
             if (!chartDef) {
               logger.warn(`Chart definition not found: ${id}`);
+              errorCount++;
               return;
             }
 
@@ -247,9 +263,18 @@ export class VarifyPlots {
                 ? chartDef.fn(this.variants, this.vcfType, echarts, container, this.eventBus)
                 : chartDef.fn(this.variants, echarts, container, this.eventBus);
 
+            if (!newChart) {
+              logger.error(`Failed to create chart ${id}`);
+              errorCount++;
+              return;
+            }
+
             this.charts.set(id, newChart);
+            successCount++;
+            logger.debug(`Successfully updated chart: ${id}`);
           } catch (error) {
             logger.error(`Error updating chart ${id}:`, error);
+            errorCount++;
             this.variants = previousVariants;
           }
         })
@@ -260,7 +285,7 @@ export class VarifyPlots {
       }
     }
 
-    logger.debug("Charts updated");
+    logger.info(`Chart update complete: ${successCount} successful, ${errorCount} errors`);
   }
 
   /**
