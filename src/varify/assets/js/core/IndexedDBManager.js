@@ -32,16 +32,13 @@ class IndexedDBManager {
   }
 
   async storeFile(name, data, metadata = {}, onProgress = null) {
-    let arrayBuffer;
     if (data instanceof ArrayBuffer) {
-      arrayBuffer = data;
+      return this.dexieDB.storeFile(name, data, metadata, onProgress);
     } else if (data instanceof Blob || data instanceof File) {
-      arrayBuffer = await data.arrayBuffer();
+      return this.dexieDB.storeFile(name, data, metadata, onProgress);
     } else {
       throw new Error("Data must be File, Blob, or ArrayBuffer");
     }
-
-    return this.dexieDB.storeFile(name, arrayBuffer, metadata);
   }
 
   async getFile(name) {

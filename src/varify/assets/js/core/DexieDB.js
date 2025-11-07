@@ -55,9 +55,14 @@ export class DexieVariantDB extends Dexie {
     const isLargeFile = size > 100 * 1024 * 1024;
 
     if (!isLargeFile) {
+      let dataToStore = data;
+      if (data instanceof Blob || data instanceof File) {
+        dataToStore = await data.arrayBuffer();
+      }
+
       const fileData = {
         name,
-        data,
+        data: dataToStore,
         size,
         type: metadata.type || 'application/octet-stream',
         timestamp: Date.now(),
@@ -75,12 +80,19 @@ export class DexieVariantDB extends Dexie {
     for (let i = 0; i < totalChunks; i++) {
       const start = i * CHUNK_SIZE;
       const end = Math.min(start + CHUNK_SIZE, size);
-      const chunk = data.slice(start, end);
+
+      let chunkData;
+      if (data instanceof Blob || data instanceof File) {
+        const chunkBlob = data.slice(start, end);
+        chunkData = await chunkBlob.arrayBuffer();
+      } else {
+        chunkData = data.slice(start, end);
+      }
 
       await this.fileChunks.put({
         name,
         chunkIndex: i,
-        data: chunk
+        data: chunkData
       });
 
       if (onProgress) {
