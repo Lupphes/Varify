@@ -174,9 +174,9 @@ class FileUploadUI {
     if (!this.hasFileSystemAccess) return "";
 
     return `
-      <div style="margin-bottom: 20px; text-align: center;">
+      <div style="margin-bottom: 24px; text-align: center;">
         <button onclick="document.getElementById('auto-upload-section').style.display='block'; document.getElementById('upload-form').style.display='none';"
-                style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 6px;">
+                style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 6px; padding: 8px;">
           <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
           </svg>
@@ -216,6 +216,22 @@ class FileUploadUI {
                     </div>
 
                     ${this.getAutoUploadSectionHTML()}
+
+                    <!-- Unified Progress Indicator (outside both sections) -->
+                    <div id="upload-progress" style="display: none; margin: 20px 0; padding: 32px 24px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 600; color: #1a202c; margin-bottom: 20px;">
+                            <span id="upload-status-main">Processing...</span>
+                        </div>
+                        <div style="background: #e2e8f0; border-radius: 12px; height: 40px; overflow: hidden; position: relative; margin-bottom: 16px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                            <div id="upload-progress-bar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                            <div id="upload-progress-text" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #1a202c;">
+                                0%
+                            </div>
+                        </div>
+                        <div style="font-size: 14px; color: #718096; line-height: 1.8;">
+                            <span id="upload-status-subtitle">Preparing...</span>
+                        </div>
+                    </div>
 
                     <div id="upload-form" style="display: ${this.hasFileSystemAccess ? "none" : "block"};">
                         ${this.getBackButtonHTML()}
@@ -373,27 +389,15 @@ class FileUploadUI {
                             : ""
                         }
 
-                        <!-- Unified Progress Indicator -->
-                        <div id="upload-progress" style="display: none; margin: 20px 0; text-align: center;">
-                            <div style="font-size: 20px; font-weight: 600; color: #2d3748; margin-bottom: 12px;">
-                                <span id="upload-status-main">Processing...</span>
-                            </div>
-                            <div style="background: #e2e8f0; border-radius: 8px; height: 32px; overflow: hidden; position: relative; margin-bottom: 8px;">
-                                <div id="upload-progress-bar" style="background: linear-gradient(90deg, #4299e1 0%, #667eea 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                                <div id="upload-progress-text" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #2d3748;">
-                                    0%
-                                </div>
-                            </div>
-                            <div style="font-size: 13px; color: #718096; line-height: 1.6;">
-                                <span id="upload-status-subtitle">Preparing...</span>
-                            </div>
-                        </div>
-
                         <div style="display: flex; gap: 12px; margin-top: 24px;">
-                            <button id="upload-btn" style="flex: 1; padding: 12px 24px; background: #4299e1; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 16px;">
+                            <button id="upload-btn" style="flex: 1; padding: 14px 32px; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; transition: all 0.2s; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);"
+                                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';"
+                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 14px rgba(102, 126, 234, 0.4)';">
                                 Upload Files
                             </button>
-                            <button id="clear-storage-btn" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 16px;">
+                            <button id="clear-storage-btn" style="padding: 14px 32px; background: #e53e3e; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; transition: all 0.2s; box-shadow: 0 4px 14px rgba(229, 62, 62, 0.4);"
+                                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(229, 62, 62, 0.5)';"
+                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 14px rgba(229, 62, 62, 0.4)';">
                                 Clear Storage
                             </button>
                         </div>
