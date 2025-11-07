@@ -90,6 +90,16 @@ export const COLUMN_WIDTHS = {
 };
 
 /**
+ * Default column width for fields not specified in COLUMN_WIDTHS
+ */
+export const DEFAULT_COLUMN_WIDTH = 120;
+
+/**
+ * Column width for fields containing "CALLER" in their name
+ */
+export const CALLER_COLUMN_WIDTH = 150;
+
+/**
  * FORMAT Field Priority
  * Determines the display order of FORMAT fields in the caller details modal.
  */

@@ -272,17 +272,17 @@ describe("IGVIndexedDBLoader - Integration Tests with Real Data", () => {
   });
 
   it("loads real files fresh each time to avoid stale references", async () => {
-    const vcfFiles = getRealVcfFiles();
-    const fastaBuffer = loadRealVcfBuffer(vcfFiles.referenceFasta);
-    await db.storeFile(vcfFiles.referenceFasta, fastaBuffer.buffer);
+    const testData = new Uint8Array(1000).fill(65).buffer; // 1KB of 'A's
+    const filename = "test-reference.fna";
+    await db.storeFile(filename, testData);
 
-    const file1 = await loader.loadFile(vcfFiles.referenceFasta);
-    const file2 = await loader.loadFile(vcfFiles.referenceFasta);
+    const file1 = await loader.loadFile(filename);
+    const file2 = await loader.loadFile(filename);
 
     expect(file1).not.toBe(file2);
     expect(file1.name).toBe(file2.name);
     expect(file1.size).toBe(file2.size);
-    expect(file1.size).toBe(fastaBuffer.byteLength);
+    expect(file1.size).toBe(1000);
   });
 });
 

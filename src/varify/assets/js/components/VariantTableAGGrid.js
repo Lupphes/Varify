@@ -13,7 +13,7 @@
 import { createGrid } from "ag-grid-community";
 import { CategoricalFilter } from "./CategoricalFilter.js";
 import { CategoricalFloatingFilter } from "./CategoricalFloatingFilter.js";
-import { FORMAT_FIELD_PRIORITY, COLUMN_PRIORITY_ORDER, COLUMN_WIDTHS } from "../config/display.js";
+import { FORMAT_FIELD_PRIORITY, COLUMN_PRIORITY_ORDER, COLUMN_WIDTHS, DEFAULT_COLUMN_WIDTH, CALLER_COLUMN_WIDTH } from "../config/display.js";
 import { UI_COLORS as THEME } from "../config/colors.js";
 import { CallerDetailsModal } from "./table/CallerDetailsModal.js";
 import { TableExporter } from "./table/TableExporter.js";
@@ -168,16 +168,11 @@ export class VariantTableAGGrid {
         field: field,
         headerName: field,
         cellRenderer: (params) => this.getCellRenderer(params, metadata),
+        width: COLUMN_WIDTHS[field] || (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
       };
 
       if (COLUMN_WIDTHS[field]) {
-        colDef.width = COLUMN_WIDTHS[field];
-      } else {
-        colDef.width = 120;
-
-        if (field.includes("CALLER")) {
-          colDef.width = 150;
-        }
+        colDef.suppressSizeToFit = true;
       }
 
       this.configureColumnFilter(colDef, metadata);
@@ -194,17 +189,11 @@ export class VariantTableAGGrid {
           field: field,
           headerName: field,
           cellRenderer: (params) => this.getCellRenderer(params, metadata),
+          width: COLUMN_WIDTHS[field] || (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
         };
 
         if (COLUMN_WIDTHS[field]) {
-          colDef.width = COLUMN_WIDTHS[field];
           colDef.suppressSizeToFit = true;
-        } else {
-          colDef.width = 120;
-
-          if (field.includes("CALLER")) {
-            colDef.width = 150;
-          }
         }
 
         this.configureColumnFilter(colDef, metadata);
@@ -222,8 +211,9 @@ export class VariantTableAGGrid {
     columnDefs.push({
       field: "caller",
       headerName: "Caller",
-      width: 120,
+      width: COLUMN_WIDTHS["caller"] || DEFAULT_COLUMN_WIDTH,
       pinned: "left",
+      suppressSizeToFit: !!COLUMN_WIDTHS["caller"],
     });
 
     const formatPriorityOrder = FORMAT_FIELD_PRIORITY;
@@ -234,8 +224,12 @@ export class VariantTableAGGrid {
         const colDef = {
           field: field,
           headerName: field,
-          width: 120,
+          width: COLUMN_WIDTHS[field] || DEFAULT_COLUMN_WIDTH,
         };
+
+        if (COLUMN_WIDTHS[field]) {
+          colDef.suppressSizeToFit = true;
+        }
 
         if (metadata.type === "numeric") {
           colDef.type = "numericColumn";
@@ -252,8 +246,12 @@ export class VariantTableAGGrid {
           const colDef = {
             field: field,
             headerName: field,
-            width: 120,
+            width: COLUMN_WIDTHS[field] || DEFAULT_COLUMN_WIDTH,
           };
+
+          if (COLUMN_WIDTHS[field]) {
+            colDef.suppressSizeToFit = true;
+          }
 
           if (metadata.type === "numeric") {
             colDef.type = "numericColumn";
@@ -283,7 +281,6 @@ export class VariantTableAGGrid {
           uniqueValues: valuesArray,
         };
         colDef.minWidth = 150;
-        colDef.width = 200;
         colDef.headerTooltip = `SV Type (categorical). Values: ${valuesArray.join(", ")}`;
         return;
       }
@@ -306,7 +303,6 @@ export class VariantTableAGGrid {
           uniqueValues: valuesArray,
         };
         colDef.minWidth = 150;
-        colDef.width = 200;
         colDef.headerTooltip = `Categorical field. Values: ${valuesArray.join(", ")}`;
       } else {
         colDef.filter = "agTextColumnFilter";
