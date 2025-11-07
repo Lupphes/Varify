@@ -140,35 +140,26 @@ class FileUploadUI {
     if (!this.hasFileSystemAccess) return "";
 
     return `
-      <div id="auto-upload-section" style="text-align: center; padding: 48px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.25); margin-bottom: 24px;">
-        <div style="font-size: 64px; margin-bottom: 20px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));">📁</div>
-        <h3 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: white;">Quick Upload</h3>
-        <p style="margin: 0 0 32px 0; color: rgba(255,255,255,0.9); font-size: 15px; line-height: 1.8; max-width: 400px; margin-left: auto; margin-right: auto;">
-          Select the <strong style="color: white;">genome_files</strong> folder and all required files will be uploaded automatically
+      <div id="auto-upload-section" class="text-center py-12 px-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-2xl mb-6">
+        <div class="text-6xl mb-5 drop-shadow-md">📁</div>
+        <h3 class="mb-4 text-2xl font-bold text-white">Quick Upload</h3>
+        <p class="mb-8 text-white/90 text-[15px] leading-relaxed max-w-md mx-auto">
+          Select the <strong class="text-white">genome_files</strong> folder and all required files will be uploaded automatically
         </p>
-        <button id="auto-upload-btn" style="padding: 16px 40px; background: white; color: #667eea;
-                border: none; border-radius: 10px; font-size: 17px; font-weight: 700; cursor: pointer;
-                transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);"
-                onmouseover="this.style.transform='translateY(-3px) scale(1.02)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.25)';"
-                onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.15)';">
-          <svg style="width: 22px; height: 22px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button id="auto-upload-btn" class="py-4 px-10 bg-white text-indigo-500 border-none rounded-lg text-[17px] font-bold cursor-pointer transition-all inline-flex items-center justify-center gap-3 shadow-xl hover:-translate-y-1 hover:scale-105 hover:shadow-2xl">
+          <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
           </svg>
           Select Folder
         </button>
-        <div style="margin-top: 28px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <div class="mt-7 pt-6 border-t border-white/20">
           <button onclick="document.getElementById('upload-form').style.display='flex'; document.getElementById('auto-upload-section').style.display='none';"
-                  style="background: rgba(255,255,255,0.15); border: 2px solid white; color: white; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
-                  onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1.05)';"
-                  onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='scale(1)';">
+                  class="bg-white/15 border-2 border-white text-white py-2.5 px-6 rounded-lg text-sm font-semibold cursor-pointer transition-all hover:bg-white/25 hover:scale-105">
             Upload Files Manually
           </button>
         </div>
-        <div style="margin-top: 20px;">
-          <button id="auto-clear-storage-btn" style="background: none; border: none; color: rgba(255,255,255,0.8); font-size: 13px; cursor: pointer; text-decoration: underline; padding: 8px;"
-                  onmouseover="this.style.color='white';"
-                  onmouseout="this.style.color='rgba(255,255,255,0.8)';">
+        <div class="mt-5">
+          <button id="auto-clear-storage-btn" class="bg-transparent border-none text-white/80 text-[13px] cursor-pointer underline py-2 hover:text-white">
             Clear Storage
           </button>
         </div>
@@ -183,12 +174,10 @@ class FileUploadUI {
     if (!this.hasFileSystemAccess) return "";
 
     return `
-      <div style="margin-bottom: 32px; text-align: center; padding-bottom: 24px; border-bottom: 2px solid #e2e8f0;">
+      <div class="mb-8 text-center pb-6 border-b-2 border-gray-200">
         <button onclick="document.getElementById('auto-upload-section').style.display='block'; document.getElementById('upload-form').style.display='none';"
-                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); transition: all 0.2s;"
-                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 25px rgba(102, 126, 234, 0.4)';"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
-          <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                class="bg-gradient-to-br from-indigo-500 to-purple-600 border-none text-white py-3 px-7 rounded-lg text-[15px] font-semibold cursor-pointer inline-flex items-center gap-2.5 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">
+          <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
           </svg>
           Back to Quick Upload
@@ -253,7 +242,7 @@ class FileUploadUI {
                                     Reference Genome (FASTA) <span class="text-red-600">*</span>
                                 </label>
                                 <p class="mb-3 text-xs text-gray-600 break-all">
-                                    <strong>${this.requiredFiles.fasta}</strong>
+                                    <italic>${this.requiredFiles.fasta}</italic>
                                 </p>
 
                                 <div class="mb-2.5">
@@ -261,18 +250,18 @@ class FileUploadUI {
                                     <label for="upload-fasta" class="inline-block py-1.5 px-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                         FASTA File
                                     </label>
-                                    <div id="upload-fasta-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
+                                    <div id="upload-fasta-name" class="mt-1.5 text-xs text-gray-600 font-semibold">No file selected</div>
                                 </div>
 
                                 <div>
                                     <p class="mb-2 text-xs text-gray-600 break-all">
-                                        <strong>${this.requiredFiles.fasta}.fai</strong>
+                                        <italic>${this.requiredFiles.fasta}.fai</italic>
                                     </p>
                                     <input type="file" id="upload-fai" accept=".fai" class="hidden">
                                     <label for="upload-fai" class="inline-block py-1.5 px-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                         FAI Index
                                     </label>
-                                    <div id="upload-fai-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
+                                    <div id="upload-fai-name" class="mt-1.5 text-xs text-gray-600 font-semibold">No file selected</div>
                                 </div>
                             </div>
 
@@ -284,7 +273,7 @@ class FileUploadUI {
                                     VCF File ${i + 1} <span class="text-red-600">*</span>
                                 </label>
                                 <p class="mb-3 text-xs text-gray-600 break-all">
-                                    <strong>${vcfFile}</strong>
+                                    <italic>${vcfFile}</italic>
                                 </p>
 
                                 <div class="mb-2.5">
@@ -292,7 +281,7 @@ class FileUploadUI {
                                     <label for="upload-vcf-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                         VCF File
                                     </label>
-                                    <div id="upload-vcf-${i}-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
+                                    <div id="upload-vcf-${i}-name" class="mt-1.5 text-xs text-gray-600 font-semibold">No file selected</div>
                                 </div>
 
                                 ${
@@ -300,18 +289,18 @@ class FileUploadUI {
                                     ? `
                                     <div class="mb-2.5">
                                         <p class="mb-2 text-xs text-gray-600 break-all">
-                                            <strong>${vcfFile}.tbi</strong>
+                                            <italic>${vcfFile}.tbi</italic>
                                         </p>
                                         <input type="file" id="upload-tbi-${i}" accept=".tbi" data-filename="${vcfFile}.tbi" class="hidden">
                                         <label for="upload-tbi-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                             TBI Index
                                         </label>
-                                        <div id="upload-tbi-${i}-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
+                                        <div id="upload-tbi-${i}-name" class="mt-1.5 text-xs text-gray-600 font-semibold">No file selected</div>
                                     </div>
 
                                     <div>
                                         <p class="mb-2 text-xs text-gray-600 break-all">
-                                            <strong>${vcfFile.replace(".gz", "")}</strong>
+                                            <italic>${vcfFile.replace(".gz", "")}</italic>
                                         </p>
                                         <input type="file" id="upload-vcf-uncompressed-${i}" accept=".vcf" data-filename="${vcfFile.replace(".gz", "")}" class="hidden">
                                         <label for="upload-vcf-uncompressed-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
@@ -349,18 +338,18 @@ class FileUploadUI {
                                             <label for="upload-bam-${i}" class="inline-block py-1.5 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                                 BAM File
                                             </label>
-                                            <span id="upload-bam-${i}-name" class="block mt-1.5 text-xs text-gray-600 italic">No file chosen</span>
+                                            <span id="upload-bam-${i}-name" class="block mt-1.5 text-xs text-gray-600 font-semibold">No file chosen</span>
                                         </div>
 
                                         <div>
                                             <p class="mb-2 text-xs text-gray-600 break-all">
-                                                <strong>${bamFile}.bai</strong>
+                                                <italic>${bamFile}.bai</italic>
                                             </p>
                                             <input type="file" id="upload-bai-${i}" accept=".bai" data-filename="${bamFile}.bai" class="hidden">
                                             <label for="upload-bai-${i}" class="inline-block py-1.5 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                                 BAI Index
                                             </label>
-                                            <span id="upload-bai-${i}-name" class="block mt-1.5 text-xs text-gray-600 italic">No file chosen</span>
+                                            <span id="upload-bai-${i}-name" class="block mt-1.5 text-xs text-gray-600 font-semibold">No file chosen</span>
                                         </div>
                                     </div>
                                 `
@@ -387,14 +376,14 @@ class FileUploadUI {
                                       .map(
                                         (statsFile, i) => `
                                         <div class="bg-white rounded-md p-3.5 border border-gray-200">
-                                            <p class="mb-2.5 text-sm font-semibold text-gray-700 break-all">
+                                            <p class="mb-2.5 text-sm font-italic text-gray-700 break-all">
                                                 ${statsFile}
                                             </p>
                                             <input type="file" id="upload-stats-${i}" accept=".txt,.stats" data-filename="${statsFile}" class="hidden">
                                             <label for="upload-stats-${i}" class="inline-block py-1.5 px-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                                 Stats File
                                             </label>
-                                            <span id="upload-stats-${i}-name" class="block mt-1.5 text-xs text-gray-600 italic">No file chosen</span>
+                                            <span id="upload-stats-${i}-name" class="block mt-1.5 text-xs text-gray-600 font-semibold">No file chosen</span>
                                         </div>
                                     `
                                       )
