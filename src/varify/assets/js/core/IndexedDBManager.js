@@ -41,8 +41,8 @@ class IndexedDBManager {
     }
   }
 
-  async getFile(name) {
-    const fileData = await this.dexieDB.getFile(name);
+  async getFile(name, returnAsBlob = false) {
+    const fileData = await this.dexieDB.getFile(name, returnAsBlob);
     return fileData ? fileData.data : null;
   }
 

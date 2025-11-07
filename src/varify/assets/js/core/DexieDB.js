@@ -24,7 +24,7 @@ export class DexieVariantDB extends Dexie {
     return prefix === 'bcf' ? this.bcfVariants : this.survivorVariants;
   }
 
-  async getFile(name) {
+  async getFile(name, returnAsBlob = false) {
     const fileInfo = await this.files.get(name);
     if (!fileInfo) return null;
 
@@ -33,6 +33,20 @@ export class DexieVariantDB extends Dexie {
         .where('name')
         .equals(name)
         .sortBy('chunkIndex');
+
+      if (returnAsBlob) {
+        const blobParts = chunks.map(chunk => chunk.data);
+        const blob = new Blob(blobParts, { type: fileInfo.type || 'application/octet-stream' });
+
+        return {
+          name: fileInfo.name,
+          data: blob,
+          size: fileInfo.size,
+          type: fileInfo.type,
+          timestamp: fileInfo.timestamp,
+          isChunked: true
+        };
+      }
 
       const totalSize = chunks.reduce((sum, chunk) => sum + chunk.data.byteLength, 0);
       const merged = new Uint8Array(totalSize);

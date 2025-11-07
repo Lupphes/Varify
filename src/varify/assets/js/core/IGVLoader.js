@@ -16,7 +16,7 @@ class IGVIndexedDBLoader {
   }
 
   async loadFile(filename) {
-    const data = await this.dbManager.getFile(filename);
+    const data = await this.dbManager.getFile(filename, true);
     if (!data) {
       throw new Error(`File not found in IndexedDB: ${filename}`);
     }
