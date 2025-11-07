@@ -93,6 +93,9 @@ export class VariantQuery {
 
       const allMatches = [];
       const needsInMemorySort = sort && !useSortIndex;
+      const hasFilters = Object.keys(filters).length > 0;
+      let skipped = 0;
+      let collected = 0;
 
       source.onsuccess = (event) => {
         const cursor = event.target.result;
@@ -101,7 +104,6 @@ export class VariantQuery {
           let results = allMatches;
 
           if (needsInMemorySort) {
-            logger.debug(`Sorting ${results.length} variants in memory by ${sort.field}`);
             results.sort((a, b) => {
               const aVal = a[sort.field];
               const bVal = b[sort.field];
@@ -126,8 +128,22 @@ export class VariantQuery {
           return;
         }
 
-        if (VariantFilter.matchesFilters(cursor.value, filters, multiCallerMode)) {
+        const matches = !hasFilters || VariantFilter.matchesFilters(cursor.value, filters, multiCallerMode);
+
+        if (matches) {
+          if (!needsInMemorySort && skipped < offset) {
+            skipped++;
+            cursor.continue();
+            return;
+          }
+
           allMatches.push(cursor.value);
+          collected++;
+
+          if (!needsInMemorySort && collected >= limit) {
+            resolve(allMatches);
+            return;
+          }
         }
 
         cursor.continue();

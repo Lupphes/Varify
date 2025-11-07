@@ -55,8 +55,14 @@ export class VariantTableAGGrid {
     const gridOptions = {
       columnDefs: columnDefs,
       rowModelType: "infinite",
-      cacheBlockSize: 100,
-      maxBlocksInCache: 10,
+      cacheBlockSize: 500,
+      maxBlocksInCache: 20,
+      rowBuffer: 100,
+      cacheOverflowSize: 2,
+      maxConcurrentDatasourceRequests: 1,
+      infiniteInitialRowCount: 1000,
+      blockLoadDebounceMillis: 0,
+      suppressAnimationFrame: false,
       rowSelection: "multiple",
       suppressRowClickSelection: true,
       animateRows: false,
@@ -70,10 +76,10 @@ export class VariantTableAGGrid {
       defaultColDef: {
         sortable: true,
         resizable: true,
-        filter: true, // Enable filtering by default
-        floatingFilter: true, // Show filter inputs below headers
-        minWidth: 80, // Minimum width for all columns
-        flex: 0, // Don't flex by default (use explicit widths)
+        filter: true,
+        floatingFilter: true,
+        minWidth: 80,
+        flex: 0,
       },
       overlayLoadingTemplate: '<span class="ag-overlay-loading-center">Loading variants...</span>',
       overlayNoRowsTemplate:
@@ -417,11 +423,20 @@ export class VariantTableAGGrid {
   }
 
   createDatasource(prefix) {
+    let cachedCount = null;
+    let lastFilterModel = null;
+
     return {
       rowCount: undefined,
       getRows: async (params) => {
         try {
           const filters = this.extractFilters(params.filterModel);
+          const filterChanged = JSON.stringify(params.filterModel) !== lastFilterModel;
+
+          if (filterChanged) {
+            cachedCount = null;
+            lastFilterModel = JSON.stringify(params.filterModel);
+          }
 
           const sort =
             params.sortModel && params.sortModel.length > 0
@@ -433,12 +448,6 @@ export class VariantTableAGGrid {
 
           const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
 
-          logger.debug(
-            `Querying IndexedDB: offset=${params.startRow}, limit=${params.endRow - params.startRow}`,
-            { filters, sort, multiCallerMode }
-          );
-
-          // Query IndexedDB
           const variants = await this.genomeDBManager.queryVariants(prefix, filters, {
             offset: params.startRow,
             limit: params.endRow - params.startRow,
@@ -446,28 +455,17 @@ export class VariantTableAGGrid {
             multiCallerMode: multiCallerMode,
           });
 
-          const totalCount = await this.genomeDBManager.getVariantCount(prefix, filters, {
-            multiCallerMode: multiCallerMode,
-          });
-
-          logger.debug(`Retrieved ${variants.length} variants (total: ${totalCount})`);
-
-          const flattenedVariants = variants.map((v) => this.flattenVariant(v));
-
-          if (prefix === "survivor" && flattenedVariants.length > 0 && !window._loggedAllCallers) {
-            window._loggedAllCallers = true;
-            const firstVariant = flattenedVariants[0];
-            logger.debug("=== First Grid Variant ===");
-            logger.debug("Has _allCallers:", !!firstVariant._allCallers);
-            logger.debug("_allCallers length:", firstVariant._allCallers?.length);
-            logger.debug("_allCallers:", firstVariant._allCallers);
+          if (cachedCount === null) {
+            cachedCount = await this.genomeDBManager.getVariantCount(prefix, filters, {
+              multiCallerMode: multiCallerMode,
+            });
           }
 
-          params.successCallback(flattenedVariants, totalCount);
+          params.successCallback(variants, cachedCount);
 
-          if (!this.hasNavigatedToFirst && flattenedVariants.length > 0 && params.startRow === 0) {
+          if (!this.hasNavigatedToFirst && variants.length > 0 && params.startRow === 0) {
             this.hasNavigatedToFirst = true;
-            this.navigateToVariant(flattenedVariants[0], null, false);
+            this.navigateToVariant(variants[0], null, false);
           }
         } catch (error) {
           logger.error("Error loading variants from IndexedDB:", error);
@@ -595,10 +593,24 @@ export class VariantTableAGGrid {
       return window[`${prefix}FieldMetadata`];
     }
 
-    logger.info(`Analyzing field metadata for ${prefix}...`);
+    try {
+      const cachedMetadata = await this.genomeDBManager.getFile(`${prefix}_metadata_cache`);
+      if (cachedMetadata) {
+        const decoder = new TextDecoder("utf-8");
+        const text = decoder.decode(cachedMetadata);
+        const metadata = JSON.parse(text);
+        window[`${prefix}FieldMetadata`] = metadata;
+        logger.info(`Loaded cached metadata for ${prefix} (${Object.keys(metadata).length} fields)`);
+        return metadata;
+      }
+    } catch (error) {
+      logger.debug(`No cached metadata found for ${prefix}, computing...`);
+    }
+
+    logger.info(`Analyzing field metadata for ${prefix} (sampling 1000 variants)...`);
     const metadata = {};
 
-    const variants = await this.genomeDBManager.queryVariants(prefix, {}, { limit: 10000 });
+    const variants = await this.genomeDBManager.queryVariants(prefix, {}, { limit: 1000 });
 
     if (variants.length === 0) {
       return metadata;
@@ -659,6 +671,19 @@ export class VariantTableAGGrid {
       }
     });
 
+    try {
+      const metadataJson = JSON.stringify(metadata);
+      const encoder = new TextEncoder();
+      const data = encoder.encode(metadataJson);
+      await this.genomeDBManager.storeFile(`${prefix}_metadata_cache`, data.buffer, {
+        type: "metadata",
+        timestamp: Date.now(),
+      });
+      logger.debug(`Cached metadata for ${prefix}`);
+    } catch (error) {
+      logger.warn(`Failed to cache metadata: ${error.message}`);
+    }
+
     window[`${prefix}FieldMetadata`] = metadata;
 
     return metadata;
@@ -689,50 +714,24 @@ export class VariantTableAGGrid {
       try {
         const filterModel = this.gridApi.getFilterModel();
         logger.debug("AG-Grid filter model:", filterModel);
-        logger.debug("Filter model details:", JSON.stringify(filterModel, null, 2));
-
-        if (Object.keys(filterModel).length === 0) {
-          const allVariants = await this.genomeDBManager.queryVariants(
-            this.prefix,
-            {},
-            { limit: Infinity }
-          );
-          logger.debug(`No filters active: ${allVariants.length} variants`);
-          await this.plotsComponent.updateFromFilteredData(allVariants);
-          return;
-        }
 
         const dbFilters = this.extractFilters(filterModel);
         logger.debug("Converted to DB filters:", dbFilters);
 
+        const totalCount = await this.genomeDBManager.getVariantCount(this.prefix, dbFilters);
+        logger.debug(`Filter changed: ${totalCount} variants match`);
+
         const filteredData = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
-          limit: Infinity,
+          limit: totalCount > 0 ? totalCount : 500000, 
         });
 
-        logger.debug(`Filter changed: ${filteredData.length} variants`);
-
-        if (filteredData.length > 0 && dbFilters.QUAL) {
-          logger.debug("Sample QUAL values from filtered data:");
-          filteredData.slice(0, 5).forEach((v, i) => {
-            logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
-          });
-        } else if (filteredData.length === 0 && dbFilters.QUAL) {
-          const sampleVariants = await this.genomeDBManager.queryVariants(
-            this.prefix,
-            {},
-            { limit: 10 }
-          );
-          logger.debug("No variants matched QUAL filter. Sample QUAL values from DB:");
-          sampleVariants.forEach((v, i) => {
-            logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
-          });
-        }
+        logger.debug(`Loaded ${filteredData.length} filtered variants for plots`);
 
         await this.plotsComponent.updateFromFilteredData(filteredData);
       } catch (error) {
         logger.error("Error updating plots:", error);
       }
-    }, 300);
+    }, 500); 
   }
 
   applyFilterFromPlot(filterCriteria) {
@@ -740,21 +739,6 @@ export class VariantTableAGGrid {
 
     logger.debug("Applying filter from plot:", filterCriteria);
 
-    if (filterCriteria.SVTYPE) {
-      this.genomeDBManager
-        .queryVariants(this.prefix, {}, { limit: Infinity })
-        .then((allVariants) => {
-          const matchingExact = allVariants.filter(
-            (v) => v.SVTYPE === filterCriteria.SVTYPE
-          ).length;
-          const matchingContains = allVariants.filter(
-            (v) => v.SVTYPE && v.SVTYPE.includes(filterCriteria.SVTYPE)
-          ).length;
-          logger.debug(
-            `SVTYPE="${filterCriteria.SVTYPE}" - Exact matches: ${matchingExact}, Contains matches: ${matchingContains}`
-          );
-        });
-    }
 
     const filterModel = {};
 

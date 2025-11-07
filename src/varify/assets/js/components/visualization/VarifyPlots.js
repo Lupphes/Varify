@@ -74,10 +74,11 @@ export class VarifyPlots {
 
     try {
       logger.debug(`Querying IndexedDB for variants with type: ${this.vcfType}`);
-      this.variants = await this.dbManager.queryVariants(this.vcfType, {}, { limit: Infinity });
-      logger.debug(`Loaded ${this.variants.length} variants from IndexedDB`);
 
-      if (this.variants.length === 0) {
+      const totalCount = await this.dbManager.getVariantCount(this.vcfType, {});
+      logger.debug(`Total variant count: ${totalCount}`);
+
+      if (totalCount === 0) {
         logger.error(`No variants found in IndexedDB for type: ${this.vcfType}`);
         logger.debug(`Checking what's stored in IndexedDB...`);
         const allBcf = await this.dbManager.queryVariants("bcf", {}, { limit: 10 });
@@ -87,6 +88,12 @@ export class VarifyPlots {
         );
         return;
       }
+
+      logger.info(`Loading ${totalCount} variants for plots...`);
+      this.variants = await this.dbManager.queryVariants(this.vcfType, {}, {
+        limit: totalCount > 0 ? totalCount : 500000, 
+      });
+      logger.debug(`Loaded ${this.variants.length} variants from IndexedDB`);
 
       await this.renderAllCharts();
 
