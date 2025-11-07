@@ -170,9 +170,7 @@ export class ReportInitializer {
 
     const clearAllCacheBtn = document.getElementById("clear-all-cache-btn");
     if (clearAllCacheBtn) {
-      clearAllCacheBtn.addEventListener("click", () => {
-        setTimeout(() => this.clearAllCaches(), 0);
-      });
+      clearAllCacheBtn.addEventListener("click", () => this.clearAllCaches());
     }
   }
 
@@ -552,6 +550,8 @@ export class ReportInitializer {
 
     try {
       await this.genomeDBManager.deleteAllVarifyDatabases();
+
+      alert(`Successfully deleted all Varify databases (${databases.length} database${databases.length !== 1 ? 's' : ''}, ${sizeText})`);
 
       const statusText = document.getElementById("cache-status-text");
       if (statusText) statusText.textContent = "All caches cleared!";

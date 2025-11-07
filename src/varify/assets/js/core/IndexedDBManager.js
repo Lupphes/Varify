@@ -5,6 +5,7 @@
  * Handles files, variants, and metadata storage with optimized performance.
  */
 
+import Dexie from 'dexie';
 import { StorageUtils } from "./storage/StorageUtils.js";
 import { DexieVariantDB } from "./DexieDB.js";
 import { DexieVariantQuery } from "./DexieVariantQuery.js";
@@ -127,11 +128,16 @@ class IndexedDBManager {
   }
 
   async getTotalStorageSize() {
-    if (!navigator.storage || !navigator.storage.estimate) {
+    try {
+      if (!navigator.storage || !navigator.storage.estimate) {
+        return 0;
+      }
+      const estimate = await navigator.storage.estimate();
+      return estimate?.usage || 0;
+    } catch (error) {
+      console.warn('Could not estimate storage size:', error);
       return 0;
     }
-    const estimate = await navigator.storage.estimate();
-    return estimate?.usage || 0;
   }
 
   async deleteAllVarifyDatabases() {
