@@ -769,15 +769,38 @@ export class VariantTableAGGrid {
         });
         logger.debug(`Filter changed: ${totalCount} variants match`);
 
-        const filteredData = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
-          limit: totalCount > 0 ? totalCount : 500000,
-          queryId: this._chartUpdateQueryId,
-        });
+        this.plotsComponent.showLoading(`Loading ${totalCount.toLocaleString()} variants...`);
 
-        logger.debug(`Loaded ${filteredData.length} filtered variants for plots`);
+        const chunkSize = 10000;
+        const numChunks = Math.ceil(totalCount / chunkSize);
+        const filteredData = [];
+
+        for (let i = 0; i < numChunks; i++) {
+          const chunk = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
+            offset: i * chunkSize,
+            limit: chunkSize,
+            queryId: `${this._chartUpdateQueryId}-chunk-${i}`,
+          });
+
+          filteredData.push(...chunk);
+
+          if (i % 5 === 0 || i === numChunks - 1) {
+            this.plotsComponent.showLoading(
+              `Loading variants: ${filteredData.length.toLocaleString()} / ${totalCount.toLocaleString()}`
+            );
+          }
+
+          if (i % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
+
+        logger.info(`Loaded ${filteredData.length} variants for charts`);
 
         await this.plotsComponent.updateFromFilteredData(filteredData);
+        this.plotsComponent.hideLoading();
       } catch (error) {
+        this.plotsComponent.hideLoading();
         if (error.message !== 'Query cancelled') {
           logger.error("Error updating plots:", error);
         }

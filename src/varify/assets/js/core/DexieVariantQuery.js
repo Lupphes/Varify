@@ -39,19 +39,46 @@ export class DexieVariantQuery {
     const hasFilters = Object.keys(filters).length > 0;
     let collection;
 
-    if (sort && sort.field) {
-      const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
+    let usedIndexForFilter = false;
+    if (hasFilters && !sort) {
+      const bestIndex = VariantFilter.selectBestIndex(filters);
+      if (bestIndex) {
+        const indexExists = table.schema.indexes.some(idx => idx.name === bestIndex);
+        if (indexExists) {
+          const keyRange = VariantFilter.buildKeyRange(filters, bestIndex);
+          if (keyRange) {
+            try {
+              collection = table.where(bestIndex).between(
+                keyRange.lower,
+                keyRange.upper,
+                !keyRange.lowerOpen,
+                !keyRange.upperOpen
+              );
+              usedIndexForFilter = true;
+              logger.debug(`Using index ${bestIndex} for query optimization`);
+            } catch (e) {
+              collection = table.toCollection();
+            }
+          }
+        }
+      }
+    }
 
-      if (indexExists) {
-        collection = table.orderBy(sort.field);
-        if (sort.direction === 'desc') {
-          collection = collection.reverse();
+    if (!usedIndexForFilter) {
+      if (sort && sort.field) {
+        const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
+
+        if (indexExists) {
+          collection = table.orderBy(sort.field);
+          if (sort.direction === 'desc') {
+            collection = collection.reverse();
+          }
+        } else {
+          collection = table.toCollection();
         }
       } else {
         collection = table.toCollection();
       }
-    } else {
-      collection = table.toCollection();
     }
 
     if (hasFilters || multiCallerMode) {
@@ -68,7 +95,7 @@ export class DexieVariantQuery {
     try {
       let results;
 
-      if (sort && sort.field) {
+      if (sort && sort.field && !usedIndexForFilter) {
         const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
 
         if (!indexExists) {

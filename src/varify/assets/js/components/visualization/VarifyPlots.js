@@ -219,28 +219,39 @@ export class VarifyPlots {
     const previousVariants = this.variants;
     this.variants = filteredVariants;
 
-    for (const [id, chart] of this.charts.entries()) {
-      try {
-        const container = chart.getDom();
+    const chartEntries = Array.from(this.charts.entries());
 
-        chart.dispose();
+    const batchSize = 3;
+    for (let i = 0; i < chartEntries.length; i += batchSize) {
+      const batch = chartEntries.slice(i, i + batchSize);
 
-        const chartDef = this.getChartDefinition(id);
+      await Promise.all(
+        batch.map(async ([id, chart]) => {
+          try {
+            const container = chart.getDom();
+            chart.dispose();
 
-        if (!chartDef) {
-          logger.warn(`Chart definition not found: ${id}`);
-          continue;
-        }
+            const chartDef = this.getChartDefinition(id);
+            if (!chartDef) {
+              logger.warn(`Chart definition not found: ${id}`);
+              return;
+            }
 
-        const newChart =
-          id === "caller-combinations"
-            ? chartDef.fn(this.variants, this.vcfType, echarts, container, this.eventBus)
-            : chartDef.fn(this.variants, echarts, container, this.eventBus);
+            const newChart =
+              id === "caller-combinations"
+                ? chartDef.fn(this.variants, this.vcfType, echarts, container, this.eventBus)
+                : chartDef.fn(this.variants, echarts, container, this.eventBus);
 
-        this.charts.set(id, newChart);
-      } catch (error) {
-        logger.error(`Error updating chart ${id}:`, error);
-        this.variants = previousVariants;
+            this.charts.set(id, newChart);
+          } catch (error) {
+            logger.error(`Error updating chart ${id}:`, error);
+            this.variants = previousVariants;
+          }
+        })
+      );
+
+      if (i + batchSize < chartEntries.length) {
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
 

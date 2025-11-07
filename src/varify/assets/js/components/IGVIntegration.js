@@ -83,7 +83,7 @@ export class IGVIntegration {
             onProgress(
               `Parsing BCF variants`,
               "bcf",
-              currentVariant,
+              lineIndex,
               totalLines,
               subtitle
             );
@@ -146,7 +146,7 @@ export class IGVIntegration {
             onProgress(
               `Parsing SURVIVOR variants`,
               "survivor",
-              currentVariant,
+              lineIndex,
               totalLines,
               subtitle
             );
