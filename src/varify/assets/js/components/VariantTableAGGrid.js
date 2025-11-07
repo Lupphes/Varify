@@ -425,10 +425,19 @@ export class VariantTableAGGrid {
   createDatasource(prefix) {
     let cachedCount = null;
     let lastFilterModel = null;
+    let currentRequestId = 0;
+    let abortController = null;
 
     return {
       rowCount: undefined,
       getRows: async (params) => {
+        const requestId = ++currentRequestId;
+
+        if (abortController) {
+          abortController.abort();
+        }
+        abortController = new AbortController();
+
         try {
           const filters = this.extractFilters(params.filterModel);
           const filterChanged = JSON.stringify(params.filterModel) !== lastFilterModel;
@@ -455,10 +464,18 @@ export class VariantTableAGGrid {
             multiCallerMode: multiCallerMode,
           });
 
+          if (requestId !== currentRequestId) {
+            return;
+          }
+
           if (cachedCount === null) {
             cachedCount = await this.genomeDBManager.getVariantCount(prefix, filters, {
               multiCallerMode: multiCallerMode,
             });
+          }
+
+          if (requestId !== currentRequestId) {
+            return;
           }
 
           params.successCallback(variants, cachedCount);
@@ -468,6 +485,9 @@ export class VariantTableAGGrid {
             this.navigateToVariant(variants[0], null, false);
           }
         } catch (error) {
+          if (error.name === 'AbortError') {
+            return;
+          }
           logger.error("Error loading variants from IndexedDB:", error);
           params.failCallback();
         }
@@ -477,40 +497,45 @@ export class VariantTableAGGrid {
 
   extractFilters(filterModel) {
     if (!filterModel) return {};
-    const filters = {};
 
-    for (const [field, filter] of Object.entries(filterModel)) {
+    const filters = {};
+    const entries = Object.entries(filterModel);
+
+    for (let i = 0; i < entries.length; i++) {
+      const [field, filter] = entries[i];
       if (!filter) continue;
 
-      if (filter.filterType === "number") {
-        if (filter.type === "greaterThan") {
+      const filterType = filter.filterType;
+
+      if (filterType === "number") {
+        const type = filter.type;
+        if (type === "greaterThan") {
           filters[field] = { min: filter.filter };
-        } else if (filter.type === "lessThan") {
+        } else if (type === "lessThan") {
           filters[field] = { max: filter.filter };
-        } else if (filter.type === "inRange") {
+        } else if (type === "inRange") {
           filters[field] = { min: filter.filter, max: filter.filterTo };
-        } else if (filter.type === "equals") {
+        } else if (type === "equals") {
           filters[field] = { min: filter.filter, max: filter.filter };
         }
-      } else if (filter.filterType === "set") {
-        if (filter.values && filter.values.length > 0) {
+      } else if (filterType === "set") {
+        if (filter.values?.length > 0) {
           filters[field] = { values: filter.values };
         }
-      } else if (filter.filterType === "categorical") {
-        if (filter.selectedValues && filter.selectedValues.length > 0) {
+      } else if (filterType === "categorical") {
+        if (filter.selectedValues?.length > 0) {
           filters[field] = { values: filter.selectedValues };
-        } else if (filter.values && filter.values.length > 0) {
+        } else if (filter.values?.length > 0) {
           filters[field] = { values: filter.values };
         }
-      } else if (filter.filterType === "text") {
-        if (filter.type === "contains") {
-          filters[field] = filter.filter;
-        } else if (filter.type === "equals") {
+      } else if (filterType === "text") {
+        const type = filter.type;
+        if (type === "contains" || type === "equals") {
           filters[field] = filter.filter;
         }
-      } else if (filter.values && Array.isArray(filter.values)) {
+      } else if (filter.values?.length > 0) {
         filters[field] = { values: filter.values };
-      } else if (filter.selectedValues && Array.isArray(filter.selectedValues)) {
+      } else if (filter.selectedValues?.length > 0) {
         filters[field] = { values: filter.selectedValues };
       }
     }
