@@ -306,7 +306,7 @@ class FileUploadUI {
                                         <label for="upload-vcf-uncompressed-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                             Uncompressed VCF
                                         </label>
-                                        <div id="upload-vcf-uncompressed-${i}-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
+                                        <div id="upload-vcf-uncompressed-${i}-name" class="mt-1.5 text-xs text-gray-600 font-semibold">No file selected</div>
                                     </div>
                                 `
                                     : ""
@@ -376,7 +376,7 @@ class FileUploadUI {
                                       .map(
                                         (statsFile, i) => `
                                         <div class="bg-white rounded-md p-3.5 border border-gray-200">
-                                            <p class="mb-2.5 text-sm font-italic text-gray-700 break-all">
+                                            <p class="mb-2.5 text-sm italic text-gray-700 break-all">
                                                 ${statsFile}
                                             </p>
                                             <input type="file" id="upload-stats-${i}" accept=".txt,.stats" data-filename="${statsFile}" class="hidden">

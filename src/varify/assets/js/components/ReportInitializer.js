@@ -225,16 +225,25 @@ export class ReportInitializer {
       logger.info("All files ready, parsing VCFs...");
       this.showLoadingIndicator("Parsing VCF files...");
 
+      // Throttle progress updates to avoid overwhelming the UI
+      let progressUpdatePending = false;
       const progressCallback = (message, source, current, total, subtitle = "") => {
-        // Update loading indicator with subtitle containing variant counts
-        const loadingText = document.getElementById("loading-text");
-        const loadingSubtitle = document.getElementById("loading-subtitle");
+        if (progressUpdatePending) return;
 
-        if (loadingText) loadingText.textContent = message;
-        if (loadingSubtitle && subtitle) {
-          loadingSubtitle.textContent = subtitle;
-          loadingSubtitle.style.display = "block";
-        }
+        progressUpdatePending = true;
+        requestAnimationFrame(() => {
+          // Update loading indicator with subtitle containing variant counts
+          const loadingText = document.getElementById("loading-text");
+          const loadingSubtitle = document.getElementById("loading-subtitle");
+
+          if (loadingText) loadingText.textContent = message;
+          if (loadingSubtitle && subtitle) {
+            loadingSubtitle.textContent = subtitle;
+            loadingSubtitle.style.display = "block";
+          }
+
+          progressUpdatePending = false;
+        });
       };
 
       await this.igvIntegration.loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, progressCallback);
