@@ -266,7 +266,7 @@ class FileUploadUI {
 
                                 <div>
                                     <p class="mb-2 text-xs text-gray-600 break-all">
-                                        <strong>${this.requiredFiles.fasta}</strong>
+                                        <strong>${this.requiredFiles.fasta}.fai</strong>
                                     </p>
                                     <input type="file" id="upload-fai" accept=".fai" class="hidden">
                                     <label for="upload-fai" class="inline-block py-1.5 px-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
@@ -300,7 +300,7 @@ class FileUploadUI {
                                     ? `
                                     <div class="mb-2.5">
                                         <p class="mb-2 text-xs text-gray-600 break-all">
-                                            <strong>${vcfFile}</strong>
+                                            <strong>${vcfFile}.tbi</strong>
                                         </p>
                                         <input type="file" id="upload-tbi-${i}" accept=".tbi" data-filename="${vcfFile}.tbi" class="hidden">
                                         <label for="upload-tbi-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
@@ -311,7 +311,7 @@ class FileUploadUI {
 
                                     <div>
                                         <p class="mb-2 text-xs text-gray-600 break-all">
-                                            <strong>${vcfFile}</strong>
+                                            <strong>${vcfFile.replace(".gz", "")}</strong>
                                         </p>
                                         <input type="file" id="upload-vcf-uncompressed-${i}" accept=".vcf" data-filename="${vcfFile.replace(".gz", "")}" class="hidden">
                                         <label for="upload-vcf-uncompressed-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
@@ -354,7 +354,7 @@ class FileUploadUI {
 
                                         <div>
                                             <p class="mb-2 text-xs text-gray-600 break-all">
-                                                <strong>${bamFile}</strong>
+                                                <strong>${bamFile}.bai</strong>
                                             </p>
                                             <input type="file" id="upload-bai-${i}" accept=".bai" data-filename="${bamFile}.bai" class="hidden">
                                             <label for="upload-bai-${i}" class="inline-block py-1.5 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
