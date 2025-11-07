@@ -227,19 +227,27 @@ export class ReportInitializer {
 
       // Throttle progress updates to avoid overwhelming the UI
       let progressUpdatePending = false;
+      let latestProgress = null;
+
       const progressCallback = (message, source, current, total, subtitle = "") => {
+        // Store the latest progress data
+        latestProgress = { message, source, current, total, subtitle };
+
+        // Schedule an update if one isn't already pending
         if (progressUpdatePending) return;
 
         progressUpdatePending = true;
         requestAnimationFrame(() => {
-          // Update loading indicator with subtitle containing variant counts
-          const loadingText = document.getElementById("loading-text");
-          const loadingSubtitle = document.getElementById("loading-subtitle");
+          // Use the latest progress data
+          if (latestProgress) {
+            const loadingText = document.getElementById("loading-text");
+            const loadingSubtitle = document.getElementById("loading-subtitle");
 
-          if (loadingText) loadingText.textContent = message;
-          if (loadingSubtitle && subtitle) {
-            loadingSubtitle.textContent = subtitle;
-            loadingSubtitle.style.display = "block";
+            if (loadingText) loadingText.textContent = latestProgress.message;
+            if (loadingSubtitle && latestProgress.subtitle) {
+              loadingSubtitle.textContent = latestProgress.subtitle;
+              loadingSubtitle.style.display = "block";
+            }
           }
 
           progressUpdatePending = false;
