@@ -635,13 +635,6 @@ class FileUploadUI {
       }, 500);
     }
 
-    // Set up progress callback for variant parsing
-    if (window.reportInitializer) {
-      window.reportInitializer.setParsingProgressCallback((message, subtitle) => {
-        this.updateProgress(message, subtitle, 100);
-      });
-    }
-
     await new Promise((resolve) => setTimeout(resolve, 500));
     document.getElementById(this.modalId).style.display = "none";
     this.resolveUpload(true);
@@ -659,11 +652,6 @@ class FileUploadUI {
       autoUploadBtn.disabled = true;
       if (autoUploadBtn) autoUploadBtn.style.opacity = "0.5";
 
-      // Hide the selection UI, show progress
-      if (autoUploadSection) autoUploadSection.style.display = "none";
-      if (uploadFormSection) uploadFormSection.style.display = "none";
-
-      this.updateProgress("Opening folder picker...", "Please select the genome_files folder", 0);
       logger.debug("Requesting directory picker...");
 
       const dirHandle = await window.showDirectoryPicker({
@@ -671,8 +659,10 @@ class FileUploadUI {
         startIn: "downloads",
       });
 
-      logger.info("Directory selected:", dirHandle.name);
+      if (autoUploadSection) autoUploadSection.style.display = "none";
+      if (uploadFormSection) uploadFormSection.style.display = "none";
 
+      logger.info("Directory selected:", dirHandle.name);
       this.updateProgress("Scanning folder...", `Reading contents of "${dirHandle.name}"`, 10);
 
       const allFilesInDir = [];
@@ -800,10 +790,8 @@ class FileUploadUI {
    */
   autoFillFileInputs(foundFiles) {
     for (const { file, name } of foundFiles) {
-      // Find the input field for this filename
       const input = this.findInputForFilename(name);
       if (input) {
-        // Use DataTransfer to programmatically set file input
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         input.files = dataTransfer.files;
