@@ -243,10 +243,17 @@ export class ReportInitializer {
             const loadingText = document.getElementById("loading-text");
             const loadingSubtitle = document.getElementById("loading-subtitle");
 
-            if (loadingText) loadingText.textContent = latestProgress.message;
-            if (loadingSubtitle && latestProgress.subtitle) {
-              loadingSubtitle.textContent = latestProgress.subtitle;
-              loadingSubtitle.style.display = "block";
+            if (loadingText) {
+              loadingText.textContent = latestProgress.message;
+            }
+
+            if (loadingSubtitle) {
+              if (latestProgress.subtitle && latestProgress.subtitle.trim()) {
+                loadingSubtitle.textContent = latestProgress.subtitle;
+                loadingSubtitle.style.display = "block";
+              } else {
+                loadingSubtitle.style.display = "none";
+              }
             }
           }
 

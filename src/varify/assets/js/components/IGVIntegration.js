@@ -51,7 +51,6 @@ export class IGVIntegration {
     }
 
     try {
-      // Load and parse BCF VCF
       if (bcfVcfFilename) {
         logger.info("Loading BCF VCF from IndexedDB...");
         if (onProgress) onProgress("Loading BCF VCF from cache...", "bcf", 0, 0);
@@ -59,7 +58,6 @@ export class IGVIntegration {
         let bcfData;
         let useCompressed = false;
 
-        // For .gz files, try to load uncompressed version first
         if (bcfVcfFilename.endsWith(".gz")) {
           const uncompressedName = bcfVcfFilename.replace(".gz", "");
           bcfData = await this.genomeDBManager.getFile(uncompressedName);
@@ -98,25 +96,24 @@ export class IGVIntegration {
           this.bcfVariants = await this.vcfParser.parseVCF(bcfData, Infinity, bcfProgressCallback);
         }
 
-        // Add index for table display
         this.bcfVariants.forEach((v, i) => (v.index = i + 1));
         logger.info(`Parsed ${this.bcfVariants.length} BCF variants`);
 
-        // Store in IndexedDB for AG-Grid
         logger.debug("Storing BCF variants in IndexedDB...");
-        if (onProgress) onProgress(`Storing ${this.bcfVariants.length.toLocaleString()} BCF variants...`, "bcf", this.bcfVariants.length, this.bcfVariants.length);
+        if (onProgress) {
+          const subtitle = `${this.bcfVariants.length.toLocaleString()} variants ready for storage`;
+          onProgress(`Storing BCF variants`, "bcf", this.bcfVariants.length, this.bcfVariants.length, subtitle);
+        }
         await this.genomeDBManager.clearVariants("bcf"); // Clear old data
         await this.genomeDBManager.storeVariants("bcf", this.bcfVariants);
         logger.debug("BCF variants stored in IndexedDB");
 
-        // Save BCF header before parsing SURVIVOR
         this.bcfHeader = {
           meta: [...this.vcfParser.header.meta],
           columns: this.vcfParser.header.columns,
         };
       }
 
-      // Load and parse SURVIVOR VCF
       if (survivorVcfFilename) {
         logger.info("Loading SURVIVOR VCF from IndexedDB...");
         if (onProgress) onProgress("Loading SURVIVOR VCF from cache...", "survivor", 0, 0);
@@ -124,7 +121,6 @@ export class IGVIntegration {
         let survivorData;
         let useCompressedSurvivor = false;
 
-        // For .gz files, try to load uncompressed version first
         if (survivorVcfFilename.endsWith(".gz")) {
           const uncompressedName = survivorVcfFilename.replace(".gz", "");
           survivorData = await this.genomeDBManager.getFile(uncompressedName);
@@ -163,18 +159,18 @@ export class IGVIntegration {
           this.survivorVariants = await this.vcfParser.parseVCF(survivorData, Infinity, survivorProgressCallback);
         }
 
-        // Add index for table display
         this.survivorVariants.forEach((v, i) => (v.index = i + 1));
         logger.info(`Parsed ${this.survivorVariants.length} SURVIVOR variants`);
 
-        // Store in IndexedDB for AG-Grid
         logger.debug("Storing SURVIVOR variants in IndexedDB...");
-        if (onProgress) onProgress(`Storing ${this.survivorVariants.length.toLocaleString()} SURVIVOR variants...`, "survivor", this.survivorVariants.length, this.survivorVariants.length);
+        if (onProgress) {
+          const subtitle = `${this.survivorVariants.length.toLocaleString()} variants ready for storage`;
+          onProgress(`Storing SURVIVOR variants`, "survivor", this.survivorVariants.length, this.survivorVariants.length, subtitle);
+        }
         await this.genomeDBManager.clearVariants("survivor"); // Clear old data
         await this.genomeDBManager.storeVariants("survivor", this.survivorVariants);
         logger.debug("SURVIVOR variants stored in IndexedDB");
 
-        // Save SURVIVOR header
         this.survivorHeader = {
           meta: [...this.vcfParser.header.meta],
           columns: this.vcfParser.header.columns,
@@ -204,7 +200,6 @@ export class IGVIntegration {
 
       const vcfFiles = this.requiredFiles.vcf.filter((f) => f);
 
-      // Convert variants to ROI features array for IGV
       let roiFeatures = [];
       if (this.bcfVariants && this.bcfVariants.length > 0) {
         logger.debug("Creating ROI features from BCF variants...");
@@ -308,7 +303,6 @@ export class IGVIntegration {
       );
       logger.info("SURVIVOR IGV browser initialized");
 
-      // Expose IGV browser globally for tab switching
       window.survivorIGVBrowser = this.survivorIGVBrowser;
 
       if (onTableCreated) {
