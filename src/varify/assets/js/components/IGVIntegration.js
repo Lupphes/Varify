@@ -81,11 +81,13 @@ export class IGVIntegration {
 
         const bcfProgressCallback = (currentVariant, totalLines, lineIndex) => {
           if (onProgress) {
+            const subtitle = `${currentVariant.toLocaleString()} variants parsed • Processing line ${lineIndex.toLocaleString()}/${totalLines.toLocaleString()}`;
             onProgress(
-              `Parsing BCF variants: ${currentVariant.toLocaleString()} variants`,
+              `Parsing BCF variants`,
               "bcf",
               currentVariant,
-              totalLines
+              totalLines,
+              subtitle
             );
           }
         };
@@ -144,11 +146,13 @@ export class IGVIntegration {
 
         const survivorProgressCallback = (currentVariant, totalLines, lineIndex) => {
           if (onProgress) {
+            const subtitle = `${currentVariant.toLocaleString()} variants parsed • Processing line ${lineIndex.toLocaleString()}/${totalLines.toLocaleString()}`;
             onProgress(
-              `Parsing SURVIVOR variants: ${currentVariant.toLocaleString()} variants`,
+              `Parsing SURVIVOR variants`,
               "survivor",
               currentVariant,
-              totalLines
+              totalLines,
+              subtitle
             );
           }
         };

@@ -107,6 +107,86 @@ class FileUploadUI {
   }
 
   /**
+   * Generate version warning HTML
+   */
+  getVersionWarningHTML(versionMismatch, reason) {
+    if (!versionMismatch) return "";
+
+    if (reason === "no-stored-version") {
+      return `
+        <div style="background: #fffaf0; border-left: 4px solid #f6ad55; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
+          <p style="margin: 0 0 8px 0; font-weight: 600; color: #c05621; font-size: 14px;">⚠️ Version Check Recommended</p>
+          <p style="margin: 0; font-size: 13px; color: #7c2d12; line-height: 1.6;">
+            Cached files detected without version information. To ensure you're viewing the latest data, please clear cache and re-upload files from the <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">genome_files/</code> folder.
+          </p>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="background: #fff5f5; border-left: 4px solid #fc8181; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
+        <p style="margin: 0 0 8px 0; font-weight: 600; color: #c53030; font-size: 14px;">⚠️ Report Data Updated</p>
+        <p style="margin: 0; font-size: 13px; color: #742a2a; line-height: 1.6;">
+          The genome files have been updated since your last visit. Please clear the cache and re-upload the files to see the latest data.
+        </p>
+      </div>
+    `;
+  }
+
+  /**
+   * Generate auto-upload section HTML
+   */
+  getAutoUploadSectionHTML() {
+    if (!this.hasFileSystemAccess) return "";
+
+    return `
+      <div id="auto-upload-section" style="text-align: center; padding: 40px 20px;">
+        <div style="font-size: 56px; margin-bottom: 16px;">📁</div>
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #1a202c;">Select Folder to Upload</h3>
+        <p style="margin: 0 0 24px 0; color: #718096; font-size: 14px; line-height: 1.6;">
+          Choose the <strong>genome_files</strong> folder and all files will be uploaded automatically
+        </p>
+        <button id="auto-upload-btn" style="padding: 14px 32px; background: #667eea; color: white;
+                border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;
+                transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+                box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);"
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 14px rgba(102, 126, 234, 0.4)';">
+          <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+          </svg>
+          Select Folder
+        </button>
+        <div style="margin-top: 24px;">
+          <button onclick="document.getElementById('upload-form').style.display='block'; document.getElementById('auto-upload-section').style.display='none';"
+                  style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; text-decoration: underline;">
+            Or upload files manually
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Generate back to folder upload button HTML
+   */
+  getBackButtonHTML() {
+    if (!this.hasFileSystemAccess) return "";
+
+    return `
+      <div style="margin-bottom: 20px; text-align: center;">
+        <button onclick="document.getElementById('auto-upload-section').style.display='block'; document.getElementById('upload-form').style.display='none';"
+                style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 6px;">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Back to folder upload
+        </button>
+      </div>
+    `;
+  }
+
+  /**
    * Create the modal HTML structure
    */
   createModalHTML(missingFiles, versionMismatch = false, reason = null) {
@@ -117,29 +197,6 @@ class FileUploadUI {
 
     const filesExist = missingFiles.length === 0 && !versionMismatch;
 
-    let versionWarning = "";
-    if (versionMismatch) {
-      if (reason === "no-stored-version") {
-        versionWarning = `
-                    <div style="background: #fffaf0; border-left: 4px solid #f6ad55; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
-                        <p style="margin: 0 0 8px 0; font-weight: 600; color: #c05621; font-size: 14px;">⚠️ Version Check Recommended</p>
-                        <p style="margin: 0; font-size: 13px; color: #7c2d12; line-height: 1.6;">
-                            Cached files detected without version information. To ensure you're viewing the latest data, please clear cache and re-upload files from the <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">genome_files/</code> folder.
-                        </p>
-                    </div>
-                `;
-      } else {
-        versionWarning = `
-                    <div style="background: #fff5f5; border-left: 4px solid #fc8181; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
-                        <p style="margin: 0 0 8px 0; font-weight: 600; color: #c53030; font-size: 14px;">⚠️ Report Data Updated</p>
-                        <p style="margin: 0; font-size: 13px; color: #742a2a; line-height: 1.6;">
-                            The genome files have been updated since your last visit. Please clear the cache and re-upload the files to see the latest data.
-                        </p>
-                    </div>
-                `;
-      }
-    }
-
     const modalHTML = `
             <div id="${this.modalId}" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100000; justify-content: center; align-items: center;" onclick="if(event.target.id === '${this.modalId}' && ${filesExist}) { this.style.display = 'none'; }">
                 <div style="background: white; border-radius: 8px; padding: 32px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" onclick="event.stopPropagation();">
@@ -149,7 +206,7 @@ class FileUploadUI {
                         These files will be stored in your browser for future use (no re-upload needed).
                     </p>
 
-                    ${versionWarning}
+                    ${this.getVersionWarningHTML(versionMismatch, reason)}
 
                     <div style="background: #edf2f7; border-left: 4px solid #48bb78; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
                         <p style="margin: 0 0 8px 0; font-weight: 600; color: #2d3748; font-size: 14px;">📁 Files are located in the same directory as this HTML report:</p>
@@ -158,53 +215,10 @@ class FileUploadUI {
                         </p>
                     </div>
 
-                    ${
-                      this.hasFileSystemAccess
-                        ? `
-                        <div id="auto-upload-section" style="text-align: center; padding: 40px 20px;">
-                            <div style="font-size: 56px; margin-bottom: 16px;">📁</div>
-                            <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #1a202c;">Select Folder to Upload</h3>
-                            <p style="margin: 0 0 24px 0; color: #718096; font-size: 14px; line-height: 1.6;">
-                                Choose the <strong>genome_files</strong> folder and all files will be uploaded automatically
-                            </p>
-                            <button id="auto-upload-btn" style="padding: 14px 32px; background: #667eea; color: white;
-                                    border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;
-                                    transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-                                    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);"
-                                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';"
-                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 14px rgba(102, 126, 234, 0.4)';">
-                                <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-                                </svg>
-                                Select Folder
-                            </button>
-                            <div style="margin-top: 24px;">
-                                <button onclick="document.getElementById('upload-form').style.display='block'; document.getElementById('auto-upload-section').style.display='none';"
-                                        style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; text-decoration: underline;">
-                                    Or upload files manually
-                                </button>
-                            </div>
-                        </div>
-                    `
-                        : ""
-                    }
+                    ${this.getAutoUploadSectionHTML()}
 
                     <div id="upload-form" style="display: ${this.hasFileSystemAccess ? "none" : "block"};">
-                        ${
-                          this.hasFileSystemAccess
-                            ? `
-                            <div style="margin-bottom: 20px; text-align: center;">
-                                <button onclick="document.getElementById('auto-upload-section').style.display='block'; document.getElementById('upload-form').style.display='none';"
-                                        style="background: none; border: none; color: #667eea; font-size: 14px; cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 6px;">
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                                    </svg>
-                                    Back to folder upload
-                                </button>
-                            </div>
-                        `
-                            : ""
-                        }
+                        ${this.getBackButtonHTML()}
 
                         <div class="upload-section" style="margin-bottom: 20px;">
                             <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">
@@ -359,14 +373,20 @@ class FileUploadUI {
                             : ""
                         }
 
-                        <div id="upload-progress" style="display: none; margin: 20px 0;">
-                            <div style="background: #e2e8f0; border-radius: 4px; height: 24px; overflow: hidden; position: relative;">
-                                <div id="upload-progress-bar" style="background: #4299e1; height: 100%; width: 0%; transition: width 0.3s;"></div>
-                                <div id="upload-progress-text" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #2d3748;">
+                        <!-- Unified Progress Indicator -->
+                        <div id="upload-progress" style="display: none; margin: 20px 0; text-align: center;">
+                            <div style="font-size: 20px; font-weight: 600; color: #2d3748; margin-bottom: 12px;">
+                                <span id="upload-status-main">Processing...</span>
+                            </div>
+                            <div style="background: #e2e8f0; border-radius: 8px; height: 32px; overflow: hidden; position: relative; margin-bottom: 8px;">
+                                <div id="upload-progress-bar" style="background: linear-gradient(90deg, #4299e1 0%, #667eea 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                                <div id="upload-progress-text" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #2d3748;">
                                     0%
                                 </div>
                             </div>
-                            <p id="upload-status" style="margin: 8px 0 0 0; font-size: 14px; color: #666;"></p>
+                            <div style="font-size: 13px; color: #718096; line-height: 1.6;">
+                                <span id="upload-status-subtitle">Preparing...</span>
+                            </div>
                         </div>
 
                         <div style="display: flex; gap: 12px; margin-top: 24px;">
@@ -401,6 +421,34 @@ class FileUploadUI {
         autoUploadBtn.addEventListener("click", () => this.handleAutoUpload());
       }
     }
+  }
+
+  /**
+   * Update unified progress indicator (used by both auto-upload and manual upload)
+   * @param {string} mainStatus - Main status message (large text)
+   * @param {string} subtitle - Subtitle with details (small text)
+   * @param {number} percent - Progress percentage (0-100)
+   */
+  updateProgress(mainStatus, subtitle = "", percent = 0) {
+    const progressDiv = document.getElementById("upload-progress");
+    const mainStatusEl = document.getElementById("upload-status-main");
+    const subtitleEl = document.getElementById("upload-status-subtitle");
+    const progressBar = document.getElementById("upload-progress-bar");
+    const progressText = document.getElementById("upload-progress-text");
+
+    if (progressDiv) progressDiv.style.display = "block";
+    if (mainStatusEl) mainStatusEl.textContent = mainStatus;
+    if (subtitleEl) subtitleEl.textContent = subtitle;
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (progressText) progressText.textContent = `${Math.round(percent)}%`;
+  }
+
+  /**
+   * Hide progress indicator
+   */
+  hideProgress() {
+    const progressDiv = document.getElementById("upload-progress");
+    if (progressDiv) progressDiv.style.display = "none";
   }
 
   /**
@@ -482,10 +530,9 @@ class FileUploadUI {
    */
   async handleUpload() {
     const uploadBtn = document.getElementById("upload-btn");
-    const progressDiv = document.getElementById("upload-progress");
 
     uploadBtn.disabled = true;
-    progressDiv.style.display = "block";
+    this.updateProgress("Preparing upload...", "Collecting selected files", 0);
 
     try {
       const fileInputs = document.querySelectorAll('input[type="file"]');
@@ -503,7 +550,7 @@ class FileUploadUI {
       if (filesToUpload.length === 0) {
         alert("Please select files to upload");
         uploadBtn.disabled = false;
-        progressDiv.style.display = "none";
+        this.hideProgress();
         return;
       }
 
@@ -512,7 +559,7 @@ class FileUploadUI {
       logger.error("Upload error:", error);
       alert(`Upload failed: ${error.message}`);
       uploadBtn.disabled = false;
-      progressDiv.style.display = "none";
+      this.hideProgress();
     }
   }
 
@@ -521,10 +568,6 @@ class FileUploadUI {
    * Reusable for both manual and auto-upload
    */
   async uploadFiles(filesToUpload) {
-    const progressBar = document.getElementById("upload-progress-bar");
-    const progressText = document.getElementById("upload-progress-text");
-    const statusText = document.getElementById("upload-status");
-
     const total = filesToUpload.length;
     const totalSize = filesToUpload.reduce((sum, f) => sum + f.file.size, 0);
     const startTime = Date.now();
@@ -533,11 +576,11 @@ class FileUploadUI {
     for (let i = 0; i < total; i++) {
       const { file, name } = filesToUpload[i];
 
-      statusText.textContent = `Uploading ${name} (${this.dbManager.formatBytes(file.size)})...`;
-
-      const fileProgress = (i / total) * 100;
-      progressBar.style.width = `${fileProgress}%`;
-      progressText.textContent = `${i}/${total} files`;
+      this.updateProgress(
+        `Uploading ${name}`,
+        `File ${i + 1} of ${total} • ${this.dbManager.formatBytes(file.size)}`,
+        (i / total) * 100
+      );
 
       const onChunkProgress = (chunkIndex, totalChunks, bytesProcessed, totalBytes) => {
         const filesCompleted = i;
@@ -546,12 +589,12 @@ class FileUploadUI {
         const overallBytesProcessed = bytesFromCompletedFiles + currentFileBytesProcessed;
         const overallProgress = (overallBytesProcessed / totalSize) * 100;
 
-        progressBar.style.width = `${overallProgress.toFixed(1)}%`;
-        progressText.textContent = `${filesCompleted}/${total} files (${chunkIndex}/${totalChunks} chunks)`;
+        const subtitle =
+          totalChunks > 1
+            ? `Chunk ${chunkIndex}/${totalChunks} • ${this.dbManager.formatBytes(currentFileBytesProcessed)} / ${this.dbManager.formatBytes(totalBytes)}`
+            : `File ${i + 1} of ${total} • ${this.dbManager.formatBytes(file.size)}`;
 
-        if (totalChunks > 1) {
-          statusText.textContent = `Uploading ${name} - chunk ${chunkIndex}/${totalChunks} (${this.dbManager.formatBytes(currentFileBytesProcessed)} / ${this.dbManager.formatBytes(totalBytes)})`;
-        }
+        this.updateProgress(`Uploading ${name}`, subtitle, overallProgress);
       };
 
       await this.dbManager.storeFile(name, file, {}, onChunkProgress);
@@ -563,12 +606,14 @@ class FileUploadUI {
       const estimatedRemainingMs = remainingBytes / bytesPerMs;
 
       const progress = ((i + 1) / total) * 100;
-      progressBar.style.width = `${progress}%`;
-      progressText.textContent = `${i + 1}/${total} files`;
 
       if (i < total - 1) {
         const remainingSec = Math.ceil(estimatedRemainingMs / 1000);
-        statusText.textContent = `Uploaded ${name} • Est. ${remainingSec}s remaining`;
+        this.updateProgress(
+          `Uploaded ${name}`,
+          `${i + 1} of ${total} files complete • ~${remainingSec}s remaining`,
+          progress
+        );
       }
     }
 
@@ -577,9 +622,7 @@ class FileUploadUI {
       logger.info(`Stored report version: ${window.REPORT_VERSION}`);
     }
 
-    statusText.textContent = "Upload complete!";
-    progressBar.style.width = "100%";
-    progressText.textContent = "100%";
+    this.updateProgress("Upload complete!", `All ${total} files uploaded successfully`, 100);
 
     if (typeof window.updateCacheStatus === "function") {
       await window.updateCacheStatus();
@@ -592,6 +635,13 @@ class FileUploadUI {
       }, 500);
     }
 
+    // Set up progress callback for variant parsing
+    if (window.reportInitializer) {
+      window.reportInitializer.setParsingProgressCallback((message, subtitle) => {
+        this.updateProgress(message, subtitle, 100);
+      });
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 500));
     document.getElementById(this.modalId).style.display = "none";
     this.resolveUpload(true);
@@ -602,15 +652,18 @@ class FileUploadUI {
    */
   async handleAutoUpload() {
     const autoUploadBtn = document.getElementById("auto-upload-btn");
-    const statusText = document.getElementById("upload-status");
-    const progressDiv = document.getElementById("upload-progress");
-    const progressBar = progressDiv ? progressDiv.querySelector(".progress-bar") : null;
-    const progressText = progressDiv ? progressDiv.querySelector(".progress-text") : null;
+    const autoUploadSection = document.getElementById("auto-upload-section");
+    const uploadFormSection = document.getElementById("upload-form");
 
     try {
       autoUploadBtn.disabled = true;
       if (autoUploadBtn) autoUploadBtn.style.opacity = "0.5";
-      if (statusText) statusText.textContent = "📁 Opening folder picker...";
+
+      // Hide the selection UI, show progress
+      if (autoUploadSection) autoUploadSection.style.display = "none";
+      if (uploadFormSection) uploadFormSection.style.display = "none";
+
+      this.updateProgress("Opening folder picker...", "Please select the genome_files folder", 0);
       logger.debug("Requesting directory picker...");
 
       const dirHandle = await window.showDirectoryPicker({
@@ -620,10 +673,7 @@ class FileUploadUI {
 
       logger.info("Directory selected:", dirHandle.name);
 
-      if (progressDiv) progressDiv.style.display = "block";
-      if (progressBar) progressBar.style.width = "10%";
-      if (progressText) progressText.textContent = "10%";
-      if (statusText) statusText.textContent = `📂 Scanning "${dirHandle.name}" folder...`;
+      this.updateProgress("Scanning folder...", `Reading contents of "${dirHandle.name}"`, 10);
 
       const allFilesInDir = [];
       for await (const entry of dirHandle.values()) {
@@ -633,10 +683,11 @@ class FileUploadUI {
       }
       logger.debug("Files in selected folder:", allFilesInDir);
 
-      if (progressBar) progressBar.style.width = "20%";
-      if (progressText) progressText.textContent = "20%";
-      if (statusText)
-        statusText.textContent = `🔍 Found ${allFilesInDir.length} files, checking required files...`;
+      this.updateProgress(
+        "Validating files...",
+        `Found ${allFilesInDir.length} files • Checking required files`,
+        20
+      );
 
       const requiredFilenames = [
         this.requiredFiles.fasta,
@@ -665,8 +716,11 @@ class FileUploadUI {
           logger.debug(`Found: ${filename}`);
 
           const fileProgress = 20 + Math.floor(((i + 1) / requiredFilenames.length) * 20);
-          if (progressBar) progressBar.style.width = `${fileProgress}%`;
-          if (progressText) progressText.textContent = `${fileProgress}%`;
+          this.updateProgress(
+            "Validating files...",
+            `Checking ${i + 1}/${requiredFilenames.length} files • Found: ${filename}`,
+            fileProgress
+          );
         } catch (e) {
           missingFiles.push(filename);
           logger.warn(`Missing: ${filename}`);
@@ -679,40 +733,27 @@ class FileUploadUI {
         );
       }
 
-      if (progressBar) progressBar.style.width = "45%";
-      if (progressText) progressText.textContent = "45%";
+      const totalSize = foundFiles.reduce((sum, f) => sum + f.file.size, 0);
+      const fileList = foundFiles
+        .map((f) => {
+          const sizeMB = (f.file.size / 1024 / 1024).toFixed(2);
+          const sizeKB = (f.file.size / 1024).toFixed(0);
+          const displaySize = f.file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+          return `${f.name} (${displaySize})`;
+        })
+        .join(", ");
 
-      if (statusText)
-        statusText.innerHTML = `
-                <div style="text-align: left;">
-                    <strong>✅ Found all ${foundFiles.length} required files in "${dirHandle.name}":</strong>
-                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 13px;">
-                        ${foundFiles
-                          .map((f) => {
-                            const sizeMB = (f.file.size / 1024 / 1024).toFixed(2);
-                            const sizeKB = (f.file.size / 1024).toFixed(0);
-                            const displaySize =
-                              f.file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
-                            return `<li>✓ ${f.name} <span style="color: #718096;">(${displaySize})</span></li>`;
-                          })
-                          .join("")}
-                    </ul>
-                    ${
-                      allFilesInDir.length > foundFiles.length
-                        ? `<div style="color: #718096; font-size: 12px; margin-top: 8px;">
-                            📁 Folder contains ${allFilesInDir.length} total files, ${foundFiles.length} required
-                        </div>`
-                        : ""
-                    }
-                    <div style="margin-top: 12px; color: #667eea; font-weight: 600;">🚀 Preparing upload...</div>
-                </div>
-            `;
+      this.updateProgress(
+        "Files validated!",
+        `Found all ${foundFiles.length} required files • Total: ${this.dbManager.formatBytes(totalSize)}`,
+        45
+      );
 
       this.autoFillFileInputs(foundFiles);
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-      if (statusText) statusText.textContent = "Starting upload...";
+      this.updateProgress("Starting upload...", `Uploading ${foundFiles.length} files`, 50);
       await this.uploadFiles(foundFiles);
     } catch (error) {
       logger.error("Auto-upload error details:", {
@@ -721,35 +762,35 @@ class FileUploadUI {
         stack: error.stack,
       });
 
-      // Reset button and progress
+      // Reset UI
       if (autoUploadBtn) {
         autoUploadBtn.disabled = false;
         autoUploadBtn.style.opacity = "1";
       }
-      if (progressDiv) progressDiv.style.display = "none";
 
-      // User cancelled - no error needed
+      // User cancelled - show selection UI again
       if (error.name === "AbortError") {
         logger.debug("User cancelled folder selection");
-        if (statusText)
-          statusText.textContent =
-            "Folder selection cancelled. You can try again or use manual upload below.";
+        this.hideProgress();
+        if (autoUploadSection) autoUploadSection.style.display = "block";
         return;
       }
 
-      // Show error and keep modal open for manual upload
+      // Show error
       logger.error("Auto-upload failed:", error);
-      if (statusText)
-        statusText.innerHTML = `
-                <div style="color: #e53e3e;">
-                    <strong>❌ Auto-upload failed:</strong><br/>
-                    ${error.message}
-                </div>
-                <div style="margin-top: 12px; color: #718096;">
-                    You can try again or use manual upload below.
-                </div>
-            `;
-      alert(`Auto-upload failed:\n\n${error.message}\n\nYou can still use manual upload below.`);
+      this.updateProgress(
+        "Upload failed",
+        error.message.split("\n")[0],
+        0
+      );
+
+      // Show selection UI again after delay
+      setTimeout(() => {
+        this.hideProgress();
+        if (autoUploadSection) autoUploadSection.style.display = "block";
+      }, 3000);
+
+      alert(`Auto-upload failed:\n\n${error.message}\n\nYou can try again or use manual upload.`);
     }
   }
 

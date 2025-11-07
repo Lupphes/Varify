@@ -225,8 +225,16 @@ export class ReportInitializer {
       logger.info("All files ready, parsing VCFs...");
       this.showLoadingIndicator("Parsing VCF files...");
 
-      const progressCallback = (message, source, current, total) => {
-        this.showLoadingIndicator(message);
+      const progressCallback = (message, source, current, total, subtitle = "") => {
+        // Update loading indicator with subtitle containing variant counts
+        const loadingText = document.getElementById("loading-text");
+        const loadingSubtitle = document.getElementById("loading-subtitle");
+
+        if (loadingText) loadingText.textContent = message;
+        if (loadingSubtitle && subtitle) {
+          loadingSubtitle.textContent = subtitle;
+          loadingSubtitle.style.display = "block";
+        }
       };
 
       await this.igvIntegration.loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, progressCallback);
