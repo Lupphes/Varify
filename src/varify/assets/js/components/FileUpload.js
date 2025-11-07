@@ -592,10 +592,9 @@ class FileUploadUI {
       }, 500);
     }
 
-    setTimeout(() => {
-      document.getElementById(this.modalId).style.display = "none";
-      this.resolveUpload(true);
-    }, 1000);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    document.getElementById(this.modalId).style.display = "none";
+    this.resolveUpload(true);
   }
 
   /**

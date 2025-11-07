@@ -36,8 +36,11 @@ export class IGVIntegration {
   /**
    * Load and parse VCF files from IndexedDB
    * Note: Loading messages are handled by ReportInitializer
+   * @param {string} bcfVcfFilename - BCF VCF filename
+   * @param {string} survivorVcfFilename - SURVIVOR VCF filename
+   * @param {Function} onProgress - Progress callback for UI updates
    */
-  async loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename) {
+  async loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, onProgress = null) {
     // Early return if variants already loaded
     if (this.variantsLoaded) {
       logger.info("Variants already loaded, skipping parse");
@@ -51,6 +54,7 @@ export class IGVIntegration {
       // Load and parse BCF VCF
       if (bcfVcfFilename) {
         logger.info("Loading BCF VCF from IndexedDB...");
+        if (onProgress) onProgress("Loading BCF VCF from cache...", "bcf", 0, 0);
 
         let bcfData;
         let useCompressed = false;
@@ -73,10 +77,23 @@ export class IGVIntegration {
         }
 
         logger.info("Parsing BCF variants...");
+        if (onProgress) onProgress("Parsing BCF variants...", "bcf", 0, 0);
+
+        const bcfProgressCallback = (currentVariant, totalLines, lineIndex) => {
+          if (onProgress) {
+            onProgress(
+              `Parsing BCF variants: ${currentVariant.toLocaleString()} variants`,
+              "bcf",
+              currentVariant,
+              totalLines
+            );
+          }
+        };
+
         if (useCompressed) {
-          this.bcfVariants = await this.vcfParser.parseCompressedVCF(bcfData);
+          this.bcfVariants = await this.vcfParser.parseCompressedVCF(bcfData, Infinity, bcfProgressCallback);
         } else {
-          this.bcfVariants = await this.vcfParser.parseVCF(bcfData);
+          this.bcfVariants = await this.vcfParser.parseVCF(bcfData, Infinity, bcfProgressCallback);
         }
 
         // Add index for table display
@@ -85,6 +102,7 @@ export class IGVIntegration {
 
         // Store in IndexedDB for AG-Grid
         logger.debug("Storing BCF variants in IndexedDB...");
+        if (onProgress) onProgress(`Storing ${this.bcfVariants.length.toLocaleString()} BCF variants...`, "bcf", this.bcfVariants.length, this.bcfVariants.length);
         await this.genomeDBManager.clearVariants("bcf"); // Clear old data
         await this.genomeDBManager.storeVariants("bcf", this.bcfVariants);
         logger.debug("BCF variants stored in IndexedDB");
@@ -99,6 +117,8 @@ export class IGVIntegration {
       // Load and parse SURVIVOR VCF
       if (survivorVcfFilename) {
         logger.info("Loading SURVIVOR VCF from IndexedDB...");
+        if (onProgress) onProgress("Loading SURVIVOR VCF from cache...", "survivor", 0, 0);
+
         let survivorData;
         let useCompressedSurvivor = false;
 
@@ -120,10 +140,23 @@ export class IGVIntegration {
         }
 
         logger.info("Parsing SURVIVOR variants...");
+        if (onProgress) onProgress("Parsing SURVIVOR variants...", "survivor", 0, 0);
+
+        const survivorProgressCallback = (currentVariant, totalLines, lineIndex) => {
+          if (onProgress) {
+            onProgress(
+              `Parsing SURVIVOR variants: ${currentVariant.toLocaleString()} variants`,
+              "survivor",
+              currentVariant,
+              totalLines
+            );
+          }
+        };
+
         if (useCompressedSurvivor) {
-          this.survivorVariants = await this.vcfParser.parseCompressedVCF(survivorData);
+          this.survivorVariants = await this.vcfParser.parseCompressedVCF(survivorData, Infinity, survivorProgressCallback);
         } else {
-          this.survivorVariants = await this.vcfParser.parseVCF(survivorData);
+          this.survivorVariants = await this.vcfParser.parseVCF(survivorData, Infinity, survivorProgressCallback);
         }
 
         // Add index for table display
@@ -132,6 +165,7 @@ export class IGVIntegration {
 
         // Store in IndexedDB for AG-Grid
         logger.debug("Storing SURVIVOR variants in IndexedDB...");
+        if (onProgress) onProgress(`Storing ${this.survivorVariants.length.toLocaleString()} SURVIVOR variants...`, "survivor", this.survivorVariants.length, this.survivorVariants.length);
         await this.genomeDBManager.clearVariants("survivor"); // Clear old data
         await this.genomeDBManager.storeVariants("survivor", this.survivorVariants);
         logger.debug("SURVIVOR variants stored in IndexedDB");

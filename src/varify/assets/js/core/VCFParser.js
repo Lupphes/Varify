@@ -24,9 +24,10 @@ class VCFParser {
    * Parse VCF file from ArrayBuffer or Blob
    * @param {ArrayBuffer|Blob} data - VCF file data
    * @param {number} maxVariants - Maximum variants to parse (optional)
+   * @param {Function} onProgress - Progress callback (currentVariant, totalLines)
    * @returns {Promise<Array>} - Array of variant objects
    */
-  async parseVCF(data, maxVariants = Infinity) {
+  async parseVCF(data, maxVariants = Infinity, onProgress = null) {
     let arrayBuffer;
     if (data instanceof Blob) {
       arrayBuffer = await data.arrayBuffer();
@@ -43,6 +44,9 @@ class VCFParser {
 
     this.header = { meta: [], columns: "" };
 
+    const totalLines = lines.length;
+    const progressInterval = Math.max(1, Math.floor(totalLines / 100)); // Report every 1%
+
     for (let i = 0; i < lines.length && variants.length < maxVariants; i++) {
       const line = lines[i].trim();
 
@@ -58,8 +62,16 @@ class VCFParser {
         const variant = VariantParser.parseVariantLine(line, headers);
         if (variant) {
           variants.push(variant);
+
+          if (onProgress && variants.length % progressInterval === 0) {
+            onProgress(variants.length, totalLines, i);
+          }
         }
       }
+    }
+
+    if (onProgress) {
+      onProgress(variants.length, totalLines, lines.length);
     }
 
     this.variants = variants;
@@ -72,9 +84,10 @@ class VCFParser {
    * Handles both regular gzip and BGZF (Blocked GNU Zip Format)
    * @param {ArrayBuffer|Blob} data - Compressed VCF data
    * @param {number} maxVariants - Maximum variants to parse
+   * @param {Function} onProgress - Progress callback (currentVariant, totalLines)
    * @returns {Promise<Array>} - Array of variant objects
    */
-  async parseCompressedVCF(data, maxVariants = Infinity) {
+  async parseCompressedVCF(data, maxVariants = Infinity, onProgress = null) {
     if (typeof pako === "undefined") {
       throw new Error(
         "Pako library required for compressed VCF files. Include: https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"
@@ -111,7 +124,7 @@ class VCFParser {
         decompressed.byteOffset + decompressed.byteLength
       );
 
-      return await this.parseVCF(decompressedBuffer, maxVariants);
+      return await this.parseVCF(decompressedBuffer, maxVariants, onProgress);
     } catch (error) {
       logger.error("Error decompressing VCF:", error.message);
       logger.error("Error details:", error);

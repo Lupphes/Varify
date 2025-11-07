@@ -225,7 +225,11 @@ export class ReportInitializer {
       logger.info("All files ready, parsing VCFs...");
       this.showLoadingIndicator("Parsing VCF files...");
 
-      await this.igvIntegration.loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename);
+      const progressCallback = (message, source, current, total) => {
+        this.showLoadingIndicator(message);
+      };
+
+      await this.igvIntegration.loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, progressCallback);
 
       logger.info("VCFs parsed, initializing tabs...");
       logger.debug("Metadata check:", {
