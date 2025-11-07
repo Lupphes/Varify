@@ -248,9 +248,10 @@ export class ReportInitializer {
             }
 
             if (loadingSubtitle) {
-              if (latestProgress.subtitle && latestProgress.subtitle.trim()) {
+              if (latestProgress.subtitle) {
                 loadingSubtitle.textContent = latestProgress.subtitle;
                 loadingSubtitle.style.display = "block";
+                loadingSubtitle.style.visibility = "visible";
               } else {
                 loadingSubtitle.style.display = "none";
               }
