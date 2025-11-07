@@ -247,78 +247,68 @@ class FileUploadUI {
                     <div id="upload-form" style="display: ${this.hasFileSystemAccess ? "none" : "flex"}; flex-direction: column;">
                         ${this.getBackButtonHTML()}
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                            <div class="upload-section" style="padding: 24px; background: #f9fafb; border-radius: 8px; border: 1px solid #d1d5db;">
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 15px;">
-                                    Reference Genome (FASTA) <span style="color: #dc2626;">*</span>
+                        <div class="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4 mb-5">
+                            <div class="upload-section p-5 bg-gray-50 rounded-lg border border-gray-300">
+                                <label class="block font-semibold mb-2 text-gray-700 text-sm">
+                                    Reference Genome (FASTA) <span class="text-red-600">*</span>
                                 </label>
-                                <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">
+                                <p class="mb-3 text-xs text-gray-600 break-all">
                                     <strong>${this.requiredFiles.fasta}</strong>
                                 </p>
 
-                                <div style="margin-bottom: 12px;">
-                                    <input type="file" id="upload-fasta" accept=".fna,.fa,.fasta" style="display: none;">
-                                    <label for="upload-fasta" style="display: inline-block; padding: 8px 16px; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                           onmouseover="this.style.background='#2563eb';"
-                                           onmouseout="this.style.background='#3b82f6';">
+                                <div class="mb-2.5">
+                                    <input type="file" id="upload-fasta" accept=".fna,.fa,.fasta" class="hidden">
+                                    <label for="upload-fasta" class="inline-block py-1.5 px-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                         FASTA File
                                     </label>
-                                    <div id="upload-fasta-name" style="margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file selected</div>
+                                    <div id="upload-fasta-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
                                 </div>
 
-                                <div style="margin-bottom: 0;">
-                                    <input type="file" id="upload-fai" accept=".fai" style="display: none;">
-                                    <label for="upload-fai" style="display: inline-block; padding: 8px 16px; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                           onmouseover="this.style.background='#2563eb';"
-                                           onmouseout="this.style.background='#3b82f6';">
+                                <div>
+                                    <input type="file" id="upload-fai" accept=".fai" class="hidden">
+                                    <label for="upload-fai" class="inline-block py-1.5 px-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                         FAI Index
                                     </label>
-                                    <div id="upload-fai-name" style="margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file selected</div>
+                                    <div id="upload-fai-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
                                 </div>
                             </div>
 
                         ${(this.requiredFiles.vcf || [])
                           .map(
                             (vcfFile, i) => `
-                            <div class="upload-section" style="padding: 24px; background: #f9fafb; border-radius: 8px; border: 1px solid #d1d5db;">
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 15px;">
-                                    VCF File ${i + 1} <span style="color: #dc2626;">*</span>
+                            <div class="upload-section p-5 bg-gray-50 rounded-lg border border-gray-300">
+                                <label class="block font-semibold mb-2 text-gray-700 text-sm">
+                                    VCF File ${i + 1} <span class="text-red-600">*</span>
                                 </label>
-                                <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">
+                                <p class="mb-3 text-xs text-gray-600 break-all">
                                     <strong>${vcfFile}</strong>
                                 </p>
 
-                                <div style="margin-bottom: 12px;">
-                                    <input type="file" id="upload-vcf-${i}" accept=".vcf,.vcf.gz" data-filename="${vcfFile}" style="display: none;">
-                                    <label for="upload-vcf-${i}" style="display: inline-block; padding: 8px 16px; background: #8b5cf6; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                           onmouseover="this.style.background='#7c3aed';"
-                                           onmouseout="this.style.background='#8b5cf6';">
+                                <div class="mb-2.5">
+                                    <input type="file" id="upload-vcf-${i}" accept=".vcf,.vcf.gz" data-filename="${vcfFile}" class="hidden">
+                                    <label for="upload-vcf-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                         VCF File
                                     </label>
-                                    <div id="upload-vcf-${i}-name" style="margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file selected</div>
+                                    <div id="upload-vcf-${i}-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
                                 </div>
 
                                 ${
                                   vcfFile.endsWith(".gz")
                                     ? `
-                                    <div style="margin-bottom: 12px;">
-                                        <input type="file" id="upload-tbi-${i}" accept=".tbi" data-filename="${vcfFile}.tbi" style="display: none;">
-                                        <label for="upload-tbi-${i}" style="display: inline-block; padding: 8px 16px; background: #8b5cf6; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                               onmouseover="this.style.background='#7c3aed';"
-                                               onmouseout="this.style.background='#8b5cf6';">
+                                    <div class="mb-2.5">
+                                        <input type="file" id="upload-tbi-${i}" accept=".tbi" data-filename="${vcfFile}.tbi" class="hidden">
+                                        <label for="upload-tbi-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                             TBI Index
                                         </label>
-                                        <div id="upload-tbi-${i}-name" style="margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file selected</div>
+                                        <div id="upload-tbi-${i}-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
                                     </div>
 
-                                    <div style="margin-bottom: 0;">
-                                        <input type="file" id="upload-vcf-uncompressed-${i}" accept=".vcf" data-filename="${vcfFile.replace(".gz", "")}" style="display: none;">
-                                        <label for="upload-vcf-uncompressed-${i}" style="display: inline-block; padding: 8px 16px; background: #8b5cf6; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                               onmouseover="this.style.background='#7c3aed';"
-                                               onmouseout="this.style.background='#8b5cf6';">
+                                    <div>
+                                        <input type="file" id="upload-vcf-uncompressed-${i}" accept=".vcf" data-filename="${vcfFile.replace(".gz", "")}" class="hidden">
+                                        <label for="upload-vcf-uncompressed-${i}" class="inline-block py-1.5 px-3.5 bg-violet-500 hover:bg-violet-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                             Uncompressed VCF
                                         </label>
-                                        <div id="upload-vcf-uncompressed-${i}-name" style="margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file selected</div>
+                                        <div id="upload-vcf-uncompressed-${i}-name" class="mt-1.5 text-xs text-gray-600 italic">No file selected</div>
                                     </div>
                                 `
                                     : ""
@@ -332,41 +322,39 @@ class FileUploadUI {
                         ${
                           (this.requiredFiles.bam || []).length > 0
                             ? `
-                            <div style="background: #f9fafb; border-radius: 8px; padding: 24px; margin-bottom: 20px; border: 1px solid #d1d5db;">
-                                <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                            <div class="bg-gray-50 rounded-lg p-5 mb-4 border border-gray-300">
+                                <h3 class="mb-3 text-sm font-semibold text-gray-700">
                                     BAM Files (Optional)
                                 </h3>
+                                <div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
                                 ${(this.requiredFiles.bam || [])
                                   .map(
                                     (bamFile, i) => `
-                                    <div style="background: white; border-radius: 6px; padding: 16px; margin-bottom: 12px; border: 1px solid #e5e7eb;">
-                                        <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
+                                    <div class="bg-white rounded-md p-3.5 border border-gray-200">
+                                        <p class="mb-2.5 text-sm font-semibold text-gray-700 break-all">
                                             ${bamFile}
                                         </p>
 
-                                        <div style="margin-bottom: 10px;">
-                                            <input type="file" id="upload-bam-${i}" accept=".bam" data-filename="${bamFile}" style="display: none;">
-                                            <label for="upload-bam-${i}" style="display: inline-block; padding: 8px 16px; background: #10b981; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                                   onmouseover="this.style.background='#059669';"
-                                                   onmouseout="this.style.background='#10b981';">
+                                        <div class="mb-2">
+                                            <input type="file" id="upload-bam-${i}" accept=".bam" data-filename="${bamFile}" class="hidden">
+                                            <label for="upload-bam-${i}" class="inline-block py-1.5 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                                 BAM File
                                             </label>
-                                            <span id="upload-bam-${i}-name" style="display: block; margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file chosen</span>
+                                            <span id="upload-bam-${i}-name" class="block mt-1.5 text-xs text-gray-600 italic">No file chosen</span>
                                         </div>
 
-                                        <div style="margin-bottom: 0;">
-                                            <input type="file" id="upload-bai-${i}" accept=".bai" data-filename="${bamFile}.bai" style="display: none;">
-                                            <label for="upload-bai-${i}" style="display: inline-block; padding: 8px 16px; background: #10b981; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                                   onmouseover="this.style.background='#059669';"
-                                                   onmouseout="this.style.background='#10b981';">
+                                        <div>
+                                            <input type="file" id="upload-bai-${i}" accept=".bai" data-filename="${bamFile}.bai" class="hidden">
+                                            <label for="upload-bai-${i}" class="inline-block py-1.5 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                                 BAI Index
                                             </label>
-                                            <span id="upload-bai-${i}-name" style="display: block; margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file chosen</span>
+                                            <span id="upload-bai-${i}-name" class="block mt-1.5 text-xs text-gray-600 italic">No file chosen</span>
                                         </div>
                                     </div>
                                 `
                                   )
                                   .join("")}
+                                </div>
                             </div>
                         `
                             : ""
@@ -375,82 +363,41 @@ class FileUploadUI {
                         ${
                           (this.requiredFiles.stats || []).length > 0
                             ? `
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                                <div style="background: #f9fafb; border-radius: 8px; padding: 24px; border: 1px solid #d1d5db;">
-                                    <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #374151;">
-                                        BCF Statistics (Optional)
-                                    </h3>
-                                    <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">
-                                        Stats files will be parsed and displayed in the report
-                                    </p>
+                            <div class="bg-gray-50 rounded-lg p-5 mb-4 border border-gray-300">
+                                <h3 class="mb-3 text-sm font-semibold text-gray-700">
+                                    Statistics Files (Optional)
+                                </h3>
+                                <p class="mb-3 text-xs text-gray-600">
+                                    Stats files will be parsed and displayed in the report
+                                </p>
+                                <div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
                                     ${(this.requiredFiles.stats || [])
-                                      .filter((_, i) => i === 0)
                                       .map(
                                         (statsFile, i) => `
-                                        <div style="margin-bottom: 12px;">
-                                            <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
+                                        <div class="bg-white rounded-md p-3.5 border border-gray-200">
+                                            <p class="mb-2.5 text-sm font-semibold text-gray-700 break-all">
                                                 ${statsFile}
                                             </p>
-                                            <input type="file" id="upload-stats-${i}" accept=".txt,.stats" data-filename="${statsFile}" style="display: none;">
-                                            <label for="upload-stats-${i}" style="display: inline-block; padding: 8px 16px; background: #f59e0b; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                                   onmouseover="this.style.background='#d97706';"
-                                                   onmouseout="this.style.background='#f59e0b';">
+                                            <input type="file" id="upload-stats-${i}" accept=".txt,.stats" data-filename="${statsFile}" class="hidden">
+                                            <label for="upload-stats-${i}" class="inline-block py-1.5 px-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-md cursor-pointer text-sm font-medium transition-colors">
                                                 Stats File
                                             </label>
-                                            <span id="upload-stats-${i}-name" style="display: block; margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file chosen</span>
+                                            <span id="upload-stats-${i}-name" class="block mt-1.5 text-xs text-gray-600 italic">No file chosen</span>
                                         </div>
                                     `
                                       )
                                       .join("")}
                                 </div>
-
-                                ${
-                                  (this.requiredFiles.stats || []).length > 1
-                                    ? `
-                                    <div style="background: #f9fafb; border-radius: 8px; padding: 24px; border: 1px solid #d1d5db;">
-                                        <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #374151;">
-                                            SURVIVOR Statistics (Optional)
-                                        </h3>
-                                        <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">
-                                            Stats files will be parsed and displayed in the report
-                                        </p>
-                                        ${(this.requiredFiles.stats || [])
-                                          .filter((_, i) => i === 1)
-                                          .map(
-                                            (statsFile, i) => `
-                                            <div style="margin-bottom: 12px;">
-                                                <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
-                                                    ${statsFile}
-                                                </p>
-                                                <input type="file" id="upload-stats-${i + 1}" accept=".txt,.stats" data-filename="${statsFile}" style="display: none;">
-                                                <label for="upload-stats-${i + 1}" style="display: inline-block; padding: 8px 16px; background: #f59e0b; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;"
-                                                       onmouseover="this.style.background='#d97706';"
-                                                       onmouseout="this.style.background='#f59e0b';">
-                                                    Stats File
-                                                </label>
-                                                <span id="upload-stats-${i + 1}-name" style="display: block; margin-top: 8px; font-size: 13px; color: #6b7280; font-style: italic;">No file chosen</span>
-                                            </div>
-                                        `
-                                          )
-                                          .join("")}
-                                    </div>
-                                `
-                                    : ""
-                                }
                             </div>
                         `
                             : ""
                         }
 
-                        <div style="display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                            <button id="upload-btn" style="flex: 1; padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 15px; transition: background 0.2s;"
-                                    onmouseover="this.style.background='#059669';"
-                                    onmouseout="this.style.background='#10b981';">
+                        <div class="flex gap-3 mt-6 pt-5 border-t border-gray-200">
+                            <button id="upload-btn" class="flex-1 py-3 px-6 bg-emerald-500 hover:bg-emerald-600 text-white border-none rounded-md font-semibold cursor-pointer text-sm transition-colors">
                                 Upload Files
                             </button>
-                            <button id="manual-clear-storage-btn" style="padding: 12px 24px; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 15px; transition: background 0.2s;"
-                                    onmouseover="this.style.background='#dc2626';"
-                                    onmouseout="this.style.background='#ef4444';">
+                            <button id="manual-clear-storage-btn" class="py-3 px-6 bg-red-500 hover:bg-red-600 text-white border-none rounded-md font-semibold cursor-pointer text-sm transition-colors">
                                 Clear Storage
                             </button>
                         </div>
