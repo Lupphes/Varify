@@ -104,6 +104,14 @@ class IndexedDBManager {
     return this.dexieQuery.getVariantCount(prefix, filters, options);
   }
 
+  cancelQuery(queryId) {
+    return this.dexieQuery.cancelQuery(queryId);
+  }
+
+  cancelAllQueries() {
+    return this.dexieQuery.cancelAllQueries();
+  }
+
   get storeName() {
     return 'files';
   }

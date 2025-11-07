@@ -7,12 +7,35 @@ const logger = new LoggerService("DexieVariantQuery");
 export class DexieVariantQuery {
   constructor(dexieDB) {
     this.db = dexieDB;
+    this.activeQueries = new Map();
+  }
+
+  cancelQuery(queryId) {
+    const queryController = this.activeQueries.get(queryId);
+    if (queryController) {
+      queryController.cancelled = true;
+      this.activeQueries.delete(queryId);
+      logger.debug(`Cancelled query: ${queryId}`);
+    }
+  }
+
+  cancelAllQueries() {
+    this.activeQueries.forEach((controller, queryId) => {
+      controller.cancelled = true;
+      logger.debug(`Cancelled query: ${queryId}`);
+    });
+    this.activeQueries.clear();
   }
 
   async queryVariants(prefix, filters = {}, options = {}) {
-    const { offset = 0, limit = 100, sort = null, multiCallerMode = false } = options;
-    const table = this.db.getVariantTable(prefix);
+    const { offset = 0, limit = 100, sort = null, multiCallerMode = false, queryId = null } = options;
 
+    if (queryId) {
+      const controller = { cancelled: false };
+      this.activeQueries.set(queryId, controller);
+    }
+
+    const table = this.db.getVariantTable(prefix);
     let collection = table.toCollection();
 
     if (sort && sort.field) {
@@ -28,28 +51,81 @@ export class DexieVariantQuery {
     const hasFilters = Object.keys(filters).length > 0;
 
     if (hasFilters || multiCallerMode) {
+      const queryController = queryId ? this.activeQueries.get(queryId) : null;
+
       collection = collection.filter(variant => {
+        if (queryController && queryController.cancelled) {
+          throw new Error('Query cancelled');
+        }
         return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
       });
     }
 
-    const results = await collection.offset(offset).limit(limit).toArray();
-    return results;
+    try {
+      const results = await collection.offset(offset).limit(limit).toArray();
+
+      if (queryId) {
+        this.activeQueries.delete(queryId);
+      }
+
+      return results;
+    } catch (error) {
+      if (queryId) {
+        this.activeQueries.delete(queryId);
+      }
+
+      if (error.message === 'Query cancelled') {
+        logger.debug(`Query ${queryId} was cancelled`);
+        return [];
+      }
+      throw error;
+    }
   }
 
   async getVariantCount(prefix, filters = {}, options = {}) {
-    const { multiCallerMode = false } = options;
+    const { multiCallerMode = false, queryId = null } = options;
+
+    if (queryId) {
+      const controller = { cancelled: false };
+      this.activeQueries.set(queryId, controller);
+    }
+
     const table = this.db.getVariantTable(prefix);
 
     if (Object.keys(filters).length === 0 && !multiCallerMode) {
-      return await table.count();
+      const count = await table.count();
+      if (queryId) {
+        this.activeQueries.delete(queryId);
+      }
+      return count;
     }
 
-    const count = await table.filter(variant => {
-      return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
-    }).count();
+    try {
+      const queryController = queryId ? this.activeQueries.get(queryId) : null;
 
-    return count;
+      const count = await table.filter(variant => {
+        if (queryController && queryController.cancelled) {
+          throw new Error('Query cancelled');
+        }
+        return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
+      }).count();
+
+      if (queryId) {
+        this.activeQueries.delete(queryId);
+      }
+
+      return count;
+    } catch (error) {
+      if (queryId) {
+        this.activeQueries.delete(queryId);
+      }
+
+      if (error.message === 'Query cancelled') {
+        logger.debug(`Count query ${queryId} was cancelled`);
+        return 0;
+      }
+      throw error;
+    }
   }
 
   async storeVariants(prefix, variants) {

@@ -55,17 +55,21 @@ export class VariantTableAGGrid {
     const gridOptions = {
       columnDefs: columnDefs,
       rowModelType: "infinite",
-      cacheBlockSize: 500,
-      maxBlocksInCache: 20,
-      rowBuffer: 100,
-      cacheOverflowSize: 2,
+      cacheBlockSize: 100,
+      maxBlocksInCache: 10,
+      rowBuffer: 20,
+      cacheOverflowSize: 1,
       maxConcurrentDatasourceRequests: 1,
-      infiniteInitialRowCount: 1000,
-      blockLoadDebounceMillis: 0,
-      suppressAnimationFrame: false,
+      infiniteInitialRowCount: 100,
+      blockLoadDebounceMillis: 50,
+      suppressAnimationFrame: true,
       rowSelection: "multiple",
       suppressRowClickSelection: true,
       animateRows: false,
+      suppressColumnVirtualisation: false,
+      suppressRowVirtualisation: false,
+      enableCellTextSelection: true,
+      ensureDomOrder: false,
       onRowClicked: (event) => this.handleRowClick(event, igvBrowser),
       onSelectionChanged: () => this.updateSelectAllCheckbox(prefix),
       onFilterChanged: () => this.handleFilterChanged(),
@@ -80,6 +84,7 @@ export class VariantTableAGGrid {
         floatingFilter: true,
         minWidth: 80,
         flex: 0,
+        suppressMenu: false,
       },
       overlayLoadingTemplate: '<span class="ag-overlay-loading-center">Loading variants...</span>',
       overlayNoRowsTemplate:
@@ -425,75 +430,75 @@ export class VariantTableAGGrid {
   createDatasource(prefix) {
     let cachedCount = null;
     let lastFilterModel = null;
-    const pendingRequests = new Map();
+    let requestCounter = 0;
+    let debounceTimer = null;
 
     return {
       rowCount: undefined,
       getRows: async (params) => {
-        const requestKey = `${params.startRow}-${params.endRow}`;
-
-        pendingRequests.forEach((controller) => {
-          controller.cancelled = true;
-        });
-        pendingRequests.clear();
-
-        const controller = { cancelled: false };
-        pendingRequests.set(requestKey, controller);
-
-        try {
-          const filterModelStr = JSON.stringify(params.filterModel);
-          const filterChanged = filterModelStr !== lastFilterModel;
-
-          if (filterChanged) {
-            cachedCount = null;
-            lastFilterModel = filterModelStr;
-          }
-
-          const filters = this.extractFilters(params.filterModel);
-          const sort = params.sortModel?.length > 0
-            ? { field: params.sortModel[0].colId, direction: params.sortModel[0].sort }
-            : null;
-
-          const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
-
-          if (controller.cancelled) return;
-
-          const [variants, count] = await Promise.all([
-            this.genomeDBManager.queryVariants(prefix, filters, {
-              offset: params.startRow,
-              limit: params.endRow - params.startRow,
-              sort: sort,
-              multiCallerMode: multiCallerMode,
-            }),
-            cachedCount === null
-              ? this.genomeDBManager.getVariantCount(prefix, filters, { multiCallerMode })
-              : Promise.resolve(cachedCount)
-          ]);
-
-          if (controller.cancelled) return;
-
-          if (cachedCount === null) {
-            cachedCount = count;
-          }
-
-          pendingRequests.delete(requestKey);
-
-          const lastRow = variants.length < (params.endRow - params.startRow)
-            ? params.startRow + variants.length
-            : undefined;
-
-          params.successCallback(variants, lastRow !== undefined ? lastRow : cachedCount);
-
-          if (!this.hasNavigatedToFirst && variants.length > 0 && params.startRow === 0) {
-            this.hasNavigatedToFirst = true;
-            this.navigateToVariant(variants[0], null, false);
-          }
-        } catch (error) {
-          pendingRequests.delete(requestKey);
-          if (controller.cancelled) return;
-          logger.error("Error loading variants from IndexedDB:", error);
-          params.failCallback();
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
         }
+
+        debounceTimer = setTimeout(async () => {
+          this.genomeDBManager.cancelAllQueries();
+
+          const queryId = `query-${++requestCounter}`;
+          const countQueryId = `count-${requestCounter}`;
+
+          try {
+            const filterModelStr = JSON.stringify(params.filterModel);
+            const filterChanged = filterModelStr !== lastFilterModel;
+
+            if (filterChanged) {
+              cachedCount = null;
+              lastFilterModel = filterModelStr;
+            }
+
+            const filters = this.extractFilters(params.filterModel);
+            const sort = params.sortModel?.length > 0
+              ? { field: params.sortModel[0].colId, direction: params.sortModel[0].sort }
+              : null;
+
+            const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
+
+            const [variants, count] = await Promise.all([
+              this.genomeDBManager.queryVariants(prefix, filters, {
+                offset: params.startRow,
+                limit: params.endRow - params.startRow,
+                sort: sort,
+                multiCallerMode: multiCallerMode,
+                queryId: queryId,
+              }),
+              cachedCount === null
+                ? this.genomeDBManager.getVariantCount(prefix, filters, {
+                    multiCallerMode,
+                    queryId: countQueryId,
+                  })
+                : Promise.resolve(cachedCount)
+            ]);
+
+            if (cachedCount === null) {
+              cachedCount = count;
+            }
+
+            const lastRow = variants.length < (params.endRow - params.startRow)
+              ? params.startRow + variants.length
+              : undefined;
+
+            params.successCallback(variants, lastRow !== undefined ? lastRow : cachedCount);
+
+            if (!this.hasNavigatedToFirst && variants.length > 0 && params.startRow === 0) {
+              this.hasNavigatedToFirst = true;
+              this.navigateToVariant(variants[0], null, false);
+            }
+          } catch (error) {
+            if (error.message !== 'Query cancelled') {
+              logger.error("Error loading variants from IndexedDB:", error);
+              params.failCallback();
+            }
+          }
+        }, 50);
       },
     };
   }
@@ -739,6 +744,12 @@ export class VariantTableAGGrid {
     }
 
     this._filterTimeout = setTimeout(async () => {
+      if (this._chartUpdateQueryId) {
+        this.genomeDBManager.cancelQuery(this._chartUpdateQueryId);
+      }
+
+      this._chartUpdateQueryId = `chart-update-${Date.now()}`;
+
       try {
         const filterModel = this.gridApi.getFilterModel();
         logger.debug("AG-Grid filter model:", filterModel);
@@ -746,20 +757,25 @@ export class VariantTableAGGrid {
         const dbFilters = this.extractFilters(filterModel);
         logger.debug("Converted to DB filters:", dbFilters);
 
-        const totalCount = await this.genomeDBManager.getVariantCount(this.prefix, dbFilters);
+        const totalCount = await this.genomeDBManager.getVariantCount(this.prefix, dbFilters, {
+          queryId: `${this._chartUpdateQueryId}-count`,
+        });
         logger.debug(`Filter changed: ${totalCount} variants match`);
 
         const filteredData = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
-          limit: totalCount > 0 ? totalCount : 500000, 
+          limit: totalCount > 0 ? totalCount : 500000,
+          queryId: this._chartUpdateQueryId,
         });
 
         logger.debug(`Loaded ${filteredData.length} filtered variants for plots`);
 
         await this.plotsComponent.updateFromFilteredData(filteredData);
       } catch (error) {
-        logger.error("Error updating plots:", error);
+        if (error.message !== 'Query cancelled') {
+          logger.error("Error updating plots:", error);
+        }
       }
-    }, 500); 
+    }, 300);
   }
 
   applyFilterFromPlot(filterCriteria) {
