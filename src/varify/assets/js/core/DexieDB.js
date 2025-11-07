@@ -43,10 +43,24 @@ export class DexieVariantDB extends Dexie {
         offset += chunk.data.byteLength;
       }
 
-      return merged.buffer;
+      return {
+        name: fileInfo.name,
+        data: merged.buffer,
+        size: fileInfo.size,
+        type: fileInfo.type,
+        timestamp: fileInfo.timestamp,
+        isChunked: true
+      };
     }
 
-    return fileInfo.data;
+    return {
+      name: fileInfo.name,
+      data: fileInfo.data,
+      size: fileInfo.size,
+      type: fileInfo.type,
+      timestamp: fileInfo.timestamp,
+      isChunked: false
+    };
   }
 
   async storeFile(name, data, metadata = {}, onProgress = null) {
