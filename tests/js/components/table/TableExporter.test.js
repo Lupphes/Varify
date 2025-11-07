@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { TableExporter } from "../../../../src/varify/assets/js/components/table/TableExporter.js";
+import { reconstructINFO } from "../../../../src/varify/assets/js/utils/InfoField.js";
 
 global.alert = vi.fn();
 
@@ -344,13 +345,6 @@ describe("TableExporter - VCF Export", () => {
 });
 
 describe("TableExporter - INFO Reconstruction", () => {
-  let exporter;
-
-  beforeEach(() => {
-    const mockGridApi = {};
-    exporter = new TableExporter(mockGridApi);
-  });
-
   it("reconstructs INFO field from object", () => {
     const infoObj = {
       SVTYPE: "DEL",
@@ -358,7 +352,7 @@ describe("TableExporter - INFO Reconstruction", () => {
       END: 2000,
     };
 
-    const result = exporter.reconstructINFO(infoObj);
+    const result = reconstructINFO(infoObj);
 
     expect(result).toBe("SVTYPE=DEL;SVLEN=-500;END=2000");
   });
@@ -369,7 +363,7 @@ describe("TableExporter - INFO Reconstruction", () => {
       SVTYPE: "DEL",
     };
 
-    const result = exporter.reconstructINFO(infoObj);
+    const result = reconstructINFO(infoObj);
 
     expect(result).toBe("IMPRECISE;SVTYPE=DEL");
   });
@@ -380,7 +374,7 @@ describe("TableExporter - INFO Reconstruction", () => {
       SVTYPE: "DEL",
     };
 
-    const result = exporter.reconstructINFO(infoObj);
+    const result = reconstructINFO(infoObj);
 
     expect(result).toBe("SVTYPE=DEL");
   });
@@ -393,7 +387,7 @@ describe("TableExporter - INFO Reconstruction", () => {
       CIPOS: "0,100",
     };
 
-    const result = exporter.reconstructINFO(infoObj);
+    const result = reconstructINFO(infoObj);
 
     expect(result).toBe("SVTYPE=DEL;CIPOS=0,100");
   });
@@ -401,7 +395,7 @@ describe("TableExporter - INFO Reconstruction", () => {
   it("returns dot for empty INFO", () => {
     const infoObj = {};
 
-    const result = exporter.reconstructINFO(infoObj);
+    const result = reconstructINFO(infoObj);
 
     expect(result).toBe(".");
   });
@@ -412,7 +406,7 @@ describe("TableExporter - INFO Reconstruction", () => {
       END: undefined,
     };
 
-    const result = exporter.reconstructINFO(infoObj);
+    const result = reconstructINFO(infoObj);
 
     expect(result).toBe(".");
   });

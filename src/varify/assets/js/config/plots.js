@@ -5,102 +5,6 @@
  * ECharts theme configuration moved to colors.js
  */
 
-// Default ECharts options for all plots
-const DEFAULT_PLOT_OPTIONS = {
-  responsive: true,
-  maintainAspectRatio: false,
-
-  // Animation settings
-  animation: true,
-  animationDuration: 300,
-  animationEasing: "cubicOut",
-
-  // Interaction settings
-  toolbox: {
-    show: true,
-    feature: {
-      saveAsImage: {
-        title: "Save as PNG",
-        pixelRatio: 2,
-      },
-      dataZoom: {
-        title: {
-          zoom: "Zoom",
-          back: "Reset Zoom",
-        },
-      },
-      restore: {
-        title: "Reset",
-      },
-    },
-    iconStyle: {
-      borderColor: "#6b7280",
-    },
-  },
-
-  grid: {
-    left: "10%",
-    right: "10%",
-    top: "15%",
-    bottom: "15%",
-    containLabel: true,
-  },
-
-  tooltip: {
-    trigger: "item",
-    confine: true,
-  },
-};
-
-// Plot-specific configurations
-const PLOT_CONFIGS = {
-  bar: {
-    ...DEFAULT_PLOT_OPTIONS,
-    tooltip: {
-      trigger: "axis",
-      axisPointer: {
-        type: "shadow",
-      },
-    },
-  },
-
-  histogram: {
-    ...DEFAULT_PLOT_OPTIONS,
-    tooltip: {
-      trigger: "axis",
-      axisPointer: {
-        type: "shadow",
-      },
-    },
-  },
-
-  scatter: {
-    ...DEFAULT_PLOT_OPTIONS,
-    tooltip: {
-      trigger: "item",
-    },
-    brush: {
-      toolbox: ["rect", "polygon", "clear"],
-      xAxisIndex: 0,
-      yAxisIndex: 0,
-    },
-  },
-
-  heatmap: {
-    ...DEFAULT_PLOT_OPTIONS,
-    tooltip: {
-      position: "top",
-    },
-  },
-
-  boxplot: {
-    ...DEFAULT_PLOT_OPTIONS,
-    tooltip: {
-      trigger: "item",
-    },
-  },
-};
-
 // Axis label configurations for different chart types
 export const AXIS_CONFIGS = {
   // Category axis with rotated labels (for bar charts with many categories)
@@ -209,7 +113,7 @@ export const SV_SIZE_BINS = [
  * Default values for data filtering and processing
  */
 export const PLOT_DEFAULTS = {
-  // Percentile filtering defaults (used to exclude outliers)
+  // Percentile filtering defaults
   percentile: {
     lower: 0.05, // 5th percentile
     upper: 0.95, // 95th percentile

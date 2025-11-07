@@ -3,7 +3,6 @@
  */
 
 import { createGrid } from "ag-grid-community";
-import Alpine from "alpinejs";
 import * as igvNamespace from "igv";
 
 import { IndexedDBManager } from "./core/IndexedDBManager.js";
@@ -52,10 +51,7 @@ logger.debug("IGV import check:", {
   igvKeys: window.igv ? Object.keys(window.igv).slice(0, 10) : [],
 });
 
-window.Alpine = Alpine;
 window.agGrid = { createGrid };
-
-Alpine.start();
 
 window.IndexedDBManager = IndexedDBManager;
 window.IGVIndexedDBLoader = IGVIndexedDBLoader;

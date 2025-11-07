@@ -866,10 +866,8 @@ class FileUploadUI {
     } else if (inputId === "upload-fai") {
       return this.requiredFiles.fasta + ".fai";
     }
-    // For VCF/BAM, use the uploaded filename (user may have different names)
     return uploadedFilename;
   }
 }
 
-// ES6 Export
 export { FileUploadUI };

@@ -19,6 +19,7 @@ import { CallerDetailsModal } from "./table/CallerDetailsModal.js";
 import { TableExporter } from "./table/TableExporter.js";
 import { MetadataService } from "../services/MetadataService.js";
 import { LoggerService } from "../utils/LoggerService.js";
+import { isMissing } from "../utils/DataValidation.js";
 
 const logger = new LoggerService("VariantTableAGGrid");
 const metadataService = new MetadataService();
@@ -326,11 +327,7 @@ export class VariantTableAGGrid {
     const span = document.createElement("span");
 
     if (
-      value === null ||
-      value === undefined ||
-      value === "" ||
-      value === "." ||
-      (typeof value === "string" && value.toUpperCase() === "NAN")
+      isMissing(value)
     ) {
       span.style.color = THEME.data.missingValue;
       span.textContent = "—";

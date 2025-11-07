@@ -55,7 +55,11 @@ class IndexedDBManager {
   }
 
   async getFileInfo(name) {
-    return this.dexieDB.getFile(name);
+    const fileData = await this.dexieDB.files.get(name);
+    if (!fileData) return null;
+
+    const { data, ...fileInfo } = fileData;
+    return fileInfo;
   }
 
   async deleteFile(name) {
@@ -67,7 +71,12 @@ class IndexedDBManager {
   }
 
   async getStorageSize() {
-    const estimate = await navigator.storage?.estimate();
+    if (!navigator.storage || !navigator.storage.estimate) {
+      // In test environments or browsers without storage API, calculate from files
+      const files = await this.dexieDB.files.toArray();
+      return files.reduce((sum, file) => sum + (file.size || 0), 0);
+    }
+    const estimate = await navigator.storage.estimate();
     return estimate?.usage || 0;
   }
 

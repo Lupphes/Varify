@@ -29,10 +29,6 @@ export const VCF_COLUMNS = {
   FORMAT: "FORMAT",
 };
 
-/**
- * Standard VCF column names (first 8 mandatory columns)
- */
-const VCF_STANDARD_COLUMNS = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"];
 
 // ============================================================================
 // VCF INFO FIELDS (Detailed Field Definitions)

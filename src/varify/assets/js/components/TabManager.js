@@ -226,10 +226,15 @@ export class TabManager {
     this.hideEmptyState(tabId);
     this.showContent(tabId);
 
-    // Resize charts after showing content to ensure proper rendering
     setTimeout(() => {
       this.resizeChartsInTab(tabId);
     }, 100);
+
+    if (this.activeTab === tabId) {
+      setTimeout(() => {
+        this.navigateIGVForTab(tabId);
+      }, 150);
+    }
   }
 
   /**

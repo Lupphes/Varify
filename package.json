@@ -26,21 +26,20 @@
   "license": "GPL-3.0",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.16",
-    "@vitest/coverage-v8": "^1.6.0",
-    "@vitest/ui": "^1.6.0",
+    "@vitest/coverage-v8": "^4.0.8",
+    "@vitest/ui": "^4.0.8",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.25.12",
     "esbuild-postcss": "^0.0.4",
     "fake-indexeddb": "^6.0.0",
-    "happy-dom": "^14.12.0",
+    "happy-dom": "^20.0.10",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.16",
-    "vitest": "^1.6.0"
+    "vitest": "^4.0.8"
   },
   "dependencies": {
     "ag-grid-community": "^31.0.0",
-    "alpinejs": "^3.13.0",
     "dexie": "^4.2.1",
     "echarts": "^5.5.0",
     "igv": "^3.0.5"
