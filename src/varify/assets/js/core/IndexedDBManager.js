@@ -1,80 +1,77 @@
 /**
- * IndexedDB Manager (Facade)
+ * IndexedDB Manager
  *
- * Main entry point for IndexedDB operations.
- * Maintains backward compatibility while delegating to specialized modules.
- *
- * This is a facade pattern that coordinates:
- * - DatabaseManager: DB initialization and schema
- * - FileStorage: File CRUD operations
- * - VariantStorage: Variant storage operations
- * - VariantQuery: Variant querying with filters/sorting
- * - StorageUtils: Utility functions
+ * Main entry point for all IndexedDB operations using Dexie.js.
+ * Handles files, variants, and metadata storage with optimized performance.
  */
 
-import { DatabaseManager } from "./storage/DatabaseManager.js";
-import { FileStorage } from "./storage/FileStorage.js";
-import { VariantStorage } from "./storage/VariantStorage.js";
-import { VariantQuery } from "./query/VariantQuery.js";
 import { StorageUtils } from "./storage/StorageUtils.js";
+import { DexieVariantDB } from "./DexieDB.js";
+import { DexieVariantQuery } from "./DexieVariantQuery.js";
 
 class IndexedDBManager {
   constructor(dbName = "varify-genome-data", version = 3, reportHash = null) {
-    this.dbManager = new DatabaseManager(dbName, version, reportHash);
-    this.fileStorage = new FileStorage(this.dbManager);
-    this.variantStorage = new VariantStorage(this.dbManager);
-    this.variantQuery = new VariantQuery(this.dbManager);
+    this.dexieDB = new DexieVariantDB(dbName, reportHash);
+    this.dexieQuery = new DexieVariantQuery(this.dexieDB);
 
     this.dbName = reportHash ? `${dbName}-${reportHash}` : dbName;
     this.version = version;
   }
 
   async init() {
-    const db = await this.dbManager.init();
-    this.db = db;
-    return db;
+    await this.dexieDB.open();
+    return this.dexieDB;
   }
 
   close() {
-    this.dbManager.close();
-    this.db = null;
+    this.dexieDB.close();
   }
 
   async deleteDatabase() {
-    await this.dbManager.deleteDatabase();
-    this.db = null;
+    await this.dexieDB.deleteDatabase();
   }
 
   async storeFile(name, data, metadata = {}, onProgress = null) {
-    return this.fileStorage.storeFile(name, data, metadata, onProgress);
+    let arrayBuffer;
+    if (data instanceof ArrayBuffer) {
+      arrayBuffer = data;
+    } else if (data instanceof Blob || data instanceof File) {
+      arrayBuffer = await data.arrayBuffer();
+    } else {
+      throw new Error("Data must be File, Blob, or ArrayBuffer");
+    }
+
+    return this.dexieDB.storeFile(name, arrayBuffer, metadata);
   }
 
   async getFile(name) {
-    return this.fileStorage.getFile(name);
+    const fileData = await this.dexieDB.getFile(name);
+    return fileData ? fileData.data : null;
   }
 
   async hasFile(name) {
-    return this.fileStorage.hasFile(name);
+    return this.dexieDB.hasFile(name);
   }
 
   async listFiles() {
-    return this.fileStorage.listFiles();
+    return this.dexieDB.listFiles();
   }
 
   async getFileInfo(name) {
-    return this.fileStorage.getFileInfo(name);
+    return this.dexieDB.getFile(name);
   }
 
   async deleteFile(name) {
-    return this.fileStorage.deleteFile(name);
+    return this.dexieDB.deleteFile(name);
   }
 
   async clearAll() {
-    return this.fileStorage.clearAll();
+    return this.dexieDB.clearAllFiles();
   }
 
   async getStorageSize() {
-    return this.fileStorage.getStorageSize();
+    const estimate = await navigator.storage?.estimate();
+    return estimate?.usage || 0;
   }
 
   formatBytes(bytes) {
@@ -82,39 +79,40 @@ class IndexedDBManager {
   }
 
   async storeVersion(version) {
-    return this.fileStorage.storeVersion(version);
+    await this.dexieDB.metadata.put({ key: 'version', value: version });
   }
 
   async getStoredVersion() {
-    return this.fileStorage.getStoredVersion();
+    const record = await this.dexieDB.metadata.get('version');
+    return record ? record.value : null;
   }
 
   async storeVariants(prefix, variants) {
-    return this.variantStorage.storeVariants(prefix, variants);
+    return this.dexieQuery.storeVariants(prefix, variants);
   }
 
   async hasVariants(prefix) {
-    return this.variantStorage.hasVariants(prefix);
+    return this.dexieQuery.hasVariants(prefix);
   }
 
   async clearVariants(prefix) {
-    return this.variantStorage.clearVariants(prefix);
+    return this.dexieQuery.clearVariants(prefix);
   }
 
   async queryVariants(prefix, filters = {}, options = {}) {
-    return this.variantQuery.queryVariants(prefix, filters, options);
+    return this.dexieQuery.queryVariants(prefix, filters, options);
   }
 
   async getVariantCount(prefix, filters = {}, options = {}) {
-    return this.variantQuery.getVariantCount(prefix, filters, options);
+    return this.dexieQuery.getVariantCount(prefix, filters, options);
   }
 
   get storeName() {
-    return this.dbManager.getStoreName();
+    return 'files';
   }
 
   get variantStores() {
-    return this.dbManager.variantStores;
+    return ['bcf_variants', 'survivor_variants'];
   }
 }
 

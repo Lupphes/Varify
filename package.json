@@ -41,6 +41,7 @@
   "dependencies": {
     "ag-grid-community": "^31.0.0",
     "alpinejs": "^3.13.0",
+    "dexie": "^4.2.1",
     "echarts": "^5.5.0",
     "igv": "^3.0.5"
   }
