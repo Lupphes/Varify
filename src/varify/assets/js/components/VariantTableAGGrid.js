@@ -84,6 +84,7 @@ export class VariantTableAGGrid {
         filter: true,
         floatingFilter: true,
         minWidth: 80,
+        width: DEFAULT_COLUMN_WIDTH,
         flex: 0,
         suppressMenu: false,
       },
@@ -177,6 +178,7 @@ export class VariantTableAGGrid {
 
       this.configureColumnFilter(colDef, metadata);
 
+      logger.debug(`Adding priority column: ${field} at position ${columnDefs.length}`);
       columnDefs.push(colDef);
     }
 
