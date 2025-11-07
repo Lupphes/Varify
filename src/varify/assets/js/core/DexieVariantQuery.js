@@ -54,12 +54,22 @@ export class DexieVariantQuery {
 
             let collection = table.where(field).anyOf(values);
 
-            // Apply remaining filters
+            // Use and() for indexed equality filters, then filter() for complex ones
             const remainingFilters = { ...filters };
             delete remainingFilters[field];
 
+            const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, remainingFilters);
+
+            // Apply indexed filters using and() - these are evaluated in IndexedDB
+            for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
+              collection = collection.and(variant => variant[filterField] === filterValue);
+              delete remainingFilters[filterField];
+              logger.debug(`Applied indexed equality filter: ${filterField}`);
+            }
+
+            // Apply remaining complex filters in JavaScript only
             if (Object.keys(remainingFilters).length > 0) {
-              collection = collection.filter(variant => {
+              collection = collection.and(variant => {
                 if (queryController && queryController.cancelled) throw new Error('Query cancelled');
                 return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
               });
@@ -103,8 +113,16 @@ export class DexieVariantQuery {
               const remainingFilters = { ...filters };
               delete remainingFilters[bestIndex];
 
+              const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, remainingFilters);
+
+              for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
+                collection = collection.and(variant => variant[filterField] === filterValue);
+                delete remainingFilters[filterField];
+                logger.debug(`Applied indexed equality filter: ${filterField}`);
+              }
+
               if (Object.keys(remainingFilters).length > 0) {
-                collection = collection.filter(variant => {
+                collection = collection.and(variant => {
                   if (queryController && queryController.cancelled) throw new Error('Query cancelled');
                   return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
                 });
@@ -131,10 +149,23 @@ export class DexieVariantQuery {
       }
 
       if (hasFilters || multiCallerMode) {
-        collection = collection.filter(variant => {
-          if (queryController && queryController.cancelled) throw new Error('Query cancelled');
-          return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
-        });
+        // Try to apply indexed equality filters first with and()
+        const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, filters);
+        const appliedFilters = { ...filters };
+
+        for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
+          collection = collection.and(variant => variant[filterField] === filterValue);
+          delete appliedFilters[filterField];
+          logger.debug(`Applied indexed equality filter: ${filterField}`);
+        }
+
+        // Apply remaining filters
+        if (Object.keys(appliedFilters).length > 0 || multiCallerMode) {
+          collection = collection.and(variant => {
+            if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+            return VariantFilter.matchesFilters(variant, appliedFilters, multiCallerMode);
+          });
+        }
       }
 
       let results;
@@ -187,6 +218,23 @@ export class DexieVariantQuery {
     return null;
   }
 
+  extractIndexedEqualityFilters(table, filters) {
+    const indexedFilters = {};
+    const availableIndexes = Array.from(table.schema.indexes).map(idx => idx.name);
+
+    for (const [field, filter] of Object.entries(filters)) {
+      // Only handle simple equality filters that have indexes
+      if (availableIndexes.includes(field)) {
+        // Check if it's a simple equality (not range, not array)
+        if (typeof filter === 'string' || typeof filter === 'number') {
+          indexedFilters[field] = filter;
+        }
+      }
+    }
+
+    return indexedFilters;
+  }
+
   async getVariantCount(prefix, filters = {}, options = {}) {
     const { multiCallerMode = false, queryId = null } = options;
 
@@ -224,8 +272,15 @@ export class DexieVariantQuery {
             const remainingFilters = { ...filters };
             delete remainingFilters[field];
 
+            const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, remainingFilters);
+
+            for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
+              collection = collection.and(variant => variant[filterField] === filterValue);
+              delete remainingFilters[filterField];
+            }
+
             if (Object.keys(remainingFilters).length > 0) {
-              collection = collection.filter(variant => {
+              collection = collection.and(variant => {
                 if (queryController && queryController.cancelled) throw new Error('Query cancelled');
                 return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
               });
