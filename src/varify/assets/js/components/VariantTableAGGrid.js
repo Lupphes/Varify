@@ -425,69 +425,72 @@ export class VariantTableAGGrid {
   createDatasource(prefix) {
     let cachedCount = null;
     let lastFilterModel = null;
-    let currentRequestId = 0;
-    let abortController = null;
+    const pendingRequests = new Map();
 
     return {
       rowCount: undefined,
       getRows: async (params) => {
-        const requestId = ++currentRequestId;
+        const requestKey = `${params.startRow}-${params.endRow}`;
 
-        if (abortController) {
-          abortController.abort();
-        }
-        abortController = new AbortController();
+        pendingRequests.forEach((controller) => {
+          controller.cancelled = true;
+        });
+        pendingRequests.clear();
+
+        const controller = { cancelled: false };
+        pendingRequests.set(requestKey, controller);
 
         try {
-          const filters = this.extractFilters(params.filterModel);
-          const filterChanged = JSON.stringify(params.filterModel) !== lastFilterModel;
+          const filterModelStr = JSON.stringify(params.filterModel);
+          const filterChanged = filterModelStr !== lastFilterModel;
 
           if (filterChanged) {
             cachedCount = null;
-            lastFilterModel = JSON.stringify(params.filterModel);
+            lastFilterModel = filterModelStr;
           }
 
-          const sort =
-            params.sortModel && params.sortModel.length > 0
-              ? {
-                  field: params.sortModel[0].colId,
-                  direction: params.sortModel[0].sort,
-                }
-              : null;
+          const filters = this.extractFilters(params.filterModel);
+          const sort = params.sortModel?.length > 0
+            ? { field: params.sortModel[0].colId, direction: params.sortModel[0].sort }
+            : null;
 
           const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
 
-          const variants = await this.genomeDBManager.queryVariants(prefix, filters, {
-            offset: params.startRow,
-            limit: params.endRow - params.startRow,
-            sort: sort,
-            multiCallerMode: multiCallerMode,
-          });
+          if (controller.cancelled) return;
 
-          if (requestId !== currentRequestId) {
-            return;
-          }
+          const [variants, count] = await Promise.all([
+            this.genomeDBManager.queryVariants(prefix, filters, {
+              offset: params.startRow,
+              limit: params.endRow - params.startRow,
+              sort: sort,
+              multiCallerMode: multiCallerMode,
+            }),
+            cachedCount === null
+              ? this.genomeDBManager.getVariantCount(prefix, filters, { multiCallerMode })
+              : Promise.resolve(cachedCount)
+          ]);
+
+          if (controller.cancelled) return;
 
           if (cachedCount === null) {
-            cachedCount = await this.genomeDBManager.getVariantCount(prefix, filters, {
-              multiCallerMode: multiCallerMode,
-            });
+            cachedCount = count;
           }
 
-          if (requestId !== currentRequestId) {
-            return;
-          }
+          pendingRequests.delete(requestKey);
 
-          params.successCallback(variants, cachedCount);
+          const lastRow = variants.length < (params.endRow - params.startRow)
+            ? params.startRow + variants.length
+            : undefined;
+
+          params.successCallback(variants, lastRow !== undefined ? lastRow : cachedCount);
 
           if (!this.hasNavigatedToFirst && variants.length > 0 && params.startRow === 0) {
             this.hasNavigatedToFirst = true;
             this.navigateToVariant(variants[0], null, false);
           }
         } catch (error) {
-          if (error.name === 'AbortError') {
-            return;
-          }
+          pendingRequests.delete(requestKey);
+          if (controller.cancelled) return;
           logger.error("Error loading variants from IndexedDB:", error);
           params.failCallback();
         }

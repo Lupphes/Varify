@@ -29,6 +29,8 @@ export class VariantQuery {
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], "readonly");
+      transaction.oncomplete = () => {};
+      transaction.onerror = () => {};
       const objectStore = transaction.objectStore(storeName);
 
       let indexName = VariantFilter.selectBestIndex(filters);
@@ -91,9 +93,22 @@ export class VariantQuery {
         source = objectStore.openCursor(null, cursorDirection);
       }
 
-      const allMatches = [];
-      const needsInMemorySort = sort && !useSortIndex;
       const hasFilters = Object.keys(filters).length > 0;
+      const needsInMemorySort = sort && !useSortIndex;
+
+      if (!hasFilters && !needsInMemorySort && indexName === null) {
+        const getAllRequest = objectStore.getAll(null, offset + limit);
+        getAllRequest.onsuccess = () => {
+          const allResults = getAllRequest.result;
+          resolve(allResults.slice(offset, offset + limit));
+        };
+        getAllRequest.onerror = () => {
+          reject(new Error(`getAll failed: ${getAllRequest.error}`));
+        };
+        return;
+      }
+
+      const allMatches = [];
       let skipped = 0;
       let collected = 0;
 
