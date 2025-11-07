@@ -48,30 +48,6 @@ export class ReportInitializer {
 
     window.toggleMultiCallerFilter = this.toggleMultiCallerFilter.bind(this);
 
-    const hasExistingContent = this.checkIfContentAlreadyLoaded();
-
-    if (hasExistingContent) {
-      logger.info("Content already loaded in DOM - skipping re-initialization");
-      this.dataLoaded = true;
-
-      if (this.metadata.bcf) {
-        this.tabManager.markTabInitialized("bcf");
-      }
-      if (this.metadata.survivor) {
-        this.tabManager.markTabInitialized("survivor");
-      }
-
-      await this.updateCacheStatus();
-
-      const loadDataBtn = document.getElementById("load-data-btn");
-      if (loadDataBtn) {
-        loadDataBtn.style.display = "none";
-      }
-
-      logger.info("Report initialized (content restored from DOM)");
-      return;
-    }
-
     const filesAreCached = await this.checkIfFilesAreCached();
 
     if (filesAreCached) {
@@ -85,23 +61,6 @@ export class ReportInitializer {
     await this.updateCacheStatus();
 
     logger.info("Report initialized");
-  }
-
-  /**
-   * Check if content is already loaded in the DOM (page reload scenario)
-   * @returns {boolean} - true if tables/IGV are already initialized
-   */
-  checkIfContentAlreadyLoaded() {
-    // Check if key DOM elements indicate data is already loaded
-    const bcfTable = document.querySelector("#bcf-table-container .ag-root");
-    const survivorTable = document.querySelector("#survivor-table-container .ag-root");
-    const bcfIgv = document.querySelector("#bcf-igv-container .igv-container");
-    const survivorIgv = document.querySelector("#survivor-igv-container .igv-container");
-
-    const hasBcfContent = this.metadata.bcf ? (bcfTable && bcfIgv) : true;
-    const hasSurvivorContent = this.metadata.survivor ? (survivorTable && survivorIgv) : true;
-
-    return hasBcfContent && hasSurvivorContent;
   }
 
   /**

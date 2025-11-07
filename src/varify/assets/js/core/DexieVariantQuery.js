@@ -358,4 +358,24 @@ export class DexieVariantQuery {
     const count = await table.count();
     return count > 0;
   }
+
+  async getAllVariants(prefix) {
+    const table = this.db.getVariantTable(prefix);
+    const variants = await table.toArray();
+
+    // Also retrieve header if it exists
+    const headerRecord = await this.db.metadata.get(`${prefix}_header`);
+    const header = headerRecord ? headerRecord.value : null;
+
+    return { variants, header };
+  }
+
+  async storeHeader(prefix, header) {
+    await this.db.metadata.put({ key: `${prefix}_header`, value: header });
+  }
+
+  async getHeader(prefix) {
+    const record = await this.db.metadata.get(`${prefix}_header`);
+    return record ? record.value : null;
+  }
 }

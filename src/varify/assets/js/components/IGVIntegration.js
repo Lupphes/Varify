@@ -41,15 +41,41 @@ export class IGVIntegration {
    * @param {Function} onProgress - Progress callback for UI updates
    */
   async loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, onProgress = null) {
-    // Early return if variants already loaded
+    // Early return if variants already loaded in memory
     if (this.variantsLoaded) {
-      logger.info("Variants already loaded, skipping parse");
-      return {
-        bcfVariants: this.bcfVariants,
-        survivorVariants: this.survivorVariants,
-      };
+      logger.info("Variants already loaded in memory, skipping");
+      return { bcfVariants: this.bcfVariants, survivorVariants: this.survivorVariants };
     }
 
+    // Try loading from IndexedDB cache first (page reload scenario)
+    const bcfCached = bcfVcfFilename ? await this.genomeDBManager.variantsExist("bcf") : false;
+    const survivorCached = survivorVcfFilename ? await this.genomeDBManager.variantsExist("survivor") : false;
+
+    if (bcfCached || survivorCached) {
+      logger.info("Loading variants from IndexedDB cache...");
+
+      if (bcfCached) {
+        if (onProgress) onProgress("Loading BCF variants from cache...", "bcf", 0, 0);
+        const result = await this.genomeDBManager.getAllVariants("bcf");
+        this.bcfVariants = result.variants || [];
+        this.bcfHeader = result.header || null;
+        logger.info(`Loaded ${this.bcfVariants.length} BCF variants from cache`);
+      }
+
+      if (survivorCached) {
+        if (onProgress) onProgress("Loading SURVIVOR variants from cache...", "survivor", 0, 0);
+        const result = await this.genomeDBManager.getAllVariants("survivor");
+        this.survivorVariants = result.variants || [];
+        this.survivorHeader = result.header || null;
+        logger.info(`Loaded ${this.survivorVariants.length} SURVIVOR variants from cache`);
+      }
+
+      this.variantsLoaded = true;
+      return { bcfVariants: this.bcfVariants, survivorVariants: this.survivorVariants };
+    }
+
+    // Parse VCF files from scratch
+    logger.info("Parsing VCF files from scratch...");
     try {
       if (bcfVcfFilename) {
         logger.info("Loading BCF VCF from IndexedDB...");
@@ -116,6 +142,10 @@ export class IGVIntegration {
           meta: [...this.vcfParser.header.meta],
           columns: this.vcfParser.header.columns,
         };
+
+        // Store header in IndexedDB
+        await this.genomeDBManager.storeHeader("bcf", this.bcfHeader);
+        logger.debug("BCF header stored in IndexedDB");
       }
 
       if (survivorVcfFilename) {
@@ -183,6 +213,10 @@ export class IGVIntegration {
           meta: [...this.vcfParser.header.meta],
           columns: this.vcfParser.header.columns,
         };
+
+        // Store header in IndexedDB
+        await this.genomeDBManager.storeHeader("survivor", this.survivorHeader);
+        logger.debug("SURVIVOR header stored in IndexedDB");
       }
 
       // Mark variants as loaded

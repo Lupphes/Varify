@@ -102,6 +102,22 @@ class IndexedDBManager {
     return this.dexieQuery.hasVariants(prefix);
   }
 
+  async variantsExist(prefix) {
+    return this.dexieQuery.hasVariants(prefix);
+  }
+
+  async getAllVariants(prefix) {
+    return this.dexieQuery.getAllVariants(prefix);
+  }
+
+  async storeHeader(prefix, header) {
+    return this.dexieQuery.storeHeader(prefix, header);
+  }
+
+  async getHeader(prefix) {
+    return this.dexieQuery.getHeader(prefix);
+  }
+
   async clearVariants(prefix) {
     return this.dexieQuery.clearVariants(prefix);
   }
