@@ -167,6 +167,13 @@ export class ReportInitializer {
         setTimeout(() => this.clearCacheAndDatabase(), 0);
       });
     }
+
+    const clearAllCacheBtn = document.getElementById("clear-all-cache-btn");
+    if (clearAllCacheBtn) {
+      clearAllCacheBtn.addEventListener("click", () => {
+        setTimeout(() => this.clearAllCaches(), 0);
+      });
+    }
   }
 
   /**
@@ -457,7 +464,8 @@ export class ReportInitializer {
   populateHeader(metadata) {
     const headerEl = document.getElementById("header-metadata");
     if (headerEl) {
-      headerEl.textContent = `Generated: ${metadata.generated_on} | Profiles: ${metadata.profiles} | Reference: ${metadata.reference_name}`;
+      const hashPart = metadata.file_version ? ` | Hash: ${metadata.file_version.substring(0, 8)}` : '';
+      headerEl.textContent = `Generated: ${metadata.generated_on} | Profiles: ${metadata.profiles} | Reference: ${metadata.reference_name}${hashPart}`;
     }
 
     if (metadata.file_version) {
@@ -518,6 +526,48 @@ export class ReportInitializer {
   }
 
   /**
+   * Clear all Varify databases
+   */
+  async clearAllCaches() {
+    const databases = await this.genomeDBManager.getAllVarifyDatabases();
+    const totalSize = await this.genomeDBManager.getTotalStorageSize();
+    const sizeText = this.genomeDBManager.formatBytes(totalSize);
+
+    if (
+      !confirm(
+        `Delete ALL Varify databases?\n\nThis will remove ${databases.length} database${databases.length !== 1 ? 's' : ''} (${sizeText}) from all reports.\n\nClose all other Varify report tabs first.`
+      )
+    ) {
+      return;
+    }
+
+    const btn = document.getElementById("clear-all-cache-btn");
+    const originalText = btn?.innerHTML;
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML =
+        '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="4" stroke="currentColor" stroke-opacity="0.25"></circle></svg> Clearing...';
+    }
+
+    try {
+      await this.genomeDBManager.deleteAllVarifyDatabases();
+
+      const statusText = document.getElementById("cache-status-text");
+      if (statusText) statusText.textContent = "All caches cleared!";
+
+      location.reload();
+    } catch (error) {
+      logger.error("Clear all caches error:", error);
+      alert(`Failed to clear all caches: ${error.message}`);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+  }
+
+  /**
    * Update cache status display
    */
   async updateCacheStatus() {
@@ -536,6 +586,22 @@ export class ReportInitializer {
           statusTextEl.textContent = "No cache";
           sizeTextEl.textContent = "";
         }
+      }
+
+      // Update total storage across all databases
+      const totalSize = await this.genomeDBManager.getTotalStorageSize();
+      const totalSizeText = this.genomeDBManager.formatBytes(totalSize);
+      const databases = await this.genomeDBManager.getAllVarifyDatabases();
+
+      const totalStorageEl = document.getElementById("total-storage-text");
+      const totalDbCountEl = document.getElementById("total-db-count");
+
+      if (totalStorageEl) {
+        totalStorageEl.textContent = totalSizeText;
+      }
+
+      if (totalDbCountEl) {
+        totalDbCountEl.textContent = databases.length > 0 ? `(${databases.length} DB${databases.length !== 1 ? 's' : ''})` : '';
       }
     } catch (error) {
       logger.error("Cache status error:", error);

@@ -36,19 +36,23 @@ export class DexieVariantQuery {
     }
 
     const table = this.db.getVariantTable(prefix);
-    let collection = table.toCollection();
+    const hasFilters = Object.keys(filters).length > 0;
+    let collection;
 
     if (sort && sort.field) {
       const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
+
       if (indexExists) {
         collection = table.orderBy(sort.field);
         if (sort.direction === 'desc') {
           collection = collection.reverse();
         }
+      } else {
+        collection = table.toCollection();
       }
+    } else {
+      collection = table.toCollection();
     }
-
-    const hasFilters = Object.keys(filters).length > 0;
 
     if (hasFilters || multiCallerMode) {
       const queryController = queryId ? this.activeQueries.get(queryId) : null;
@@ -62,7 +66,23 @@ export class DexieVariantQuery {
     }
 
     try {
-      const results = await collection.offset(offset).limit(limit).toArray();
+      let results;
+
+      if (sort && sort.field) {
+        const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
+
+        if (!indexExists) {
+          results = await collection.sortBy(sort.field);
+          if (sort.direction === 'desc') {
+            results.reverse();
+          }
+          results = results.slice(offset, offset + limit);
+        } else {
+          results = await collection.offset(offset).limit(limit).toArray();
+        }
+      } else {
+        results = await collection.offset(offset).limit(limit).toArray();
+      }
 
       if (queryId) {
         this.activeQueries.delete(queryId);

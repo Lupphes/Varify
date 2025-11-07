@@ -654,7 +654,6 @@ class FileUploadUI {
 
       logger.debug("Looking for these files:", requiredFilenames);
 
-      // Search folder for all required files
       const foundFiles = [];
       const missingFiles = [];
 
@@ -675,18 +674,15 @@ class FileUploadUI {
         }
       }
 
-      // Validate all files found
       if (missingFiles.length > 0) {
         throw new Error(
           `Missing ${missingFiles.length} file(s) in selected folder:\n\n${missingFiles.join("\n")}\n\nPlease select the correct folder or use manual upload.`
         );
       }
 
-      // Progress: 45% - all files validated
       if (progressBar) progressBar.style.width = "45%";
       if (progressText) progressText.textContent = "45%";
 
-      // Display found files in UI
       if (statusText)
         statusText.innerHTML = `
                 <div style="text-align: left;">
@@ -713,13 +709,10 @@ class FileUploadUI {
                 </div>
             `;
 
-      // Auto-fill file inputs for visual confirmation
       this.autoFillFileInputs(foundFiles);
 
-      // Wait a moment for user to see the file list
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Automatically trigger upload
       if (statusText) statusText.textContent = "Starting upload...";
       await this.uploadFiles(foundFiles);
     } catch (error) {

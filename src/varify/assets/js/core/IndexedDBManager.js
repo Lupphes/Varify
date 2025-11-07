@@ -121,6 +121,26 @@ class IndexedDBManager {
     return this.dexieQuery.cancelAllQueries();
   }
 
+  async getAllVarifyDatabases() {
+    const databases = await Dexie.getDatabaseNames();
+    return databases.filter(name => name.startsWith('varify-genome-data'));
+  }
+
+  async getTotalStorageSize() {
+    if (!navigator.storage || !navigator.storage.estimate) {
+      return 0;
+    }
+    const estimate = await navigator.storage.estimate();
+    return estimate?.usage || 0;
+  }
+
+  async deleteAllVarifyDatabases() {
+    const databases = await this.getAllVarifyDatabases();
+    for (const dbName of databases) {
+      await Dexie.delete(dbName);
+    }
+  }
+
   get storeName() {
     return 'files';
   }

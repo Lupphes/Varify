@@ -13,6 +13,14 @@ export class DexieVariantDB extends Dexie {
       survivor_variants: 'locus, CHROM, POS, SVTYPE, QUAL, FILTER, *GQ, *DP'
     });
 
+    this.version(4).stores({
+      files: 'name, size, type, timestamp',
+      fileChunks: '[name+chunkIndex], name, chunkIndex',
+      metadata: 'key',
+      bcf_variants: 'locus, CHROM, POS, ID, SVTYPE, SVLEN, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP',
+      survivor_variants: 'locus, CHROM, POS, ID, SVTYPE, SVLEN, NUM_CALLERS, PRIMARY_CALLER, SUPP_CALLERS, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP'
+    });
+
     this.files = this.table('files');
     this.fileChunks = this.table('fileChunks');
     this.metadata = this.table('metadata');
@@ -67,9 +75,13 @@ export class DexieVariantDB extends Dexie {
       };
     }
 
+    const data = returnAsBlob
+      ? new Blob([fileInfo.data], { type: fileInfo.type || 'application/octet-stream' })
+      : fileInfo.data;
+
     return {
       name: fileInfo.name,
-      data: fileInfo.data,
+      data,
       size: fileInfo.size,
       type: fileInfo.type,
       timestamp: fileInfo.timestamp,
@@ -161,6 +173,8 @@ export class DexieVariantDB extends Dexie {
   }
 
   async deleteDatabase() {
-    await this.delete();
+    const dbName = this.name;
+    this.close();
+    await Dexie.delete(dbName);
   }
 }
