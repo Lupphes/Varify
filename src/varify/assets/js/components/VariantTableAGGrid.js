@@ -622,23 +622,35 @@ export class VariantTableAGGrid {
   }
 
   async getFieldMetadata(prefix) {
-    if (window[`${prefix}FieldMetadata`]) {
+    const variantCount = await this.genomeDBManager.getVariantCount(prefix, {});
+    const cacheKey = `${prefix}_metadata_cache_v${variantCount}`;
+
+    if (window[`${prefix}FieldMetadata`] && window[`${prefix}FieldMetadataCacheKey`] === cacheKey) {
       return window[`${prefix}FieldMetadata`];
     }
 
     try {
-      const cachedMetadata = await this.genomeDBManager.getFile(`${prefix}_metadata_cache`);
+      const cachedMetadata = await this.genomeDBManager.getFile(cacheKey);
       if (cachedMetadata) {
         const decoder = new TextDecoder("utf-8");
         const text = decoder.decode(cachedMetadata);
         const metadata = JSON.parse(text);
         window[`${prefix}FieldMetadata`] = metadata;
+        window[`${prefix}FieldMetadataCacheKey`] = cacheKey;
         logger.info(`Loaded cached metadata for ${prefix} (${Object.keys(metadata).length} fields)`);
         return metadata;
       }
     } catch (error) {
       logger.debug(`No cached metadata found for ${prefix}, computing...`);
     }
+
+    await this.genomeDBManager.listFiles().then(files => {
+      files.forEach(file => {
+        if (file.startsWith(`${prefix}_metadata_cache_`)) {
+          this.genomeDBManager.deleteFile(file).catch(() => {});
+        }
+      });
+    });
 
     logger.info(`Analyzing field metadata for ${prefix} (sampling 1000 variants)...`);
     const metadata = {};
@@ -708,16 +720,17 @@ export class VariantTableAGGrid {
       const metadataJson = JSON.stringify(metadata);
       const encoder = new TextEncoder();
       const data = encoder.encode(metadataJson);
-      await this.genomeDBManager.storeFile(`${prefix}_metadata_cache`, data.buffer, {
+      await this.genomeDBManager.storeFile(cacheKey, data.buffer, {
         type: "metadata",
         timestamp: Date.now(),
       });
-      logger.debug(`Cached metadata for ${prefix}`);
+      logger.debug(`Cached metadata for ${prefix} with key ${cacheKey}`);
     } catch (error) {
       logger.warn(`Failed to cache metadata: ${error.message}`);
     }
 
     window[`${prefix}FieldMetadata`] = metadata;
+    window[`${prefix}FieldMetadataCacheKey`] = cacheKey;
 
     return metadata;
   }

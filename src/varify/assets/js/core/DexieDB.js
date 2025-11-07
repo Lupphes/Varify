@@ -92,9 +92,9 @@ export class DexieVariantDB extends Dexie {
         name,
         data: dataToStore,
         size,
-        type: metadata.type || 'application/octet-stream',
         timestamp: Date.now(),
         isChunked: false,
+        type: 'application/octet-stream',
         ...metadata
       };
       await this.files.put(fileData);
@@ -131,10 +131,10 @@ export class DexieVariantDB extends Dexie {
     const fileInfo = {
       name,
       size,
-      type: metadata.type || 'application/octet-stream',
       timestamp: Date.now(),
       isChunked: true,
       totalChunks,
+      type: 'application/octet-stream',
       ...metadata
     };
     await this.files.put(fileInfo);
