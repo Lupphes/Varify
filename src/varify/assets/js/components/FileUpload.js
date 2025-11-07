@@ -229,17 +229,17 @@ class FileUploadUI {
                     ${this.getAutoUploadSectionHTML()}
 
                     <!-- Unified Progress Indicator (outside both sections) -->
-                    <div id="upload-progress" style="display: none; margin: 20px 0; padding: 32px 24px; text-align: center;">
-                        <div style="font-size: 24px; font-weight: 600; color: #1a202c; margin-bottom: 20px;">
+                    <div id="upload-progress" style="display: none; margin: 20px 0; padding: 20px 16px; text-align: center;">
+                        <div style="font-size: 16px; font-weight: 600; color: #1a202c; margin-bottom: 12px;">
                             <span id="upload-status-main">Processing...</span>
                         </div>
-                        <div style="background: #e2e8f0; border-radius: 12px; height: 40px; overflow: hidden; position: relative; margin-bottom: 16px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background: #e2e8f0; border-radius: 8px; height: 24px; overflow: hidden; position: relative; margin-bottom: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
                             <div id="upload-progress-bar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
-                            <div id="upload-progress-text" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #1a202c;">
+                            <div id="upload-progress-text" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #1a202c;">
                                 0%
                             </div>
                         </div>
-                        <div style="font-size: 14px; color: #718096; line-height: 1.8;">
+                        <div style="font-size: 12px; color: #718096; line-height: 1.6;">
                             <span id="upload-status-subtitle">Preparing...</span>
                         </div>
                     </div>
@@ -446,12 +446,17 @@ class FileUploadUI {
     const subtitleEl = document.getElementById("upload-status-subtitle");
     const progressBar = document.getElementById("upload-progress-bar");
     const progressText = document.getElementById("upload-progress-text");
+    const uploadForm = document.getElementById("upload-form");
 
     if (progressDiv) progressDiv.style.display = "block";
     if (mainStatusEl) mainStatusEl.textContent = mainStatus;
     if (subtitleEl) subtitleEl.textContent = subtitle;
     if (progressBar) progressBar.style.width = `${percent}%`;
     if (progressText) progressText.textContent = `${Math.round(percent)}%`;
+
+    if (uploadForm && uploadForm.style.display !== "none") {
+      uploadForm.style.display = "none";
+    }
   }
 
   /**
@@ -459,7 +464,14 @@ class FileUploadUI {
    */
   hideProgress() {
     const progressDiv = document.getElementById("upload-progress");
+    const uploadForm = document.getElementById("upload-form");
+    const autoUploadSection = document.getElementById("auto-upload-section");
+
     if (progressDiv) progressDiv.style.display = "none";
+
+    if (autoUploadSection && autoUploadSection.style.display === "none" && uploadForm) {
+      uploadForm.style.display = "flex";
+    }
   }
 
   /**
