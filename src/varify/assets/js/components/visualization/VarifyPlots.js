@@ -225,6 +225,11 @@ export class VarifyPlots {
     for (let i = 0; i < chartEntries.length; i += batchSize) {
       const batch = chartEntries.slice(i, i + batchSize);
 
+      const progress = Math.min(i + batchSize, chartEntries.length);
+      if (window.updateChartLoadingProgress) {
+        window.updateChartLoadingProgress(`Updating charts: ${progress} / ${chartEntries.length}`);
+      }
+
       await Promise.all(
         batch.map(async ([id, chart]) => {
           try {

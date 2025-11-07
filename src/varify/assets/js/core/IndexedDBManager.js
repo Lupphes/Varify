@@ -94,8 +94,8 @@ class IndexedDBManager {
     return record ? record.value : null;
   }
 
-  async storeVariants(prefix, variants) {
-    return this.dexieQuery.storeVariants(prefix, variants);
+  async storeVariants(prefix, variants, onProgress = null) {
+    return this.dexieQuery.storeVariants(prefix, variants, onProgress);
   }
 
   async hasVariants(prefix) {

@@ -100,12 +100,16 @@ export class IGVIntegration {
         logger.info(`Parsed ${this.bcfVariants.length} BCF variants`);
 
         logger.debug("Storing BCF variants in IndexedDB...");
-        if (onProgress) {
-          const subtitle = `${this.bcfVariants.length.toLocaleString()} variants ready for storage`;
-          onProgress(`Storing BCF variants`, "bcf", this.bcfVariants.length, this.bcfVariants.length, subtitle);
-        }
         await this.genomeDBManager.clearVariants("bcf"); // Clear old data
-        await this.genomeDBManager.storeVariants("bcf", this.bcfVariants);
+
+        const bcfStoreCallback = (stored, total) => {
+          if (onProgress) {
+            const subtitle = `${stored.toLocaleString()} / ${total.toLocaleString()} variants stored`;
+            onProgress(`Storing BCF variants`, "bcf", stored, total, subtitle);
+          }
+        };
+
+        await this.genomeDBManager.storeVariants("bcf", this.bcfVariants, bcfStoreCallback);
         logger.debug("BCF variants stored in IndexedDB");
 
         this.bcfHeader = {
@@ -163,12 +167,16 @@ export class IGVIntegration {
         logger.info(`Parsed ${this.survivorVariants.length} SURVIVOR variants`);
 
         logger.debug("Storing SURVIVOR variants in IndexedDB...");
-        if (onProgress) {
-          const subtitle = `${this.survivorVariants.length.toLocaleString()} variants ready for storage`;
-          onProgress(`Storing SURVIVOR variants`, "survivor", this.survivorVariants.length, this.survivorVariants.length, subtitle);
-        }
         await this.genomeDBManager.clearVariants("survivor"); // Clear old data
-        await this.genomeDBManager.storeVariants("survivor", this.survivorVariants);
+
+        const survivorStoreCallback = (stored, total) => {
+          if (onProgress) {
+            const subtitle = `${stored.toLocaleString()} / ${total.toLocaleString()} variants stored`;
+            onProgress(`Storing SURVIVOR variants`, "survivor", stored, total, subtitle);
+          }
+        };
+
+        await this.genomeDBManager.storeVariants("survivor", this.survivorVariants, survivorStoreCallback);
         logger.debug("SURVIVOR variants stored in IndexedDB");
 
         this.survivorHeader = {

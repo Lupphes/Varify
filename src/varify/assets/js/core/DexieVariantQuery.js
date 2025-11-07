@@ -175,7 +175,7 @@ export class DexieVariantQuery {
     }
   }
 
-  async storeVariants(prefix, variants) {
+  async storeVariants(prefix, variants, onProgress = null) {
     const table = this.db.getVariantTable(prefix);
 
     logger.debug(`Dexie: Storing ${variants.length} variants in ${prefix}...`);
@@ -188,8 +188,13 @@ export class DexieVariantQuery {
       const batch = flattened.slice(i, i + BATCH_SIZE);
       await table.bulkPut(batch);
 
+      const stored = Math.min(i + BATCH_SIZE, flattened.length);
+      if (onProgress) {
+        onProgress(stored, flattened.length);
+      }
+
       if ((i + BATCH_SIZE) % 10000 === 0) {
-        logger.debug(`Dexie: Stored ${Math.min(i + BATCH_SIZE, flattened.length)}/${flattened.length} variants...`);
+        logger.debug(`Dexie: Stored ${stored}/${flattened.length} variants...`);
       }
     }
 

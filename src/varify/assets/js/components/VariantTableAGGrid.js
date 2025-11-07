@@ -769,7 +769,8 @@ export class VariantTableAGGrid {
         });
         logger.debug(`Filter changed: ${totalCount} variants match`);
 
-        this.plotsComponent.showLoading(`Loading ${totalCount.toLocaleString()} variants...`);
+        // Show global loading overlay
+        this.showChartLoadingOverlay(`Loading ${totalCount.toLocaleString()} variants...`);
 
         const chunkSize = 10000;
         const numChunks = Math.ceil(totalCount / chunkSize);
@@ -785,7 +786,7 @@ export class VariantTableAGGrid {
           filteredData.push(...chunk);
 
           if (i % 5 === 0 || i === numChunks - 1) {
-            this.plotsComponent.showLoading(
+            this.showChartLoadingOverlay(
               `Loading variants: ${filteredData.length.toLocaleString()} / ${totalCount.toLocaleString()}`
             );
           }
@@ -797,10 +798,11 @@ export class VariantTableAGGrid {
 
         logger.info(`Loaded ${filteredData.length} variants for charts`);
 
+        this.showChartLoadingOverlay(`Updating ${this.plotsComponent.charts.size} charts...`);
         await this.plotsComponent.updateFromFilteredData(filteredData);
-        this.plotsComponent.hideLoading();
+        this.hideChartLoadingOverlay();
       } catch (error) {
-        this.plotsComponent.hideLoading();
+        this.hideChartLoadingOverlay();
         if (error.message !== 'Query cancelled') {
           logger.error("Error updating plots:", error);
         }
@@ -853,5 +855,92 @@ export class VariantTableAGGrid {
     }
 
     this.gridApi.setFilterModel(filterModel);
+  }
+
+  showChartLoadingOverlay(message) {
+    const containerId = `${this.prefix}-plots-section`;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let overlay = container.querySelector('.chart-loading-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'chart-loading-overlay';
+      overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        gap: 16px;
+      `;
+
+      const spinner = document.createElement('div');
+      spinner.className = 'spinner';
+      spinner.style.cssText = `
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      `;
+
+      const text = document.createElement('div');
+      text.className = 'loading-text';
+      text.style.cssText = `
+        font-size: 16px;
+        color: #333;
+        font-weight: 500;
+      `;
+      text.textContent = message;
+
+      overlay.appendChild(spinner);
+      overlay.appendChild(text);
+      container.style.position = 'relative';
+      container.appendChild(overlay);
+
+      // Add animation keyframe if not exists
+      if (!document.getElementById('chart-loading-animation')) {
+        const style = document.createElement('style');
+        style.id = 'chart-loading-animation';
+        style.textContent = `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Store update function globally so VarifyPlots can use it
+      window.updateChartLoadingProgress = (msg) => {
+        const textEl = overlay.querySelector('.loading-text');
+        if (textEl) textEl.textContent = msg;
+      };
+    } else {
+      const textEl = overlay.querySelector('.loading-text');
+      if (textEl) textEl.textContent = message;
+      overlay.style.display = 'flex';
+    }
+  }
+
+  hideChartLoadingOverlay() {
+    const containerId = `${this.prefix}-plots-section`;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const overlay = container.querySelector('.chart-loading-overlay');
+    if (overlay) {
+      overlay.remove();
+    }
+
+    window.updateChartLoadingProgress = null;
   }
 }
