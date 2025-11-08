@@ -669,11 +669,18 @@ export class VariantTableAGGrid {
     }
 
     // Use MetadataService for consistent metadata analysis (including SUPP_CALLERS parsing)
+    // Dynamically detect computed fields from the first variant
+    const computedFields = new Set();
+    if (variants.length > 0 && variants[0]._variant && variants[0]._variant._computed) {
+      Object.keys(variants[0]._variant._computed).forEach(field => computedFields.add(field));
+    }
+
     const fieldValues = {};
     variants.forEach((variant) => {
       Object.entries(variant).forEach(([field, value]) => {
         if (field.startsWith("_")) return;
         if (typeof value === "object" && value !== null && !Array.isArray(value)) return;
+        if (computedFields.has(field)) return; // Skip computed fields
 
         if (!fieldValues[field]) {
           fieldValues[field] = [];
