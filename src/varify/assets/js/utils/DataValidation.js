@@ -128,3 +128,28 @@ export function parseNumericValue(value) {
   const num = Number(value);
   return isNaN(num) || !isFinite(num) ? null : num;
 }
+
+/**
+ * Parse SUPP_CALLERS field into an array of individual caller names
+ * Handles comma-separated values and trims whitespace
+ *
+ * @param {string} suppCallersValue - The SUPP_CALLERS field value
+ * @returns {string[]} - Array of trimmed caller names
+ *
+ * @example
+ * parseSuppCallers("caller1,caller2,caller3")  // ["caller1", "caller2", "caller3"]
+ * parseSuppCallers("caller1")                   // ["caller1"]
+ * parseSuppCallers("  caller1 , caller2  ")     // ["caller1", "caller2"]
+ * parseSuppCallers(null)                        // []
+ * parseSuppCallers("")                          // []
+ */
+export function parseSuppCallers(suppCallersValue) {
+  if (!suppCallersValue || typeof suppCallersValue !== "string") {
+    return [];
+  }
+
+  return suppCallersValue
+    .split(",")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+}

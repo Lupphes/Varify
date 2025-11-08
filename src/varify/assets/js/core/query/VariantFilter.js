@@ -7,7 +7,7 @@
  * - Filter matching (primary and multi-caller modes)
  */
 
-import { isMissing, parseNumericValue } from "../../utils/DataValidation.js";
+import { isMissing, parseNumericValue, parseSuppCallers } from "../../utils/DataValidation.js";
 
 export class VariantFilter {
   /**
@@ -132,7 +132,7 @@ export class VariantFilter {
       if (typeof filter === "object" && filter.values !== undefined) {
         // Special handling for SUPP_CALLERS - check if any selected caller is in the comma-separated string
         if (field === "SUPP_CALLERS" && typeof value === "string") {
-          const callers = value.split(",").map((c) => c.trim());
+          const callers = parseSuppCallers(value);
           const hasMatch = filter.values.some((selectedCaller) => callers.includes(selectedCaller));
           if (!hasMatch) {
             return false;

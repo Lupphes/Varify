@@ -222,7 +222,8 @@ export class DexieVariantQuery {
   }
 
   detectSingleCategoricalFilter(filters) {
-    const categoricalFields = ['SVTYPE', 'CHROM', 'FILTER', 'PRIMARY_CALLER', 'SUPP_CALLERS'];
+    // SUPP_CALLERS is excluded because it requires substring matching, not exact index matching
+    const categoricalFields = ['SVTYPE', 'CHROM', 'FILTER', 'PRIMARY_CALLER'];
 
     for (const field of categoricalFields) {
       if (filters[field] && typeof filters[field] === 'object' && filters[field].values) {

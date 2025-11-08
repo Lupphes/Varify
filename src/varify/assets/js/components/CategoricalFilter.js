@@ -5,6 +5,8 @@
  * Works with Client-Side Row Model - filtering happens in-memory using doesFilterPass().
  */
 
+import { parseSuppCallers } from "../utils/DataValidation.js";
+
 export class CategoricalFilter {
   /**
    * Initialize the filter with parameters from AG-Grid
@@ -148,7 +150,7 @@ export class CategoricalFilter {
 
     // Special handling for SUPP_CALLERS - check if any selected caller is in the comma-separated string
     if (field === "SUPP_CALLERS" && typeof value === "string") {
-      const callers = value.split(",").map((c) => c.trim());
+      const callers = parseSuppCallers(value);
       return callers.some((caller) => this.selectedValues.has(caller));
     }
 

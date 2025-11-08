@@ -14,7 +14,7 @@
 
 import { variantHandlerRegistry } from "../core/variant-handlers/VariantHandlerRegistry.js";
 import { VCF_COLUMNS } from "../config/vcf.js";
-import { isMissing, parseNumericValue } from "../utils/DataValidation.js";
+import { isMissing, parseNumericValue, parseSuppCallers } from "../utils/DataValidation.js";
 import { LoggerService } from "../utils/LoggerService.js";
 
 const logger = new LoggerService("MetadataService");
@@ -51,10 +51,8 @@ export class MetadataService {
       // Special handling for SUPP_CALLERS: extract individual callers from comma-separated string
       if (fieldName === "SUPP_CALLERS" && typeof value === "string") {
         stats.hasMultiple = true;
-        const callers = value.split(",").map((c) => c.trim());
-        callers.forEach((caller) => {
-          if (caller) stats.uniqueValues.add(caller);
-        });
+        const callers = parseSuppCallers(value);
+        callers.forEach((caller) => stats.uniqueValues.add(caller));
         hasNonNumeric = true;
         continue;
       }
@@ -133,10 +131,9 @@ export class MetadataService {
    * Uses variant handlers to correctly extract genotype data based on variant type.
    *
    * @param {Array} variants - Array of parsed variant objects
-   * @param {Object} header - VCF header information
    * @returns {Object} Field metadata keyed by field name
    */
-  buildFieldMetadata(variants, header = {}) {
+  buildFieldMetadata(variants) {
     if (!variants || variants.length === 0) {
       return {};
     }
