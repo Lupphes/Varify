@@ -435,10 +435,11 @@ export class VariantTableAGGrid {
         }
 
         debounceTimer = setTimeout(async () => {
+          // Only cancel queries with the "table-" prefix to avoid canceling chart updates
           this.genomeDBManager.cancelAllQueries();
 
-          const queryId = `query-${++requestCounter}`;
-          const countQueryId = `count-${requestCounter}`;
+          const queryId = `table-${++requestCounter}`;
+          const countQueryId = `table-count-${requestCounter}`;
 
           try {
             const filterModelStr = JSON.stringify(params.filterModel);
@@ -490,6 +491,9 @@ export class VariantTableAGGrid {
             if (error.message !== 'Query cancelled') {
               logger.error("Error loading variants from IndexedDB:", error);
               params.failCallback();
+            } else {
+              // Don't call failCallback for cancelled queries - just ignore them
+              logger.debug('Table query cancelled, ignoring');
             }
           }
         }, 50);
@@ -751,10 +755,7 @@ export class VariantTableAGGrid {
     }
 
     this._filterTimeout = setTimeout(async () => {
-      if (this._chartUpdateQueryId) {
-        this.genomeDBManager.cancelAllQueries();
-      }
-
+      // Cancel only chart-related queries by marking the previous query as superseded
       const currentQueryId = `chart-update-${Date.now()}`;
       this._chartUpdateQueryId = currentQueryId;
 
