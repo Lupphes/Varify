@@ -204,7 +204,7 @@ describe("VariantTableAGGrid - Column Definition Building", () => {
 
     const filterCol = columnDefs.find((c) => c.field === "FILTER");
     expect(filterCol.minWidth).toBe(150);
-    expect(filterCol.width).toBe(200);
+    expect(filterCol.width).toBe(100);
   });
 });
 
@@ -928,10 +928,10 @@ describe("VariantTableAGGrid - Field Metadata", () => {
 
   it("extracts unique values for categorical fields", async () => {
     const variants = [
-      createMockVariant({ info: { SVTYPE: "DEL" } }),
-      createMockVariant({ info: { SVTYPE: "DUP" } }),
-      createMockVariant({ info: { SVTYPE: "DEL" } }),
-      createMockVariant({ info: { SVTYPE: "INV" } }),
+      createMockVariant({ pos: 1000, locus: "NC_001133.9:1000-1500", info: { SVTYPE: "DEL" } }),
+      createMockVariant({ pos: 2000, locus: "NC_001133.9:2000-2500", info: { SVTYPE: "DUP" } }),
+      createMockVariant({ pos: 3000, locus: "NC_001133.9:3000-3500", info: { SVTYPE: "DEL" } }),
+      createMockVariant({ pos: 4000, locus: "NC_001133.9:4000-4500", info: { SVTYPE: "INV" } }),
     ];
 
     await mockDB.storeVariants("bcf", variants);
@@ -948,9 +948,9 @@ describe("VariantTableAGGrid - Field Metadata", () => {
 
   it("detects numeric fields correctly", async () => {
     const variants = [
-      createMockVariant({ pos: 1000 }),
-      createMockVariant({ pos: 2000 }),
-      createMockVariant({ pos: 3000 }),
+      createMockVariant({ pos: 1000, locus: "NC_001133.9:1000-1500" }),
+      createMockVariant({ pos: 2000, locus: "NC_001133.9:2000-2500" }),
+      createMockVariant({ pos: 3000, locus: "NC_001133.9:3000-3500" }),
     ];
 
     await mockDB.storeVariants("bcf", variants);
@@ -966,10 +966,10 @@ describe("VariantTableAGGrid - Field Metadata", () => {
 
   it("counts non-null values correctly", async () => {
     const variants = [
-      createMockVariant({ id: "variant_1" }),
-      createMockVariant({ id: null }),
-      createMockVariant({ id: "variant_2" }),
-      createMockVariant({ id: undefined }),
+      createMockVariant({ pos: 1000, locus: "NC_001133.9:1000-1500", id: "variant_1" }),
+      createMockVariant({ pos: 2000, locus: "NC_001133.9:2000-2500", id: null }),
+      createMockVariant({ pos: 3000, locus: "NC_001133.9:3000-3500", id: "variant_2" }),
+      createMockVariant({ pos: 4000, locus: "NC_001133.9:4000-4500", id: undefined }),
     ];
 
     await mockDB.storeVariants("bcf", variants);
@@ -982,9 +982,21 @@ describe("VariantTableAGGrid - Field Metadata", () => {
 
   it("handles fields with all missing values", async () => {
     const variants = [
-      createMockVariant({ _computed: { RARE_FIELD: null } }),
-      createMockVariant({ _computed: { RARE_FIELD: null } }),
-      createMockVariant({ _computed: { RARE_FIELD: undefined } }),
+      createMockVariant({
+        pos: 1000,
+        locus: "NC_001133.9:1000-1500",
+        _computed: { RARE_FIELD: null },
+      }),
+      createMockVariant({
+        pos: 2000,
+        locus: "NC_001133.9:2000-2500",
+        _computed: { RARE_FIELD: null },
+      }),
+      createMockVariant({
+        pos: 3000,
+        locus: "NC_001133.9:3000-3500",
+        _computed: { RARE_FIELD: undefined },
+      }),
     ];
 
     await mockDB.storeVariants("bcf", variants);
@@ -1036,10 +1048,10 @@ describe("VariantTableAGGrid - Field Metadata", () => {
 
   it("calculates min/max for numeric fields", async () => {
     const variants = [
-      createMockVariant({ pos: 1000 }),
-      createMockVariant({ pos: 2000 }),
-      createMockVariant({ pos: 3000 }),
-      createMockVariant({ pos: 4000 }),
+      createMockVariant({ pos: 1000, locus: "NC_001133.9:1000-1500" }),
+      createMockVariant({ pos: 2000, locus: "NC_001133.9:2000-2500" }),
+      createMockVariant({ pos: 3000, locus: "NC_001133.9:3000-3500" }),
+      createMockVariant({ pos: 4000, locus: "NC_001133.9:4000-4500" }),
     ];
 
     await mockDB.storeVariants("bcf", variants);

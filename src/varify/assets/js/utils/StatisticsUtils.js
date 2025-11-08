@@ -60,8 +60,12 @@ export function gaussianKDE(data, bandwidth = null, numPoints = 1000) {
     bandwidth = 1.0;
   }
 
-  const min = Math.min(...data);
-  const max = Math.max(...data);
+  let min = data[0];
+  let max = data[0];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i] < min) min = data[i];
+    if (data[i] > max) max = data[i];
+  }
   const range = max - min;
 
   // Extend range slightly for smooth tails
@@ -117,8 +121,12 @@ export function histogram(data, numBins, histnorm = null) {
     return { bins: [], counts: [], binEdges: [], binLabels: [], percentages: [] };
   }
 
-  const min = Math.min(...data);
-  const max = Math.max(...data);
+  let min = data[0];
+  let max = data[0];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i] < min) min = data[i];
+    if (data[i] > max) max = data[i];
+  }
 
   if (min === max) {
     const bins = [data.length];

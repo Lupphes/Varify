@@ -13,12 +13,19 @@
 import { createGrid } from "ag-grid-community";
 import { CategoricalFilter } from "./CategoricalFilter.js";
 import { CategoricalFloatingFilter } from "./CategoricalFloatingFilter.js";
-import { FORMAT_FIELD_PRIORITY, COLUMN_PRIORITY_ORDER, COLUMN_WIDTHS } from "../config/display.js";
+import {
+  FORMAT_FIELD_PRIORITY,
+  COLUMN_PRIORITY_ORDER,
+  COLUMN_WIDTHS,
+  DEFAULT_COLUMN_WIDTH,
+  CALLER_COLUMN_WIDTH,
+} from "../config/display.js";
 import { UI_COLORS as THEME } from "../config/colors.js";
 import { CallerDetailsModal } from "./table/CallerDetailsModal.js";
 import { TableExporter } from "./table/TableExporter.js";
 import { MetadataService } from "../services/MetadataService.js";
 import { LoggerService } from "../utils/LoggerService.js";
+import { isMissing } from "../utils/DataValidation.js";
 
 const logger = new LoggerService("VariantTableAGGrid");
 const metadataService = new MetadataService();
@@ -57,9 +64,19 @@ export class VariantTableAGGrid {
       rowModelType: "infinite",
       cacheBlockSize: 100,
       maxBlocksInCache: 10,
+      rowBuffer: 20,
+      cacheOverflowSize: 1,
+      maxConcurrentDatasourceRequests: 1,
+      infiniteInitialRowCount: 100,
+      blockLoadDebounceMillis: 50,
+      suppressAnimationFrame: true,
       rowSelection: "multiple",
       suppressRowClickSelection: true,
       animateRows: false,
+      suppressColumnVirtualisation: false,
+      suppressRowVirtualisation: false,
+      enableCellTextSelection: true,
+      ensureDomOrder: false,
       onRowClicked: (event) => this.handleRowClick(event, igvBrowser),
       onSelectionChanged: () => this.updateSelectAllCheckbox(prefix),
       onFilterChanged: () => this.handleFilterChanged(),
@@ -70,10 +87,12 @@ export class VariantTableAGGrid {
       defaultColDef: {
         sortable: true,
         resizable: true,
-        filter: true, // Enable filtering by default
-        floatingFilter: true, // Show filter inputs below headers
-        minWidth: 80, // Minimum width for all columns
-        flex: 0, // Don't flex by default (use explicit widths)
+        filter: true,
+        floatingFilter: true,
+        minWidth: 80,
+        width: DEFAULT_COLUMN_WIDTH,
+        flex: 0,
+        suppressHeaderMenuButton: false,
       },
       overlayLoadingTemplate: '<span class="ag-overlay-loading-center">Loading variants...</span>',
       overlayNoRowsTemplate:
@@ -102,7 +121,7 @@ export class VariantTableAGGrid {
       width: 50,
       pinned: "left",
       lockPosition: true,
-      suppressMenu: true,
+      suppressHeaderMenuButton: true,
       filter: false,
       sortable: false,
     });
@@ -114,7 +133,7 @@ export class VariantTableAGGrid {
         width: 40,
         pinned: "left",
         lockPosition: true,
-        suppressMenu: true,
+        suppressHeaderMenuButton: true,
         filter: false,
         sortable: false,
         cellRenderer: (params) => {
@@ -147,30 +166,31 @@ export class VariantTableAGGrid {
       return true;
     };
 
+    const createFieldColumn = (field, metadata) => {
+      const colDef = {
+        field: field,
+        headerName: field,
+        cellRenderer: (params) => this.getCellRenderer(params, metadata),
+        width:
+          COLUMN_WIDTHS[field] ||
+          (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
+      };
+
+      if (COLUMN_WIDTHS[field]) {
+        colDef.suppressSizeToFit = true;
+      }
+
+      this.configureColumnFilter(colDef, metadata);
+
+      return colDef;
+    };
+
     for (const field of COLUMN_PRIORITY_ORDER) {
       const metadata = fieldMetadata[field];
       if (!metadata) continue;
       if (!hasData(metadata)) continue;
 
-      const colDef = {
-        field: field,
-        headerName: field,
-        cellRenderer: (params) => this.getCellRenderer(params, metadata),
-      };
-
-      if (COLUMN_WIDTHS[field]) {
-        colDef.width = COLUMN_WIDTHS[field];
-      } else {
-        colDef.width = 120;
-
-        if (field.includes("CALLER")) {
-          colDef.width = 150;
-        }
-      }
-
-      this.configureColumnFilter(colDef, metadata);
-
-      columnDefs.push(colDef);
+      columnDefs.push(createFieldColumn(field, metadata));
     }
 
     for (const field of Object.keys(fieldMetadata)) {
@@ -178,26 +198,7 @@ export class VariantTableAGGrid {
         const metadata = fieldMetadata[field];
         if (!hasData(metadata)) continue;
 
-        const colDef = {
-          field: field,
-          headerName: field,
-          cellRenderer: (params) => this.getCellRenderer(params, metadata),
-        };
-
-        if (COLUMN_WIDTHS[field]) {
-          colDef.width = COLUMN_WIDTHS[field];
-          colDef.suppressSizeToFit = true;
-        } else {
-          colDef.width = 120;
-
-          if (field.includes("CALLER")) {
-            colDef.width = 150;
-          }
-        }
-
-        this.configureColumnFilter(colDef, metadata);
-
-        columnDefs.push(colDef);
+        columnDefs.push(createFieldColumn(field, metadata));
       }
     }
 
@@ -210,26 +211,35 @@ export class VariantTableAGGrid {
     columnDefs.push({
       field: "caller",
       headerName: "Caller",
-      width: 120,
+      width: COLUMN_WIDTHS["caller"] || DEFAULT_COLUMN_WIDTH,
       pinned: "left",
+      suppressSizeToFit: !!COLUMN_WIDTHS["caller"],
     });
+
+    const createDetailColumn = (field, metadata) => {
+      const colDef = {
+        field: field,
+        headerName: field,
+        width: COLUMN_WIDTHS[field] || DEFAULT_COLUMN_WIDTH,
+      };
+
+      if (COLUMN_WIDTHS[field]) {
+        colDef.suppressSizeToFit = true;
+      }
+
+      if (metadata.type === "numeric") {
+        colDef.type = "numericColumn";
+      }
+
+      return colDef;
+    };
 
     const formatPriorityOrder = FORMAT_FIELD_PRIORITY;
 
     for (const field of formatPriorityOrder) {
       const metadata = fieldMetadata[field];
       if (metadata) {
-        const colDef = {
-          field: field,
-          headerName: field,
-          width: 120,
-        };
-
-        if (metadata.type === "numeric") {
-          colDef.type = "numericColumn";
-        }
-
-        columnDefs.push(colDef);
+        columnDefs.push(createDetailColumn(field, metadata));
       }
     }
 
@@ -237,17 +247,7 @@ export class VariantTableAGGrid {
       if (!formatPriorityOrder.includes(field) && field !== "caller") {
         if (/^[A-Z]{1,3}$/.test(field)) {
           const metadata = fieldMetadata[field];
-          const colDef = {
-            field: field,
-            headerName: field,
-            width: 120,
-          };
-
-          if (metadata.type === "numeric") {
-            colDef.type = "numericColumn";
-          }
-
-          columnDefs.push(colDef);
+          columnDefs.push(createDetailColumn(field, metadata));
         }
       }
     }
@@ -260,19 +260,34 @@ export class VariantTableAGGrid {
   }
 
   configureColumnFilter(colDef, metadata) {
-    if (colDef.field === "SVTYPE") {
+    const applyCategoricalFilter = (valuesArray, tooltip) => {
+      colDef.filter = "categoricalFilter";
+      colDef.floatingFilter = true;
+      colDef.floatingFilterComponent = "categoricalFloatingFilter";
+      colDef.filterParams = {
+        uniqueValues: valuesArray,
+      };
+      colDef.minWidth = 150;
+      colDef.headerTooltip = tooltip;
+    };
+
+    const applyTextFilter = () => {
+      colDef.filter = "agTextColumnFilter";
+      colDef.filterParams = {
+        maxNumConditions: 1,
+      };
+    };
+
+    // Special handling for SVTYPE and SUPP_CALLERS - always use categorical filter
+    if (colDef.field === "SVTYPE" || colDef.field === "SUPP_CALLERS") {
       const valuesArray = metadataService.getUniqueValues(metadata);
 
       if (valuesArray.length > 0) {
-        colDef.filter = "categoricalFilter";
-        colDef.floatingFilter = true;
-        colDef.floatingFilterComponent = "categoricalFloatingFilter";
-        colDef.filterParams = {
-          uniqueValues: valuesArray,
-        };
-        colDef.minWidth = 150;
-        colDef.width = 200;
-        colDef.headerTooltip = `SV Type (categorical). Values: ${valuesArray.join(", ")}`;
+        const fieldLabel = colDef.field === "SVTYPE" ? "SV Type" : "Caller";
+        applyCategoricalFilter(
+          valuesArray,
+          `${fieldLabel} (categorical). Values: ${valuesArray.join(", ")}`
+        );
         return;
       }
     }
@@ -287,26 +302,12 @@ export class VariantTableAGGrid {
       const valuesArray = metadataService.getUniqueValues(metadata);
 
       if (valuesArray.length > 0 && valuesArray.length < 20) {
-        colDef.filter = "categoricalFilter";
-        colDef.floatingFilter = true;
-        colDef.floatingFilterComponent = "categoricalFloatingFilter";
-        colDef.filterParams = {
-          uniqueValues: valuesArray,
-        };
-        colDef.minWidth = 150;
-        colDef.width = 200;
-        colDef.headerTooltip = `Categorical field. Values: ${valuesArray.join(", ")}`;
+        applyCategoricalFilter(valuesArray, `Categorical field. Values: ${valuesArray.join(", ")}`);
       } else {
-        colDef.filter = "agTextColumnFilter";
-        colDef.filterParams = {
-          maxNumConditions: 1,
-        };
+        applyTextFilter();
       }
     } else {
-      colDef.filter = "agTextColumnFilter";
-      colDef.filterParams = {
-        maxNumConditions: 1,
-      };
+      applyTextFilter();
     }
   }
 
@@ -314,19 +315,19 @@ export class VariantTableAGGrid {
     const value = params.value;
     const span = document.createElement("span");
 
-    if (
-      value === null ||
-      value === undefined ||
-      value === "" ||
-      value === "." ||
-      (typeof value === "string" && value.toUpperCase() === "NAN")
-    ) {
+    if (isMissing(value)) {
       span.style.color = THEME.data.missingValue;
       span.textContent = "—";
       return span;
     }
 
-    const hasConflict = this.checkFieldConflict(params);
+    const addConflictIfNeeded = (element) => {
+      const hasConflict = this.checkFieldConflict(params);
+      if (hasConflict) {
+        this.addConflictIndicator(element, params);
+      }
+      return element;
+    };
 
     if (
       (params.colDef.field === "CIPOS" || params.colDef.field === "CIEND") &&
@@ -334,10 +335,7 @@ export class VariantTableAGGrid {
       value.includes(",")
     ) {
       span.textContent = `[${value.replace(/,/g, ", ")}]`;
-      if (hasConflict) {
-        this.addConflictIndicator(span, params);
-      }
-      return span;
+      return addConflictIfNeeded(span);
     }
 
     if (typeof value === "string" && value.includes(",")) {
@@ -356,28 +354,19 @@ export class VariantTableAGGrid {
           span.appendChild(document.createTextNode(", "));
         }
       });
-      if (hasConflict) {
-        this.addConflictIndicator(span, params);
-      }
-      return span;
+      return addConflictIfNeeded(span);
     }
 
     if (metadata && metadata.type === "numeric") {
       const num = parseFloat(value);
       if (!isNaN(num)) {
         span.textContent = num.toLocaleString();
-        if (hasConflict) {
-          this.addConflictIndicator(span, params);
-        }
-        return span;
+        return addConflictIfNeeded(span);
       }
     }
 
     span.textContent = String(value);
-    if (hasConflict) {
-      this.addConflictIndicator(span, params);
-    }
-    return span;
+    return addConflictIfNeeded(span);
   }
 
   checkFieldConflict(params) {
@@ -417,102 +406,138 @@ export class VariantTableAGGrid {
   }
 
   createDatasource(prefix) {
+    let cachedCount = null;
+    let lastFilterModel = null;
+    let requestCounter = 0;
+    let debounceTimer = null;
+    let currentRequestId = null;
+
     return {
       rowCount: undefined,
       getRows: async (params) => {
-        try {
-          const filters = this.extractFilters(params.filterModel);
-
-          const sort =
-            params.sortModel && params.sortModel.length > 0
-              ? {
-                  field: params.sortModel[0].colId,
-                  direction: params.sortModel[0].sort,
-                }
-              : null;
-
-          const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
-
-          logger.debug(
-            `Querying IndexedDB: offset=${params.startRow}, limit=${params.endRow - params.startRow}`,
-            { filters, sort, multiCallerMode }
-          );
-
-          // Query IndexedDB
-          const variants = await this.genomeDBManager.queryVariants(prefix, filters, {
-            offset: params.startRow,
-            limit: params.endRow - params.startRow,
-            sort: sort,
-            multiCallerMode: multiCallerMode,
-          });
-
-          const totalCount = await this.genomeDBManager.getVariantCount(prefix, filters, {
-            multiCallerMode: multiCallerMode,
-          });
-
-          logger.debug(`Retrieved ${variants.length} variants (total: ${totalCount})`);
-
-          const flattenedVariants = variants.map((v) => this.flattenVariant(v));
-
-          if (prefix === "survivor" && flattenedVariants.length > 0 && !window._loggedAllCallers) {
-            window._loggedAllCallers = true;
-            const firstVariant = flattenedVariants[0];
-            logger.debug("=== First Grid Variant ===");
-            logger.debug("Has _allCallers:", !!firstVariant._allCallers);
-            logger.debug("_allCallers length:", firstVariant._allCallers?.length);
-            logger.debug("_allCallers:", firstVariant._allCallers);
-          }
-
-          params.successCallback(flattenedVariants, totalCount);
-
-          if (!this.hasNavigatedToFirst && flattenedVariants.length > 0 && params.startRow === 0) {
-            this.hasNavigatedToFirst = true;
-            this.navigateToVariant(flattenedVariants[0], null, false);
-          }
-        } catch (error) {
-          logger.error("Error loading variants from IndexedDB:", error);
-          params.failCallback();
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
         }
+
+        debounceTimer = setTimeout(async () => {
+          // Track current request and check if it's still current when query completes
+          const thisRequestId = ++requestCounter;
+          currentRequestId = thisRequestId;
+
+          const queryId = `table-${thisRequestId}`;
+          const countQueryId = `table-count-${thisRequestId}`;
+
+          try {
+            const filterModelStr = JSON.stringify(params.filterModel);
+            const filterChanged = filterModelStr !== lastFilterModel;
+
+            if (filterChanged) {
+              cachedCount = null;
+              lastFilterModel = filterModelStr;
+            }
+
+            const filters = this.extractFilters(params.filterModel);
+            const sort =
+              params.sortModel?.length > 0
+                ? { field: params.sortModel[0].colId, direction: params.sortModel[0].sort }
+                : null;
+
+            const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
+
+            const [variants, count] = await Promise.all([
+              this.genomeDBManager.queryVariants(prefix, filters, {
+                offset: params.startRow,
+                limit: params.endRow - params.startRow,
+                sort: sort,
+                multiCallerMode: multiCallerMode,
+                queryId: queryId,
+              }),
+              cachedCount === null
+                ? this.genomeDBManager.getVariantCount(prefix, filters, {
+                    multiCallerMode,
+                    queryId: countQueryId,
+                  })
+                : Promise.resolve(cachedCount),
+            ]);
+
+            // Check if this request is still current (not superseded by a newer request)
+            if (currentRequestId !== thisRequestId) {
+              logger.debug(
+                `Table request ${thisRequestId} superseded by ${currentRequestId}, ignoring results`
+              );
+              return;
+            }
+
+            if (cachedCount === null) {
+              cachedCount = count;
+            }
+
+            const lastRow =
+              variants.length < params.endRow - params.startRow
+                ? params.startRow + variants.length
+                : undefined;
+
+            params.successCallback(variants, lastRow !== undefined ? lastRow : cachedCount);
+
+            if (!this.hasNavigatedToFirst && variants.length > 0 && params.startRow === 0) {
+              this.hasNavigatedToFirst = true;
+              this.navigateToVariant(variants[0], null, false);
+            }
+          } catch (error) {
+            if (error.message !== "Query cancelled") {
+              logger.error("Error loading variants from IndexedDB:", error);
+              params.failCallback();
+            } else {
+              // Don't call failCallback for cancelled queries - just ignore them
+              logger.debug("Table query cancelled, ignoring");
+            }
+          }
+        }, 50);
       },
     };
   }
 
   extractFilters(filterModel) {
     if (!filterModel) return {};
-    const filters = {};
 
-    for (const [field, filter] of Object.entries(filterModel)) {
+    const filters = {};
+    const entries = Object.entries(filterModel);
+
+    for (let i = 0; i < entries.length; i++) {
+      const [field, filter] = entries[i];
       if (!filter) continue;
 
-      if (filter.filterType === "number") {
-        if (filter.type === "greaterThan") {
+      const filterType = filter.filterType;
+
+      if (filterType === "number") {
+        const type = filter.type;
+        if (type === "greaterThan") {
           filters[field] = { min: filter.filter };
-        } else if (filter.type === "lessThan") {
+        } else if (type === "lessThan") {
           filters[field] = { max: filter.filter };
-        } else if (filter.type === "inRange") {
+        } else if (type === "inRange") {
           filters[field] = { min: filter.filter, max: filter.filterTo };
-        } else if (filter.type === "equals") {
+        } else if (type === "equals") {
           filters[field] = { min: filter.filter, max: filter.filter };
         }
-      } else if (filter.filterType === "set") {
-        if (filter.values && filter.values.length > 0) {
+      } else if (filterType === "set") {
+        if (filter.values?.length > 0) {
           filters[field] = { values: filter.values };
         }
-      } else if (filter.filterType === "categorical") {
-        if (filter.selectedValues && filter.selectedValues.length > 0) {
+      } else if (filterType === "categorical") {
+        if (filter.selectedValues?.length > 0) {
           filters[field] = { values: filter.selectedValues };
-        } else if (filter.values && filter.values.length > 0) {
+        } else if (filter.values?.length > 0) {
           filters[field] = { values: filter.values };
         }
-      } else if (filter.filterType === "text") {
-        if (filter.type === "contains") {
-          filters[field] = filter.filter;
-        } else if (filter.type === "equals") {
+      } else if (filterType === "text") {
+        const type = filter.type;
+        if (type === "contains" || type === "equals") {
           filters[field] = filter.filter;
         }
-      } else if (filter.values && Array.isArray(filter.values)) {
+      } else if (filter.values?.length > 0) {
         filters[field] = { values: filter.values };
-      } else if (filter.selectedValues && Array.isArray(filter.selectedValues)) {
+      } else if (filter.selectedValues?.length > 0) {
         filters[field] = { values: filter.selectedValues };
       }
     }
@@ -531,6 +556,12 @@ export class VariantTableAGGrid {
     const maxlen = 10000;
     const flanking = 1000;
 
+    const createMultiLocus = (chrom1, pos1, chrom2, pos2) => {
+      const locus1 = `${chrom1}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
+      const locus2 = `${chrom2}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
+      return `${locus1} ${locus2}`;
+    };
+
     const isTranslocation = variant.CHR2 && variant.CHR2 !== variant.CHROM;
     const svlen = variant.SVLEN ? Math.abs(parseInt(variant.SVLEN)) : 0;
     const isLargeSV = svlen > maxlen;
@@ -540,16 +571,12 @@ export class VariantTableAGGrid {
     if (isTranslocation) {
       const pos1 = parseInt(variant.POS);
       const pos2 = parseInt(variant.END || variant.POS);
-      const locus1 = `${variant.CHROM}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
-      const locus2 = `${variant.CHR2}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
-      locus = `${locus1} ${locus2}`;
+      locus = createMultiLocus(variant.CHROM, pos1, variant.CHR2, pos2);
       logger.debug(`Navigating IGV to translocation (multi-locus): ${locus}`);
     } else if (isLargeSV && variant.END) {
       const pos1 = parseInt(variant.POS);
       const pos2 = parseInt(variant.END);
-      const locus1 = `${variant.CHROM}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
-      const locus2 = `${variant.CHROM}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
-      locus = `${locus1} ${locus2}`;
+      locus = createMultiLocus(variant.CHROM, pos1, variant.CHROM, pos2);
       logger.debug(`Navigating IGV to large SV (multi-locus): ${locus}`);
     } else {
       locus = variant.locus || `${variant.CHROM || variant.chr}:${variant.POS || variant.pos}`;
@@ -591,69 +618,96 @@ export class VariantTableAGGrid {
   }
 
   async getFieldMetadata(prefix) {
-    if (window[`${prefix}FieldMetadata`]) {
+    const variantCount = await this.genomeDBManager.getVariantCount(prefix, {});
+    const cacheKey = `${prefix}_metadata_cache_v${variantCount}`;
+
+    if (window[`${prefix}FieldMetadata`] && window[`${prefix}FieldMetadataCacheKey`] === cacheKey) {
       return window[`${prefix}FieldMetadata`];
     }
 
-    logger.info(`Analyzing field metadata for ${prefix}...`);
-    const metadata = {};
-
-    const variants = await this.genomeDBManager.queryVariants(prefix, {}, { limit: 10000 });
-
-    if (variants.length === 0) {
-      return metadata;
+    try {
+      const cachedMetadata = await this.genomeDBManager.getFile(cacheKey);
+      if (cachedMetadata) {
+        const decoder = new TextDecoder("utf-8");
+        const text = decoder.decode(cachedMetadata);
+        const metadata = JSON.parse(text);
+        window[`${prefix}FieldMetadata`] = metadata;
+        window[`${prefix}FieldMetadataCacheKey`] = cacheKey;
+        logger.info(
+          `Loaded cached metadata for ${prefix} (${Object.keys(metadata).length} fields)`
+        );
+        return metadata;
+      }
+    } catch (error) {
+      logger.debug(`No cached metadata found for ${prefix}, computing...`);
     }
 
-    const fieldValues = {};
-
-    variants.forEach((variant) => {
-      Object.entries(variant).forEach(([field, value]) => {
-        if (field.startsWith("_")) return;
-        if (typeof value === "object" && value !== null && !Array.isArray(value)) return;
-
-        if (!fieldValues[field]) {
-          fieldValues[field] = {
-            values: [],
-            numericValues: [],
-            count: 0,
-          };
-        }
-
-        if (value !== null && value !== undefined && value !== "" && value !== ".") {
-          fieldValues[field].count++;
-          fieldValues[field].values.push(value);
-
-          const numValue = Number(value);
-          if (!isNaN(numValue) && typeof value !== "boolean") {
-            fieldValues[field].numericValues.push(numValue);
-          }
+    await this.genomeDBManager.listFiles().then((files) => {
+      files.forEach((file) => {
+        if (file.startsWith(`${prefix}_metadata_cache_`)) {
+          this.genomeDBManager.deleteFile(file).catch(() => {});
         }
       });
     });
 
-    Object.entries(fieldValues).forEach(([field, data]) => {
-      if (data.count === 0) return;
+    logger.info(`Analyzing field metadata for ${prefix} (sampling 1000 variants)...`);
 
-      const isNumeric = data.numericValues.length > data.count * 0.8;
+    const variants = await this.genomeDBManager.queryVariants(prefix, {}, { limit: 1000 });
 
-      if (isNumeric) {
-        metadata[field] = {
-          type: "numeric",
-          count: data.count,
-          min: Math.min(...data.numericValues),
-          max: Math.max(...data.numericValues),
-        };
-      } else {
-        const uniqueValues = [...new Set(data.values)];
-        metadata[field] = {
-          type: uniqueValues.length < 50 ? "categorical" : "string",
-          count: data.count,
-          uniqueValues: uniqueValues.length < 50 ? uniqueValues : undefined,
-        };
-      }
+    if (variants.length === 0) {
+      return {};
+    }
+
+    // Use MetadataService for consistent metadata analysis (including SUPP_CALLERS parsing)
+    // Dynamically detect computed fields from the first variant
+    const computedFields = new Set();
+    if (variants.length > 0 && variants[0]._variant && variants[0]._variant._computed) {
+      Object.keys(variants[0]._variant._computed).forEach((field) => computedFields.add(field));
+    }
+
+    const fieldValues = {};
+    variants.forEach((variant) => {
+      Object.entries(variant).forEach(([field, value]) => {
+        if (field.startsWith("_")) return;
+        if (typeof value === "object" && value !== null && !Array.isArray(value)) return;
+        if (computedFields.has(field)) return; // Skip computed fields
+
+        if (!fieldValues[field]) {
+          fieldValues[field] = [];
+        }
+
+        fieldValues[field].push(value);
+      });
     });
 
+    const metadata = {};
+    Object.entries(fieldValues).forEach(([field, values]) => {
+      const fieldMetadata = metadataService.analyzeField(field, values);
+      metadata[field] = {
+        type: fieldMetadata.type,
+        count: values.filter((v) => v !== null && v !== undefined && v !== "" && v !== ".").length,
+        min: fieldMetadata.min,
+        max: fieldMetadata.max,
+        uniqueValues:
+          fieldMetadata.uniqueValues.size > 0 ? Array.from(fieldMetadata.uniqueValues) : undefined,
+      };
+    });
+
+    try {
+      const metadataJson = JSON.stringify(metadata);
+      const encoder = new TextEncoder();
+      const data = encoder.encode(metadataJson);
+      await this.genomeDBManager.storeFile(cacheKey, data.buffer, {
+        type: "metadata",
+        timestamp: Date.now(),
+      });
+      logger.debug(`Cached metadata for ${prefix} with key ${cacheKey}`);
+    } catch (error) {
+      logger.warn(`Failed to cache metadata: ${error.message}`);
+    }
+
     window[`${prefix}FieldMetadata`] = metadata;
+    window[`${prefix}FieldMetadataCacheKey`] = cacheKey;
 
     return metadata;
   }
@@ -680,51 +734,89 @@ export class VariantTableAGGrid {
     }
 
     this._filterTimeout = setTimeout(async () => {
+      // Cancel only chart-related queries, not table queries
+      this.genomeDBManager.cancelQueriesByPrefix("chart-update-");
+
+      const currentQueryId = `chart-update-${Date.now()}`;
+      this._chartUpdateQueryId = currentQueryId;
+
       try {
         const filterModel = this.gridApi.getFilterModel();
         logger.debug("AG-Grid filter model:", filterModel);
-        logger.debug("Filter model details:", JSON.stringify(filterModel, null, 2));
-
-        if (Object.keys(filterModel).length === 0) {
-          const allVariants = await this.genomeDBManager.queryVariants(
-            this.prefix,
-            {},
-            { limit: Infinity }
-          );
-          logger.debug(`No filters active: ${allVariants.length} variants`);
-          await this.plotsComponent.updateFromFilteredData(allVariants);
-          return;
-        }
 
         const dbFilters = this.extractFilters(filterModel);
         logger.debug("Converted to DB filters:", dbFilters);
 
-        const filteredData = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
-          limit: Infinity,
+        this.showChartLoadingOverlay(`Counting variants...`);
+
+        const totalCount = await this.genomeDBManager.getVariantCount(this.prefix, dbFilters, {
+          queryId: `${currentQueryId}-count`,
         });
 
-        logger.debug(`Filter changed: ${filteredData.length} variants`);
-
-        if (filteredData.length > 0 && dbFilters.QUAL) {
-          logger.debug("Sample QUAL values from filtered data:");
-          filteredData.slice(0, 5).forEach((v, i) => {
-            logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
-          });
-        } else if (filteredData.length === 0 && dbFilters.QUAL) {
-          const sampleVariants = await this.genomeDBManager.queryVariants(
-            this.prefix,
-            {},
-            { limit: 10 }
-          );
-          logger.debug("No variants matched QUAL filter. Sample QUAL values from DB:");
-          sampleVariants.forEach((v, i) => {
-            logger.debug(`  Variant ${i}: QUAL = ${v.QUAL} (type: ${typeof v.QUAL})`);
-          });
+        // Check if this query was cancelled while counting
+        if (this._chartUpdateQueryId !== currentQueryId) {
+          logger.debug("Query superseded during count");
+          return;
         }
 
+        logger.debug(`Filter changed: ${totalCount} variants match`);
+
+        if (totalCount === 0) {
+          logger.info("No variants match filters, updating charts with empty data");
+          await this.plotsComponent.updateFromFilteredData([]);
+          this.hideChartLoadingOverlay();
+          return;
+        }
+
+        this.showChartLoadingOverlay(`Loading ${totalCount.toLocaleString()} variants...`);
+
+        const chunkSize = 10000;
+        const numChunks = Math.ceil(totalCount / chunkSize);
+        const filteredData = [];
+
+        for (let i = 0; i < numChunks; i++) {
+          // Check if cancelled before each chunk
+          if (this._chartUpdateQueryId !== currentQueryId) {
+            logger.debug("Query cancelled during chunk loading");
+            return;
+          }
+
+          const chunk = await this.genomeDBManager.queryVariants(this.prefix, dbFilters, {
+            offset: i * chunkSize,
+            limit: chunkSize,
+            queryId: `${currentQueryId}-chunk-${i}`,
+          });
+
+          filteredData.push(...chunk);
+
+          if (i % 5 === 0 || i === numChunks - 1) {
+            this.showChartLoadingOverlay(
+              `Loading variants: ${filteredData.length.toLocaleString()} / ${totalCount.toLocaleString()}`
+            );
+          }
+
+          if (i % 10 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+
+        if (this._chartUpdateQueryId !== currentQueryId) {
+          logger.debug("Query cancelled before chart update");
+          return;
+        }
+
+        logger.info(`Loaded ${filteredData.length} variants for charts`);
+
+        this.showChartLoadingOverlay(`Updating ${this.plotsComponent.charts.size} charts...`);
         await this.plotsComponent.updateFromFilteredData(filteredData);
+        this.hideChartLoadingOverlay();
       } catch (error) {
-        logger.error("Error updating plots:", error);
+        this.hideChartLoadingOverlay();
+        if (error.message !== "Query cancelled") {
+          logger.error("Error updating plots:", error);
+        } else {
+          logger.debug("Query was cancelled");
+        }
       }
     }, 300);
   }
@@ -733,22 +825,6 @@ export class VariantTableAGGrid {
     if (!this.gridApi) return;
 
     logger.debug("Applying filter from plot:", filterCriteria);
-
-    if (filterCriteria.SVTYPE) {
-      this.genomeDBManager
-        .queryVariants(this.prefix, {}, { limit: Infinity })
-        .then((allVariants) => {
-          const matchingExact = allVariants.filter(
-            (v) => v.SVTYPE === filterCriteria.SVTYPE
-          ).length;
-          const matchingContains = allVariants.filter(
-            (v) => v.SVTYPE && v.SVTYPE.includes(filterCriteria.SVTYPE)
-          ).length;
-          logger.debug(
-            `SVTYPE="${filterCriteria.SVTYPE}" - Exact matches: ${matchingExact}, Contains matches: ${matchingContains}`
-          );
-        });
-    }
 
     const filterModel = {};
 
@@ -789,5 +865,96 @@ export class VariantTableAGGrid {
     }
 
     this.gridApi.setFilterModel(filterModel);
+  }
+
+  showChartLoadingOverlay(message) {
+    const containerId = `${this.prefix}-charts-container`;
+    const container = document.getElementById(containerId);
+    if (!container) {
+      logger.warn(`Charts container not found: ${containerId}`);
+      return;
+    }
+
+    let overlay = container.querySelector(".chart-loading-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "chart-loading-overlay";
+      overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        gap: 16px;
+      `;
+
+      const spinner = document.createElement("div");
+      spinner.className = "spinner";
+      spinner.style.cssText = `
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      `;
+
+      const text = document.createElement("div");
+      text.className = "loading-text";
+      text.style.cssText = `
+        font-size: 16px;
+        color: #333;
+        font-weight: 500;
+      `;
+      text.textContent = message;
+
+      overlay.appendChild(spinner);
+      overlay.appendChild(text);
+      container.style.position = "relative";
+      container.appendChild(overlay);
+
+      if (!document.getElementById("chart-loading-animation")) {
+        const style = document.createElement("style");
+        style.id = "chart-loading-animation";
+        style.textContent = `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      window.updateChartLoadingProgress = (msg) => {
+        const textEl = overlay.querySelector(".loading-text");
+        if (textEl) textEl.textContent = msg;
+      };
+    } else {
+      const textEl = overlay.querySelector(".loading-text");
+      if (textEl) textEl.textContent = message;
+      overlay.style.display = "flex";
+    }
+  }
+
+  hideChartLoadingOverlay() {
+    const containerId = `${this.prefix}-charts-container`;
+    const container = document.getElementById(containerId);
+    if (!container) {
+      logger.warn(`Charts container not found for cleanup: ${containerId}`);
+      return;
+    }
+
+    const overlay = container.querySelector(".chart-loading-overlay");
+    if (overlay) {
+      overlay.remove();
+    }
+
+    window.updateChartLoadingProgress = null;
   }
 }

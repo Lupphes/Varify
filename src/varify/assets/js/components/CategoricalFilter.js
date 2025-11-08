@@ -1,9 +1,11 @@
 /**
- * Custom Categorical Filter for AG-Grid Community Edition
+ * Custom Categorical Filter for AG-Grid
  *
  * Provides a multi-select checkbox filter for categorical fields (SVTYPE, FILTER, GT, etc.)
  * Works with Client-Side Row Model - filtering happens in-memory using doesFilterPass().
  */
+
+import { parseSuppCallers } from "../utils/DataValidation.js";
 
 export class CategoricalFilter {
   /**
@@ -143,7 +145,14 @@ export class CategoricalFilter {
       return true;
     }
 
-    const value = params.data[this.params.colDef.field];
+    const field = this.params.colDef.field;
+    const value = params.data[field];
+
+    // Special handling for SUPP_CALLERS - check if any selected caller is in the comma-separated string
+    if (field === "SUPP_CALLERS" && typeof value === "string") {
+      const callers = parseSuppCallers(value);
+      return callers.some((caller) => this.selectedValues.has(caller));
+    }
 
     return this.selectedValues.has(String(value));
   }

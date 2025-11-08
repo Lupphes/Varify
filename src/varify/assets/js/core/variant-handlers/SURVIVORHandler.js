@@ -133,7 +133,7 @@ export class SURVIVORHandler extends BaseVariantHandler {
       if (suppVec[i] === "1") {
         let callerName;
         if (callerIndex < suppCallers.length) {
-          // Use SUPP_CALLERS if available (most reliable)
+          // Use SUPP_CALLERS if available
           callerName = suppCallers[callerIndex];
         } else if (variant.id && variant.id.includes("_")) {
           // Fallback: Extract from variant ID

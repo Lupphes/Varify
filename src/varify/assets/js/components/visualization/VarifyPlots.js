@@ -74,10 +74,11 @@ export class VarifyPlots {
 
     try {
       logger.debug(`Querying IndexedDB for variants with type: ${this.vcfType}`);
-      this.variants = await this.dbManager.queryVariants(this.vcfType, {}, { limit: Infinity });
-      logger.debug(`Loaded ${this.variants.length} variants from IndexedDB`);
 
-      if (this.variants.length === 0) {
+      const totalCount = await this.dbManager.getVariantCount(this.vcfType, {});
+      logger.debug(`Total variant count: ${totalCount}`);
+
+      if (totalCount === 0) {
         logger.error(`No variants found in IndexedDB for type: ${this.vcfType}`);
         logger.debug(`Checking what's stored in IndexedDB...`);
         const allBcf = await this.dbManager.queryVariants("bcf", {}, { limit: 10 });
@@ -87,6 +88,16 @@ export class VarifyPlots {
         );
         return;
       }
+
+      logger.info(`Loading ${totalCount} variants for plots...`);
+      this.variants = await this.dbManager.queryVariants(
+        this.vcfType,
+        {},
+        {
+          limit: totalCount > 0 ? totalCount : 500000,
+        }
+      );
+      logger.debug(`Loaded ${this.variants.length} variants from IndexedDB`);
 
       await this.renderAllCharts();
 
@@ -202,7 +213,9 @@ export class VarifyPlots {
    * @param {Array} filteredVariants - Filtered variants from AG-Grid
    */
   async updateFromFilteredData(filteredVariants) {
-    logger.debug(`Updating plots with ${filteredVariants.length} filtered variants`);
+    logger.info(
+      `Updating ${this.charts.size} charts with ${filteredVariants.length} filtered variants`
+    );
 
     if (!this.isInitialized) {
       logger.warn("Cannot update - not initialized");
@@ -212,32 +225,73 @@ export class VarifyPlots {
     const previousVariants = this.variants;
     this.variants = filteredVariants;
 
-    for (const [id, chart] of this.charts.entries()) {
-      try {
-        const container = chart.getDom();
+    const chartEntries = Array.from(this.charts.entries());
 
-        chart.dispose();
+    if (chartEntries.length === 0) {
+      logger.warn("No charts to update");
+      return;
+    }
 
-        const chartDef = this.getChartDefinition(id);
+    const batchSize = 3;
+    let successCount = 0;
+    let errorCount = 0;
 
-        if (!chartDef) {
-          logger.warn(`Chart definition not found: ${id}`);
-          continue;
-        }
+    for (let i = 0; i < chartEntries.length; i += batchSize) {
+      const batch = chartEntries.slice(i, i + batchSize);
 
-        const newChart =
-          id === "caller-combinations"
-            ? chartDef.fn(this.variants, this.vcfType, echarts, container, this.eventBus)
-            : chartDef.fn(this.variants, echarts, container, this.eventBus);
+      const progress = Math.min(i + batchSize, chartEntries.length);
+      if (window.updateChartLoadingProgress) {
+        window.updateChartLoadingProgress(`Updating charts: ${progress} / ${chartEntries.length}`);
+      }
 
-        this.charts.set(id, newChart);
-      } catch (error) {
-        logger.error(`Error updating chart ${id}:`, error);
-        this.variants = previousVariants;
+      await Promise.all(
+        batch.map(async ([id, chart]) => {
+          try {
+            const container = chart.getDom();
+
+            if (!container) {
+              logger.error(`No container found for chart ${id}`);
+              errorCount++;
+              return;
+            }
+
+            chart.dispose();
+
+            const chartDef = this.getChartDefinition(id);
+            if (!chartDef) {
+              logger.warn(`Chart definition not found: ${id}`);
+              errorCount++;
+              return;
+            }
+
+            const newChart =
+              id === "caller-combinations"
+                ? chartDef.fn(this.variants, this.vcfType, echarts, container, this.eventBus)
+                : chartDef.fn(this.variants, echarts, container, this.eventBus);
+
+            if (!newChart) {
+              logger.error(`Failed to create chart ${id}`);
+              errorCount++;
+              return;
+            }
+
+            this.charts.set(id, newChart);
+            successCount++;
+            logger.debug(`Successfully updated chart: ${id}`);
+          } catch (error) {
+            logger.error(`Error updating chart ${id}:`, error);
+            errorCount++;
+            this.variants = previousVariants;
+          }
+        })
+      );
+
+      if (i + batchSize < chartEntries.length) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
 
-    logger.debug("Charts updated");
+    logger.info(`Chart update complete: ${successCount} successful, ${errorCount} errors`);
   }
 
   /**

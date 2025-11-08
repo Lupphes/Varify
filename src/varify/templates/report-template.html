@@ -10,19 +10,25 @@
 
   <body class="bg-gray-50 text-gray-800 font-sans antialiased">
     <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
-      <div class="container mx-auto px-6 py-8">
-        <h1 class="text-4xl font-bold">Varify</h1>
-        <p class="text-blue-100 mt-2">Structural Variant Analysis Report</p>
-        <p class="text-sm mt-3 text-blue-200" id="header-metadata">Loading report information...</p>
+      <div class="container mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">Varify</h1>
+        <p class="text-blue-100 mt-1 sm:mt-2 text-sm sm:text-base">
+          Structural Variant Analysis Report
+        </p>
+        <p class="text-xs sm:text-sm mt-2 sm:mt-3 text-blue-200 break-words" id="header-metadata">
+          Loading report information...
+        </p>
       </div>
     </header>
 
-    <div class="container mx-auto px-6 py-6">
-      <div class="bg-white rounded-lg shadow-md mb-6 p-4 flex flex-wrap items-center gap-4">
-        <div class="flex gap-2 flex-1">
+    <div class="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
+      <div
+        class="bg-white rounded-lg shadow-md mb-4 sm:mb-6 p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4"
+      >
+        <div class="flex gap-2 flex-1 min-w-fit">
           <button id="tab-bcf" class="tab-button active">
             <svg
-              class="w-5 h-5 inline-block mr-2"
+              class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1 sm:mr-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -38,7 +44,7 @@
           </button>
           <button id="tab-survivor" class="tab-button">
             <svg
-              class="w-5 h-5 inline-block mr-2"
+              class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1 sm:mr-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -54,12 +60,12 @@
           </button>
         </div>
 
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-2 sm:gap-3">
           <div
-            class="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200"
+            class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200"
           >
             <svg
-              class="w-5 h-5 text-gray-400"
+              class="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -71,12 +77,43 @@
                 d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
               ></path>
             </svg>
-            <span class="text-sm text-gray-600" id="cache-status-text">Checking cache...</span>
-            <span class="text-sm text-gray-500" id="cache-size-text"></span>
+            <span class="text-xs sm:text-sm text-gray-600" id="cache-status-text"
+              >Checking cache...</span
+            >
+            <span class="text-xs sm:text-sm text-gray-500" id="cache-size-text"></span>
           </div>
 
-          <button id="load-data-btn" class="btn-primary">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div
+            class="flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-lg border border-orange-200"
+            title="Total storage used by all Varify reports"
+          >
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+              ></path>
+            </svg>
+            <span class="text-xs sm:text-sm text-gray-600">All reports:</span>
+            <span class="text-xs sm:text-sm font-medium text-orange-600" id="total-storage-text"
+              >--</span
+            >
+            <span class="text-xs text-gray-500" id="total-db-count"></span>
+          </div>
+
+          <button id="load-data-btn" class="btn-primary text-xs sm:text-sm">
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -87,8 +124,13 @@
             Load Data
           </button>
 
-          <button id="clear-cache-btn" class="btn-danger">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button id="clear-cache-btn" class="btn-danger text-xs sm:text-sm">
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -98,6 +140,27 @@
             </svg>
             Clear Cache
           </button>
+
+          <button
+            id="clear-all-cache-btn"
+            class="btn-danger text-xs sm:text-sm"
+            title="Delete all Varify databases from all reports"
+          >
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              ></path>
+            </svg>
+            Clear All
+          </button>
         </div>
       </div>
 
@@ -105,12 +168,20 @@
         <div id="bcf-empty-state"></div>
 
         <div id="bcf-content" class="hidden">
-          <div id="bcf-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+          <div
+            id="bcf-summary-cards"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6"
+          ></div>
 
-          <div class="grid grid-cols-1 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <h2 class="section-header">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="grid grid-cols-1 gap-4 sm:gap-6 mb-4 sm:mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 class="section-header text-base sm:text-lg">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -123,10 +194,10 @@
 
               <div
                 id="filter-controls-bcf"
-                class="flex flex-wrap gap-2 mb-4 items-center text-sm"
+                class="flex flex-wrap gap-2 mb-3 sm:mb-4 items-center text-xs sm:text-sm"
               ></div>
 
-              <div class="export-controls mb-4 flex gap-2">
+              <div class="export-controls mb-3 sm:mb-4 flex flex-col sm:flex-row gap-2">
                 <button id="export-csv-bcf" class="btn-secondary text-sm">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -167,14 +238,19 @@
 
               <div
                 id="bcf-table-container"
-                class="ag-theme-alpine"
-                style="height: 500px; width: 100%"
+                class="overflow-x-auto"
+                style="height: 400px; width: 100%"
               ></div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <h2 class="section-header">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 class="section-header text-base sm:text-lg">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -184,17 +260,19 @@
                 </svg>
                 IGV Genome Browser
               </h2>
-              <p class="text-sm text-gray-600 mb-4">
+              <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 Click on any variant in the table to navigate the genome browser to that locus.
               </p>
-              <div id="bcf-igv-div" style="height: 400px"></div>
+              <div id="bcf-igv-div" class="w-full" style="height: 300px; min-height: 300px"></div>
             </div>
           </div>
 
-          <details class="mb-6" open>
-            <summary class="text-lg">
+          <details class="mb-4 sm:mb-6" open>
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
-                class="w-5 h-5 inline-block mr-2"
+                class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -208,19 +286,24 @@
               </svg>
               Charts & Visualizations
             </summary>
-            <div>
-              <p class="text-sm text-gray-600 mb-4">
+            <div class="mt-3 sm:mt-4">
+              <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 Click on any plot element to filter the variant table. Charts update dynamically
                 based on table filters.
               </p>
-              <div id="bcf-charts-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+              <div
+                id="bcf-charts-container"
+                class="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6"
+              ></div>
             </div>
           </details>
 
-          <details class="mb-6">
-            <summary class="text-lg">
+          <details class="mb-4 sm:mb-6">
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
-                class="w-5 h-5 inline-block mr-2"
+                class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -247,12 +330,20 @@
         <div id="survivor-empty-state"></div>
 
         <div id="survivor-content" class="hidden">
-          <div id="survivor-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+          <div
+            id="survivor-summary-cards"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6"
+          ></div>
 
-          <div class="grid grid-cols-1 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <h2 class="section-header">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="grid grid-cols-1 gap-4 sm:gap-6 mb-4 sm:mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 class="section-header text-base sm:text-lg">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -265,7 +356,7 @@
 
               <div
                 id="filter-controls-survivor"
-                class="flex flex-wrap gap-2 mb-4 items-center text-sm"
+                class="flex flex-wrap gap-2 mb-3 sm:mb-4 items-center text-xs sm:text-sm"
               >
                 <label
                   class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 cursor-pointer transition-colors"
@@ -292,8 +383,8 @@
                 </label>
               </div>
 
-              <div class="export-controls mb-4 flex gap-2">
-                <button id="export-csv-survivor" class="btn-secondary text-sm">
+              <div class="export-controls mb-3 sm:mb-4 flex flex-col sm:flex-row gap-2">
+                <button id="export-csv-survivor" class="btn-secondary text-xs sm:text-sm">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
@@ -304,7 +395,7 @@
                   </svg>
                   Export to CSV
                 </button>
-                <button id="export-vcf-survivor" class="btn-secondary text-sm">
+                <button id="export-vcf-survivor" class="btn-secondary text-xs sm:text-sm">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
@@ -335,14 +426,19 @@
 
               <div
                 id="survivor-table-container"
-                class="ag-theme-alpine"
-                style="height: 500px; width: 100%"
+                class="overflow-x-auto"
+                style="height: 400px; width: 100%"
               ></div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <h2 class="section-header">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 class="section-header text-base sm:text-lg">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -352,17 +448,23 @@
                 </svg>
                 IGV Genome Browser
               </h2>
-              <p class="text-sm text-gray-600 mb-4">
+              <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 Click on any variant in the table to navigate the genome browser to that locus.
               </p>
-              <div id="survivor-igv-div" style="height: 400px"></div>
+              <div
+                id="survivor-igv-div"
+                class="w-full"
+                style="height: 300px; min-height: 300px"
+              ></div>
             </div>
           </div>
 
-          <details class="mb-6" open>
-            <summary class="text-lg">
+          <details class="mb-4 sm:mb-6" open>
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
-                class="w-5 h-5 inline-block mr-2"
+                class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -376,22 +478,24 @@
               </svg>
               Charts & Visualizations
             </summary>
-            <div>
-              <p class="text-sm text-gray-600 mb-4">
+            <div class="mt-3 sm:mt-4">
+              <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 Click on any plot element to filter the variant table. Charts update dynamically
                 based on table filters.
               </p>
               <div
                 id="survivor-charts-container"
-                class="grid grid-cols-1 lg:grid-cols-2 gap-6"
+                class="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6"
               ></div>
             </div>
           </details>
 
-          <details class="mb-6">
-            <summary class="text-lg">
+          <details class="mb-4 sm:mb-6">
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
-                class="w-5 h-5 inline-block mr-2"
+                class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -429,14 +533,19 @@
             class="w-20 h-20 border-8 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-8"
           ></div>
           <p id="loading-text" class="text-2xl font-semibold text-gray-800 mb-3">Loading...</p>
-          <p class="text-gray-500">Please wait while we prepare your data</p>
+          <p class="text-gray-500 mb-2">Please wait while we prepare your data</p>
+          <p
+            id="loading-subtitle"
+            class="text-sm text-blue-600 font-mono"
+            style="display: none"
+          ></p>
         </div>
       </div>
     </div>
 
-    <footer class="bg-gray-100 border-t border-gray-200 py-8 mt-12">
-      <div class="container mx-auto px-6 text-center">
-        <p class="text-sm text-gray-600">
+    <footer class="bg-gray-100 border-t border-gray-200 py-6 sm:py-8 mt-8 sm:mt-12">
+      <div class="container mx-auto px-4 sm:px-6 text-center">
+        <p class="text-xs sm:text-sm text-gray-600">
           © 2025 Varify — GPL-3.0-or-later. Created by
           <span class="font-semibold text-gray-800">Ondřej Lupphes Sloup</span>.
         </p>

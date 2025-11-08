@@ -106,7 +106,7 @@ export class TableExporter {
         ].join("\t");
       }
 
-      const info = variant.rawInfo || this.reconstructINFO(variant.info);
+      const info = variant.rawInfo || reconstructINFO(variant.info);
 
       return [
         variant.chr,

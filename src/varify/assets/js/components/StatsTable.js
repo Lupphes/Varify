@@ -12,7 +12,7 @@
  * @param {Array} data - Array of row objects
  * @returns {string} HTML string for the table
  */
-export function renderStatsTable(title, description, data) {
+function renderStatsTable(title, description, data) {
   if (!data || data.length === 0) {
     return "";
   }
@@ -28,7 +28,6 @@ export function renderStatsTable(title, description, data) {
       const cells = columns
         .map((col) => {
           const value = row[col];
-          // Format numbers with 2 decimal places if they're floats
           const displayValue =
             typeof value === "number" && !Number.isInteger(value) ? value.toFixed(2) : value;
           return `<td class="px-4 py-2">${escapeHtml(String(displayValue))}</td>`;
@@ -38,7 +37,6 @@ export function renderStatsTable(title, description, data) {
     })
     .join("");
 
-  // Assemble complete table
   const tableHtml = `
     <table class="min-w-full table-auto text-sm text-left text-gray-700" border="0">
       <thead class="bg-blue-600 text-white text-sm uppercase tracking-wider">
@@ -50,7 +48,6 @@ export function renderStatsTable(title, description, data) {
     </table>
   `;
 
-  // Wrap in container with title and description
   return `
     <div class="mb-6 mt-6 mx-4 overflow-x-auto">
       <h3 class="text-lg font-semibold mb-2">${escapeHtml(title)}</h3>

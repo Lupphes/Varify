@@ -1,8 +1,8 @@
 /**
  * MetadataService - Field statistics and metadata analysis
  *
- * Extracts field analysis logic from VCFParser to create a reusable,
- * testable service for analyzing variant field metadata.
+ * Extracts field analysis logic from VCFParser to create a reusable
+ * service for analyzing variant field metadata.
  *
  * Responsibilities:
  * - Analyze field values to determine type (numeric, categorical, boolean)
@@ -14,7 +14,7 @@
 
 import { variantHandlerRegistry } from "../core/variant-handlers/VariantHandlerRegistry.js";
 import { VCF_COLUMNS } from "../config/vcf.js";
-import { isMissing, parseNumericValue } from "../utils/DataValidation.js";
+import { isMissing, parseNumericValue, parseSuppCallers } from "../utils/DataValidation.js";
 import { LoggerService } from "../utils/LoggerService.js";
 
 const logger = new LoggerService("MetadataService");
@@ -48,6 +48,15 @@ export class MetadataService {
         continue;
       }
 
+      // Special handling for SUPP_CALLERS: extract individual callers from comma-separated string
+      if (fieldName === "SUPP_CALLERS" && typeof value === "string") {
+        stats.hasMultiple = true;
+        const callers = parseSuppCallers(value);
+        callers.forEach((caller) => stats.uniqueValues.add(caller));
+        hasNonNumeric = true;
+        continue;
+      }
+
       if (typeof value === "string" && value.includes(",")) {
         stats.hasMultiple = true;
         const parts = value.split(",");
@@ -67,14 +76,20 @@ export class MetadataService {
         }
       }
 
-      stats.uniqueValues.add(value);
+      if (fieldName !== "SUPP_CALLERS") {
+        stats.uniqueValues.add(value);
+      }
     }
 
     if (hasNumeric && !hasNonNumeric) {
       stats.type = "numeric";
       if (numericValues.length > 0) {
-        stats.min = Math.min(...numericValues);
-        stats.max = Math.max(...numericValues);
+        stats.min = numericValues[0];
+        stats.max = numericValues[0];
+        for (let i = 1; i < numericValues.length; i++) {
+          if (numericValues[i] < stats.min) stats.min = numericValues[i];
+          if (numericValues[i] > stats.max) stats.max = numericValues[i];
+        }
       }
     } else if (stats.uniqueValues.size <= 2 && !stats.hasMultiple) {
       stats.type = "boolean";
@@ -95,8 +110,12 @@ export class MetadataService {
         }
       });
       if (allNumbers.length > 0) {
-        stats.min = Math.min(...allNumbers);
-        stats.max = Math.max(...allNumbers);
+        stats.min = allNumbers[0];
+        stats.max = allNumbers[0];
+        for (let i = 1; i < allNumbers.length; i++) {
+          if (allNumbers[i] < stats.min) stats.min = allNumbers[i];
+          if (allNumbers[i] > stats.max) stats.max = allNumbers[i];
+        }
       }
     }
 
@@ -109,10 +128,9 @@ export class MetadataService {
    * Uses variant handlers to correctly extract genotype data based on variant type.
    *
    * @param {Array} variants - Array of parsed variant objects
-   * @param {Object} header - VCF header information
    * @returns {Object} Field metadata keyed by field name
    */
-  buildFieldMetadata(variants, header = {}) {
+  buildFieldMetadata(variants) {
     if (!variants || variants.length === 0) {
       return {};
     }

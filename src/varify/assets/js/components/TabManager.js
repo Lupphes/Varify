@@ -56,7 +56,6 @@ export class TabManager {
 
     logger.info(`Switching from ${this.activeTab} to ${tabId}`);
 
-    // Update active tab
     const previousTab = this.activeTab;
     this.activeTab = tabId;
 
@@ -68,7 +67,6 @@ export class TabManager {
       this.onTabSwitch(tabId, previousTab);
     }
 
-    // If tab not initialized, trigger load via callback
     if (!this.initialized[tabId]) {
       logger.debug(`Tab ${tabId} not initialized, showing empty state`);
       this.showEmptyState(tabId);
@@ -101,12 +99,10 @@ export class TabManager {
         if (tabId === this.activeTab) {
           content.classList.add("active");
 
-          // ECharts instances need to be resized after their container is shown
           setTimeout(() => {
             this.resizeChartsInTab(tabId);
           }, 50);
 
-          // Only navigate if tab is initialized (data loaded)
           if (this.initialized[tabId]) {
             setTimeout(() => {
               this.navigateIGVForTab(tabId);
@@ -226,10 +222,15 @@ export class TabManager {
     this.hideEmptyState(tabId);
     this.showContent(tabId);
 
-    // Resize charts after showing content to ensure proper rendering
     setTimeout(() => {
       this.resizeChartsInTab(tabId);
     }, 100);
+
+    if (this.activeTab === tabId) {
+      setTimeout(() => {
+        this.navigateIGVForTab(tabId);
+      }, 150);
+    }
   }
 
   /**

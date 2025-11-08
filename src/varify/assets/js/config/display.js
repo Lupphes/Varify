@@ -13,23 +13,19 @@
 export const COLUMN_PRIORITY_ORDER = [
   // Core VCF columns
   "CHROM",
-  "POS",
   "ID",
-  "REF",
-  "ALT",
-  "QUAL",
-  "FILTER",
-
-  // Structural variant INFO fields
+  "POS",
+  "END",
   "SVTYPE",
   "SVLEN",
-  "END",
-  "CHR2",
-
-  // SURVIVOR-specific fields
   "NUM_CALLERS",
-  "SUPP_CALLERS",
   "PRIMARY_CALLER",
+  "SUPP_CALLERS",
+  "QUAL",
+  "REF",
+  "ALT",
+  "FILTER",
+  "CHR2",
 
   // Common FORMAT fields
   "GT",
@@ -61,7 +57,7 @@ export const COLUMN_WIDTHS = {
   // VCF fixed columns
   CHROM: 100,
   POS: 120,
-  ID: 100,
+  ID: 150,
   REF: 100,
   ALT: 100,
   QUAL: 100,
@@ -92,6 +88,16 @@ export const COLUMN_WIDTHS = {
   PE: 100,
   RE: 100,
 };
+
+/**
+ * Default column width for fields not specified in COLUMN_WIDTHS
+ */
+export const DEFAULT_COLUMN_WIDTH = 120;
+
+/**
+ * Column width for fields containing "CALLER" in their name
+ */
+export const CALLER_COLUMN_WIDTH = 150;
 
 /**
  * FORMAT Field Priority
