@@ -23,6 +23,16 @@ export class DexieVariantDB extends Dexie {
         "locus, CHROM, POS, ID, SVTYPE, SVLEN, NUM_CALLERS, PRIMARY_CALLER, SUPP_CALLERS, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP",
     });
 
+    this.version(5).stores({
+      files: "name, size, type, timestamp",
+      fileChunks: "[name+chunkIndex], name, chunkIndex",
+      metadata: "key",
+      bcf_variants:
+        "++id, locus, CHROM, POS, ID, SVTYPE, SVLEN, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP",
+      survivor_variants:
+        "++id, locus, CHROM, POS, ID, SVTYPE, SVLEN, NUM_CALLERS, PRIMARY_CALLER, SUPP_CALLERS, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP",
+    });
+
     this.files = this.table("files");
     this.fileChunks = this.table("fileChunks");
     this.metadata = this.table("metadata");
