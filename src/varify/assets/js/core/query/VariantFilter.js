@@ -130,6 +130,16 @@ export class VariantFilter {
 
       // Standard filtering (INFO fields or PRIMARY caller when not multi-caller mode)
       if (typeof filter === "object" && filter.values !== undefined) {
+        // Special handling for SUPP_CALLERS - check if any selected caller is in the comma-separated string
+        if (field === "SUPP_CALLERS" && typeof value === "string") {
+          const callers = value.split(",").map((c) => c.trim());
+          const hasMatch = filter.values.some((selectedCaller) => callers.includes(selectedCaller));
+          if (!hasMatch) {
+            return false;
+          }
+          continue;
+        }
+
         if (!filter.values.includes(value)) {
           return false;
         }

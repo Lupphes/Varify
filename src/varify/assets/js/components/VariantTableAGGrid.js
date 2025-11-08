@@ -271,7 +271,8 @@ export class VariantTableAGGrid {
   }
 
   configureColumnFilter(colDef, metadata) {
-    if (colDef.field === "SVTYPE") {
+    // Special handling for SVTYPE and SUPP_CALLERS - always use categorical filter
+    if (colDef.field === "SVTYPE" || colDef.field === "SUPP_CALLERS") {
       const valuesArray = metadataService.getUniqueValues(metadata);
 
       if (valuesArray.length > 0) {
@@ -282,7 +283,8 @@ export class VariantTableAGGrid {
           uniqueValues: valuesArray,
         };
         colDef.minWidth = 150;
-        colDef.headerTooltip = `SV Type (categorical). Values: ${valuesArray.join(", ")}`;
+        const fieldLabel = colDef.field === "SVTYPE" ? "SV Type" : "Caller";
+        colDef.headerTooltip = `${fieldLabel} (categorical). Values: ${valuesArray.join(", ")}`;
         return;
       }
     }

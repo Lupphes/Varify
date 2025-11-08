@@ -48,6 +48,22 @@ export class MetadataService {
         continue;
       }
 
+      // Special handling for SUPP_CALLERS: extract individual callers from comma-separated string
+      if (fieldName === "SUPP_CALLERS" && typeof value === "string") {
+        if (value.includes(",")) {
+          stats.hasMultiple = true;
+          const callers = value.split(",").map((c) => c.trim());
+          callers.forEach((caller) => {
+            if (caller) stats.uniqueValues.add(caller);
+          });
+        } else {
+          // Single caller
+          stats.uniqueValues.add(value);
+        }
+        hasNonNumeric = true;
+        continue;
+      }
+
       if (typeof value === "string" && value.includes(",")) {
         stats.hasMultiple = true;
         const parts = value.split(",");
@@ -67,7 +83,10 @@ export class MetadataService {
         }
       }
 
-      stats.uniqueValues.add(value);
+      // For SUPP_CALLERS, we already added individual callers above
+      if (fieldName !== "SUPP_CALLERS") {
+        stats.uniqueValues.add(value);
+      }
     }
 
     if (hasNumeric && !hasNonNumeric) {
