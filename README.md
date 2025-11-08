@@ -17,19 +17,17 @@ A Python-based tool to generate rich, interactive HTML reports from structural v
 
 ## ✨ Features
 
-- 📊 **Interactive ECharts visualizations** for SV types, lengths, quality, and caller combinations
-- 🗄️ **Client-side IndexedDB storage** for fast filtering and querying of large variant datasets
-- 📈 Automatically generates a **self-contained HTML report** including:
-  - BCFtools summary plots and tables
-  - SURVIVOR summary plots and tables
-  - IGV.js genome browser integration (if BAMs are provided)
-- ⚡ **High-performance AG-Grid tables** with virtual scrolling and advanced filtering
-- 🎨 Modern responsive UI with **Tailwind CSS v4** and **Alpine.js**
-- 🔍 Real-time search and filter across all variant fields
-- 📊 Caller overlap analysis and quality distributions
-- 🧬 Chromosome-level heatmaps and SV type breakdowns
-- 🚀 No server required - runs entirely in the browser
-- 🧪 Profile-aware output for pipeline integration (e.g. `--profile nextflow`)
+- 📊 **Interactive ECharts visualizations** including bar charts, histograms, scatter plots, boxplots, and heatmaps
+- 🗄️ **Dexie-powered IndexedDB storage** for client-side variant data with fast querying and filtering
+- 📈 **Self-contained HTML reports** with embedded JavaScript bundle (~3.5 MB)
+  - BCFtools and SURVIVOR stats parsing and visualization
+  - IGV.js genome browser integration with BAM track support
+- ⚡ **AG-Grid tables** with infinite scrolling, virtual rendering, and advanced filtering
+- 🔍 **Categorical and numeric filters** with real-time search across variant fields
+- 🧬 **Variant handlers** for BCFtools and SURVIVOR VCF formats
+- 📊 **Caller overlap analysis** and quality distributions
+- 🚀 **No server required** - runs entirely in the browser
+- 📤 **Export functionality** for filtered variants and tables
 
 ---
 
@@ -165,19 +163,25 @@ Varify is built with a modern, modular architecture:
 
 ### JavaScript Frontend (ES6 Modules)
 
-- **Components**: UI components (tables, charts, file upload, IGV integration)
-  - `VariantTableAGGrid`: High-performance data tables
-  - `VarifyPlots`: ECharts visualization engine
-  - `FileUpload`: IndexedDB file management
-  - `IGVIntegration`: Genome browser integration
-- **Core**: Parsers, storage, and query engine
-  - `VCFParser`: VCF file parsing
-  - `IndexedDBManager`: Client-side database
-  - `VariantHandlers`: BCF and SURVIVOR format handling
+- **Components**: Interactive UI components
+  - `VariantTableAGGrid`: AG-Grid-based variant tables with infinite scrolling
+  - `VarifyPlots`: ECharts visualization engine with multiple chart types
+  - `FileUploadUI`: Client-side file upload and processing
+  - `IGVIntegration`: IGV.js genome browser integration
+  - `CategoricalFilter`: Custom AG-Grid filters for variant fields
+  - `ReportInitializer`: Report setup and data loading
+  - `TabManager`: Multi-section tab navigation
+- **Core**: Data processing and storage
+  - `VCFParser`: VCF file parsing (variants, genotypes, headers)
+  - `IndexedDBManager`/`DexieDB`: Client-side database using Dexie.js
+  - `VariantHandlers`: BCFtools and SURVIVOR format handlers with registry pattern
+  - `VariantFilter`: Query engine for filtering variants
+  - `VariantFlattener`: Converts nested VCF data to flat table structure
 - **Services**: Metadata analysis and field detection
-- **Utils**: Statistics, validation, and color schemes
-- **Config**: Display settings, VCF field definitions
-- **Build**: esbuild bundler with PostCSS/Tailwind CSS processing
+  - `MetadataService`: Automatic field type detection and statistics
+- **Utils**: Statistics, validation, color schemes, and logging
+- **Config**: Display settings, VCF field definitions, plot configurations
+- **Build**: esbuild bundler with PostCSS and Tailwind CSS v4 processing
 
 ---
 
@@ -209,14 +213,14 @@ npm run format:check
 
 **Key Dependencies:**
 
-- **esbuild**: Ultra-fast JavaScript bundler
-- **Tailwind CSS v4**: Utility-first CSS framework
-- **AG-Grid Community**: High-performance data tables
-- **ECharts**: Interactive visualization library
-- **IGV.js**: Genome browser
-- **Alpine.js**: Reactive UI framework
-- **Vitest**: Fast unit testing framework
-- **Prettier**: Code formatter
+- **esbuild**: Ultra-fast JavaScript bundler (0.25.12)
+- **Tailwind CSS v4**: Utility-first CSS framework (4.1.16)
+- **AG-Grid Community**: High-performance data tables (31.0.0)
+- **ECharts**: Interactive visualization library (5.5.0)
+- **IGV.js**: Integrative Genomics Viewer for genome browsing (3.0.5)
+- **Dexie**: IndexedDB wrapper for client-side storage (4.2.1)
+- **Vitest**: Fast unit testing framework (4.0.8)
+- **Prettier**: Code formatter (3.6.2)
 
 ---
 
