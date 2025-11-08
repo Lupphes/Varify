@@ -428,6 +428,7 @@ export class VariantTableAGGrid {
     let lastFilterModel = null;
     let requestCounter = 0;
     let debounceTimer = null;
+    let currentRequestId = null;
 
     return {
       rowCount: undefined,
@@ -437,11 +438,12 @@ export class VariantTableAGGrid {
         }
 
         debounceTimer = setTimeout(async () => {
-          // Only cancel queries with the "table-" prefix to avoid canceling chart updates
-          this.genomeDBManager.cancelAllQueries();
+          // Track current request and check if it's still current when query completes
+          const thisRequestId = ++requestCounter;
+          currentRequestId = thisRequestId;
 
-          const queryId = `table-${++requestCounter}`;
-          const countQueryId = `table-count-${requestCounter}`;
+          const queryId = `table-${thisRequestId}`;
+          const countQueryId = `table-count-${thisRequestId}`;
 
           try {
             const filterModelStr = JSON.stringify(params.filterModel);
@@ -474,6 +476,12 @@ export class VariantTableAGGrid {
                   })
                 : Promise.resolve(cachedCount)
             ]);
+
+            // Check if this request is still current (not superseded by a newer request)
+            if (currentRequestId !== thisRequestId) {
+              logger.debug(`Table request ${thisRequestId} superseded by ${currentRequestId}, ignoring results`);
+              return;
+            }
 
             if (cachedCount === null) {
               cachedCount = count;
@@ -653,67 +661,38 @@ export class VariantTableAGGrid {
     });
 
     logger.info(`Analyzing field metadata for ${prefix} (sampling 1000 variants)...`);
-    const metadata = {};
 
     const variants = await this.genomeDBManager.queryVariants(prefix, {}, { limit: 1000 });
 
     if (variants.length === 0) {
-      return metadata;
+      return {};
     }
 
+    // Use MetadataService for consistent metadata analysis (including SUPP_CALLERS parsing)
     const fieldValues = {};
-
     variants.forEach((variant) => {
       Object.entries(variant).forEach(([field, value]) => {
         if (field.startsWith("_")) return;
         if (typeof value === "object" && value !== null && !Array.isArray(value)) return;
 
         if (!fieldValues[field]) {
-          fieldValues[field] = {
-            values: [],
-            numericValues: [],
-            count: 0,
-          };
+          fieldValues[field] = [];
         }
 
-        if (value !== null && value !== undefined && value !== "" && value !== ".") {
-          fieldValues[field].count++;
-          fieldValues[field].values.push(value);
-
-          const numValue = Number(value);
-          if (!isNaN(numValue) && typeof value !== "boolean") {
-            fieldValues[field].numericValues.push(numValue);
-          }
-        }
+        fieldValues[field].push(value);
       });
     });
 
-    Object.entries(fieldValues).forEach(([field, data]) => {
-      if (data.count === 0) return;
-
-      const isNumeric = data.numericValues.length > data.count * 0.8;
-
-      if (isNumeric) {
-        let min = data.numericValues[0];
-        let max = data.numericValues[0];
-        for (let i = 1; i < data.numericValues.length; i++) {
-          if (data.numericValues[i] < min) min = data.numericValues[i];
-          if (data.numericValues[i] > max) max = data.numericValues[i];
-        }
-        metadata[field] = {
-          type: "numeric",
-          count: data.count,
-          min: min,
-          max: max,
-        };
-      } else {
-        const uniqueValues = [...new Set(data.values)];
-        metadata[field] = {
-          type: uniqueValues.length < 50 ? "categorical" : "string",
-          count: data.count,
-          uniqueValues: uniqueValues.length < 50 ? uniqueValues : undefined,
-        };
-      }
+    const metadata = {};
+    Object.entries(fieldValues).forEach(([field, values]) => {
+      const fieldMetadata = metadataService.analyzeField(field, values);
+      metadata[field] = {
+        type: fieldMetadata.type,
+        count: values.filter(v => v !== null && v !== undefined && v !== "" && v !== ".").length,
+        min: fieldMetadata.min,
+        max: fieldMetadata.max,
+        uniqueValues: fieldMetadata.uniqueValues.size > 0 ? Array.from(fieldMetadata.uniqueValues) : undefined,
+      };
     });
 
     try {
@@ -757,7 +736,9 @@ export class VariantTableAGGrid {
     }
 
     this._filterTimeout = setTimeout(async () => {
-      // Cancel only chart-related queries by marking the previous query as superseded
+      // Cancel only chart-related queries, not table queries
+      this.genomeDBManager.cancelQueriesByPrefix('chart-update-');
+
       const currentQueryId = `chart-update-${Date.now()}`;
       this._chartUpdateQueryId = currentQueryId;
 

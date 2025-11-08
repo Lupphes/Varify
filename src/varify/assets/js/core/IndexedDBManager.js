@@ -134,6 +134,10 @@ class IndexedDBManager {
     return this.dexieQuery.cancelQuery(queryId);
   }
 
+  cancelQueriesByPrefix(prefix) {
+    return this.dexieQuery.cancelQueriesByPrefix(prefix);
+  }
+
   cancelAllQueries() {
     return this.dexieQuery.cancelAllQueries();
   }

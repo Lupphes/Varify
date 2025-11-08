@@ -19,6 +19,21 @@ export class DexieVariantQuery {
     }
   }
 
+  cancelQueriesByPrefix(prefix) {
+    let cancelledCount = 0;
+    this.activeQueries.forEach((controller, queryId) => {
+      if (queryId.startsWith(prefix)) {
+        controller.cancelled = true;
+        this.activeQueries.delete(queryId);
+        logger.debug(`Cancelled query: ${queryId}`);
+        cancelledCount++;
+      }
+    });
+    if (cancelledCount > 0) {
+      logger.debug(`Cancelled ${cancelledCount} queries with prefix: ${prefix}`);
+    }
+  }
+
   cancelAllQueries() {
     this.activeQueries.forEach((controller, queryId) => {
       controller.cancelled = true;
