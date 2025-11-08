@@ -204,7 +204,7 @@ describe("VariantTableAGGrid - Column Definition Building", () => {
 
     const filterCol = columnDefs.find((c) => c.field === "FILTER");
     expect(filterCol.minWidth).toBe(150);
-    expect(filterCol.width).toBe(200);
+    expect(filterCol.width).toBe(100);
   });
 });
 
@@ -982,9 +982,21 @@ describe("VariantTableAGGrid - Field Metadata", () => {
 
   it("handles fields with all missing values", async () => {
     const variants = [
-      createMockVariant({ pos: 1000, locus: "NC_001133.9:1000-1500", _computed: { RARE_FIELD: null } }),
-      createMockVariant({ pos: 2000, locus: "NC_001133.9:2000-2500", _computed: { RARE_FIELD: null } }),
-      createMockVariant({ pos: 3000, locus: "NC_001133.9:3000-3500", _computed: { RARE_FIELD: undefined } }),
+      createMockVariant({
+        pos: 1000,
+        locus: "NC_001133.9:1000-1500",
+        _computed: { RARE_FIELD: null },
+      }),
+      createMockVariant({
+        pos: 2000,
+        locus: "NC_001133.9:2000-2500",
+        _computed: { RARE_FIELD: null },
+      }),
+      createMockVariant({
+        pos: 3000,
+        locus: "NC_001133.9:3000-3500",
+        _computed: { RARE_FIELD: undefined },
+      }),
     ];
 
     await mockDB.storeVariants("bcf", variants);

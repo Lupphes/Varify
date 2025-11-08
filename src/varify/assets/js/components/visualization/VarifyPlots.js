@@ -90,9 +90,13 @@ export class VarifyPlots {
       }
 
       logger.info(`Loading ${totalCount} variants for plots...`);
-      this.variants = await this.dbManager.queryVariants(this.vcfType, {}, {
-        limit: totalCount > 0 ? totalCount : 500000, 
-      });
+      this.variants = await this.dbManager.queryVariants(
+        this.vcfType,
+        {},
+        {
+          limit: totalCount > 0 ? totalCount : 500000,
+        }
+      );
       logger.debug(`Loaded ${this.variants.length} variants from IndexedDB`);
 
       await this.renderAllCharts();
@@ -209,7 +213,9 @@ export class VarifyPlots {
    * @param {Array} filteredVariants - Filtered variants from AG-Grid
    */
   async updateFromFilteredData(filteredVariants) {
-    logger.info(`Updating ${this.charts.size} charts with ${filteredVariants.length} filtered variants`);
+    logger.info(
+      `Updating ${this.charts.size} charts with ${filteredVariants.length} filtered variants`
+    );
 
     if (!this.isInitialized) {
       logger.warn("Cannot update - not initialized");
@@ -281,7 +287,7 @@ export class VarifyPlots {
       );
 
       if (i + batchSize < chartEntries.length) {
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
 

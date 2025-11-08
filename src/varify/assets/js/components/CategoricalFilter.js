@@ -1,5 +1,5 @@
 /**
- * Custom Categorical Filter for AG-Grid Community Edition
+ * Custom Categorical Filter for AG-Grid
  *
  * Provides a multi-select checkbox filter for categorical fields (SVTYPE, FILTER, GT, etc.)
  * Works with Client-Side Row Model - filtering happens in-memory using doesFilterPass().

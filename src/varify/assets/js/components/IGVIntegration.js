@@ -41,15 +41,15 @@ export class IGVIntegration {
    * @param {Function} onProgress - Progress callback for UI updates
    */
   async loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, onProgress = null) {
-    // Early return if variants already loaded in memory
     if (this.variantsLoaded) {
       logger.info("Variants already loaded in memory, skipping");
       return { bcfVariants: this.bcfVariants, survivorVariants: this.survivorVariants };
     }
 
-    // Try loading from IndexedDB cache first (page reload scenario)
     const bcfCached = bcfVcfFilename ? await this.genomeDBManager.variantsExist("bcf") : false;
-    const survivorCached = survivorVcfFilename ? await this.genomeDBManager.variantsExist("survivor") : false;
+    const survivorCached = survivorVcfFilename
+      ? await this.genomeDBManager.variantsExist("survivor")
+      : false;
 
     if (bcfCached || survivorCached) {
       logger.info("Loading variants from IndexedDB cache...");
@@ -74,7 +74,6 @@ export class IGVIntegration {
       return { bcfVariants: this.bcfVariants, survivorVariants: this.survivorVariants };
     }
 
-    // Parse VCF files from scratch
     logger.info("Parsing VCF files from scratch...");
     try {
       if (bcfVcfFilename) {
@@ -106,18 +105,16 @@ export class IGVIntegration {
         const bcfProgressCallback = (currentVariant, totalLines, lineIndex) => {
           if (onProgress) {
             const subtitle = `${currentVariant.toLocaleString()} variants parsed • Line ${lineIndex.toLocaleString()} / ${totalLines.toLocaleString()}`;
-            onProgress(
-              `Parsing BCF variants`,
-              "bcf",
-              lineIndex,
-              totalLines,
-              subtitle
-            );
+            onProgress(`Parsing BCF variants`, "bcf", lineIndex, totalLines, subtitle);
           }
         };
 
         if (useCompressed) {
-          this.bcfVariants = await this.vcfParser.parseCompressedVCF(bcfData, Infinity, bcfProgressCallback);
+          this.bcfVariants = await this.vcfParser.parseCompressedVCF(
+            bcfData,
+            Infinity,
+            bcfProgressCallback
+          );
         } else {
           this.bcfVariants = await this.vcfParser.parseVCF(bcfData, Infinity, bcfProgressCallback);
         }
@@ -143,7 +140,6 @@ export class IGVIntegration {
           columns: this.vcfParser.header.columns,
         };
 
-        // Store header in IndexedDB
         await this.genomeDBManager.storeHeader("bcf", this.bcfHeader);
         logger.debug("BCF header stored in IndexedDB");
       }
@@ -177,20 +173,22 @@ export class IGVIntegration {
         const survivorProgressCallback = (currentVariant, totalLines, lineIndex) => {
           if (onProgress) {
             const subtitle = `${currentVariant.toLocaleString()} variants parsed • Line ${lineIndex.toLocaleString()} / ${totalLines.toLocaleString()}`;
-            onProgress(
-              `Parsing SURVIVOR variants`,
-              "survivor",
-              lineIndex,
-              totalLines,
-              subtitle
-            );
+            onProgress(`Parsing SURVIVOR variants`, "survivor", lineIndex, totalLines, subtitle);
           }
         };
 
         if (useCompressedSurvivor) {
-          this.survivorVariants = await this.vcfParser.parseCompressedVCF(survivorData, Infinity, survivorProgressCallback);
+          this.survivorVariants = await this.vcfParser.parseCompressedVCF(
+            survivorData,
+            Infinity,
+            survivorProgressCallback
+          );
         } else {
-          this.survivorVariants = await this.vcfParser.parseVCF(survivorData, Infinity, survivorProgressCallback);
+          this.survivorVariants = await this.vcfParser.parseVCF(
+            survivorData,
+            Infinity,
+            survivorProgressCallback
+          );
         }
 
         this.survivorVariants.forEach((v, i) => (v.index = i + 1));
@@ -206,7 +204,11 @@ export class IGVIntegration {
           }
         };
 
-        await this.genomeDBManager.storeVariants("survivor", this.survivorVariants, survivorStoreCallback);
+        await this.genomeDBManager.storeVariants(
+          "survivor",
+          this.survivorVariants,
+          survivorStoreCallback
+        );
         logger.debug("SURVIVOR variants stored in IndexedDB");
 
         this.survivorHeader = {
@@ -214,12 +216,10 @@ export class IGVIntegration {
           columns: this.vcfParser.header.columns,
         };
 
-        // Store header in IndexedDB
         await this.genomeDBManager.storeHeader("survivor", this.survivorHeader);
         logger.debug("SURVIVOR header stored in IndexedDB");
       }
 
-      // Mark variants as loaded
       this.variantsLoaded = true;
 
       return {

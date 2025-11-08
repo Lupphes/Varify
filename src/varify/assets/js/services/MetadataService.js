@@ -1,8 +1,8 @@
 /**
  * MetadataService - Field statistics and metadata analysis
  *
- * Extracts field analysis logic from VCFParser to create a reusable,
- * testable service for analyzing variant field metadata.
+ * Extracts field analysis logic from VCFParser to create a reusable
+ * service for analyzing variant field metadata.
  *
  * Responsibilities:
  * - Analyze field values to determine type (numeric, categorical, boolean)
@@ -76,7 +76,6 @@ export class MetadataService {
         }
       }
 
-      // For SUPP_CALLERS, we already added individual callers above
       if (fieldName !== "SUPP_CALLERS") {
         stats.uniqueValues.add(value);
       }
@@ -85,7 +84,6 @@ export class MetadataService {
     if (hasNumeric && !hasNonNumeric) {
       stats.type = "numeric";
       if (numericValues.length > 0) {
-        // Use iterative approach to avoid stack overflow with large arrays
         stats.min = numericValues[0];
         stats.max = numericValues[0];
         for (let i = 1; i < numericValues.length; i++) {
@@ -112,7 +110,6 @@ export class MetadataService {
         }
       });
       if (allNumbers.length > 0) {
-        // Use iterative approach to avoid stack overflow with large arrays
         stats.min = allNumbers[0];
         stats.max = allNumbers[0];
         for (let i = 1; i < allNumbers.length; i++) {

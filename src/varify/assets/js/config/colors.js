@@ -147,4 +147,3 @@ export const CALLER_PREFERRED_COLORS = {
   cutesv: "#8DD3C7", // Cyan (ColorBrewer)
   svim: "#FC8D62", // Peach (ColorBrewer)
 };
-

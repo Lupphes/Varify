@@ -1,35 +1,37 @@
-import Dexie from 'dexie';
+import Dexie from "dexie";
 
 export class DexieVariantDB extends Dexie {
-  constructor(dbName = 'varify-genome-data', reportHash = null) {
+  constructor(dbName = "varify-genome-data", reportHash = null) {
     const fullDbName = reportHash ? `${dbName}-${reportHash}` : dbName;
     super(fullDbName);
 
     this.version(3).stores({
-      files: 'name, size, type, timestamp',
-      fileChunks: '[name+chunkIndex], name, chunkIndex',
-      metadata: 'key',
-      bcf_variants: 'locus, CHROM, POS, SVTYPE, QUAL, FILTER, *GQ, *DP',
-      survivor_variants: 'locus, CHROM, POS, SVTYPE, QUAL, FILTER, *GQ, *DP'
+      files: "name, size, type, timestamp",
+      fileChunks: "[name+chunkIndex], name, chunkIndex",
+      metadata: "key",
+      bcf_variants: "locus, CHROM, POS, SVTYPE, QUAL, FILTER, *GQ, *DP",
+      survivor_variants: "locus, CHROM, POS, SVTYPE, QUAL, FILTER, *GQ, *DP",
     });
 
     this.version(4).stores({
-      files: 'name, size, type, timestamp',
-      fileChunks: '[name+chunkIndex], name, chunkIndex',
-      metadata: 'key',
-      bcf_variants: 'locus, CHROM, POS, ID, SVTYPE, SVLEN, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP',
-      survivor_variants: 'locus, CHROM, POS, ID, SVTYPE, SVLEN, NUM_CALLERS, PRIMARY_CALLER, SUPP_CALLERS, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP'
+      files: "name, size, type, timestamp",
+      fileChunks: "[name+chunkIndex], name, chunkIndex",
+      metadata: "key",
+      bcf_variants:
+        "locus, CHROM, POS, ID, SVTYPE, SVLEN, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP",
+      survivor_variants:
+        "locus, CHROM, POS, ID, SVTYPE, SVLEN, NUM_CALLERS, PRIMARY_CALLER, SUPP_CALLERS, QUAL, FILTER, REF, CIPOS, CIEND, *GQ, *DP",
     });
 
-    this.files = this.table('files');
-    this.fileChunks = this.table('fileChunks');
-    this.metadata = this.table('metadata');
-    this.bcfVariants = this.table('bcf_variants');
-    this.survivorVariants = this.table('survivor_variants');
+    this.files = this.table("files");
+    this.fileChunks = this.table("fileChunks");
+    this.metadata = this.table("metadata");
+    this.bcfVariants = this.table("bcf_variants");
+    this.survivorVariants = this.table("survivor_variants");
   }
 
   getVariantTable(prefix) {
-    return prefix === 'bcf' ? this.bcfVariants : this.survivorVariants;
+    return prefix === "bcf" ? this.bcfVariants : this.survivorVariants;
   }
 
   async getFile(name, returnAsBlob = false) {
@@ -37,14 +39,11 @@ export class DexieVariantDB extends Dexie {
     if (!fileInfo) return null;
 
     if (fileInfo.isChunked) {
-      const chunks = await this.fileChunks
-        .where('name')
-        .equals(name)
-        .sortBy('chunkIndex');
+      const chunks = await this.fileChunks.where("name").equals(name).sortBy("chunkIndex");
 
       if (returnAsBlob) {
-        const blobParts = chunks.map(chunk => chunk.data);
-        const blob = new Blob(blobParts, { type: fileInfo.type || 'application/octet-stream' });
+        const blobParts = chunks.map((chunk) => chunk.data);
+        const blob = new Blob(blobParts, { type: fileInfo.type || "application/octet-stream" });
 
         return {
           name: fileInfo.name,
@@ -52,7 +51,7 @@ export class DexieVariantDB extends Dexie {
           size: fileInfo.size,
           type: fileInfo.type,
           timestamp: fileInfo.timestamp,
-          isChunked: true
+          isChunked: true,
         };
       }
 
@@ -71,12 +70,12 @@ export class DexieVariantDB extends Dexie {
         size: fileInfo.size,
         type: fileInfo.type,
         timestamp: fileInfo.timestamp,
-        isChunked: true
+        isChunked: true,
       };
     }
 
     const data = returnAsBlob
-      ? new Blob([fileInfo.data], { type: fileInfo.type || 'application/octet-stream' })
+      ? new Blob([fileInfo.data], { type: fileInfo.type || "application/octet-stream" })
       : fileInfo.data;
 
     return {
@@ -85,7 +84,7 @@ export class DexieVariantDB extends Dexie {
       size: fileInfo.size,
       type: fileInfo.type,
       timestamp: fileInfo.timestamp,
-      isChunked: false
+      isChunked: false,
     };
   }
 
@@ -106,14 +105,14 @@ export class DexieVariantDB extends Dexie {
         size,
         timestamp: Date.now(),
         isChunked: false,
-        type: 'application/octet-stream',
-        ...metadata
+        type: "application/octet-stream",
+        ...metadata,
       };
       await this.files.put(fileData);
       return;
     }
 
-    await this.fileChunks.where('name').equals(name).delete();
+    await this.fileChunks.where("name").equals(name).delete();
 
     const totalChunks = Math.ceil(size / CHUNK_SIZE);
 
@@ -132,7 +131,7 @@ export class DexieVariantDB extends Dexie {
       await this.fileChunks.put({
         name,
         chunkIndex: i,
-        data: chunkData
+        data: chunkData,
       });
 
       if (onProgress) {
@@ -146,24 +145,24 @@ export class DexieVariantDB extends Dexie {
       timestamp: Date.now(),
       isChunked: true,
       totalChunks,
-      type: 'application/octet-stream',
-      ...metadata
+      type: "application/octet-stream",
+      ...metadata,
     };
     await this.files.put(fileInfo);
   }
 
   async hasFile(name) {
-    const count = await this.files.where('name').equals(name).count();
+    const count = await this.files.where("name").equals(name).count();
     return count > 0;
   }
 
   async listFiles() {
     const files = await this.files.toArray();
-    return files.map(f => f.name);
+    return files.map((f) => f.name);
   }
 
   async deleteFile(name) {
-    await this.fileChunks.where('name').equals(name).delete();
+    await this.fileChunks.where("name").equals(name).delete();
     await this.files.delete(name);
   }
 

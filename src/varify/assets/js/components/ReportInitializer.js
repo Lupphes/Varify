@@ -262,7 +262,11 @@ export class ReportInitializer {
         });
       };
 
-      await this.igvIntegration.loadAndParseVCFs(bcfVcfFilename, survivorVcfFilename, progressCallback);
+      await this.igvIntegration.loadAndParseVCFs(
+        bcfVcfFilename,
+        survivorVcfFilename,
+        progressCallback
+      );
 
       logger.info("VCFs parsed, initializing tabs...");
       logger.debug("Metadata check:", {
@@ -499,7 +503,9 @@ export class ReportInitializer {
   populateHeader(metadata) {
     const headerEl = document.getElementById("header-metadata");
     if (headerEl) {
-      const hashPart = metadata.file_version ? ` | Hash: ${metadata.file_version.substring(0, 8)}` : '';
+      const hashPart = metadata.file_version
+        ? ` | Hash: ${metadata.file_version.substring(0, 8)}`
+        : "";
       headerEl.textContent = `Generated: ${metadata.generated_on} | Profiles: ${metadata.profiles} | Reference: ${metadata.reference_name}${hashPart}`;
     }
 
@@ -570,7 +576,7 @@ export class ReportInitializer {
 
     if (
       !confirm(
-        `Delete ALL Varify databases?\n\nThis will remove ${databases.length} database${databases.length !== 1 ? 's' : ''} (${sizeText}) from all reports.\n\nClose all other Varify report tabs first.`
+        `Delete ALL Varify databases?\n\nThis will remove ${databases.length} database${databases.length !== 1 ? "s" : ""} (${sizeText}) from all reports.\n\nClose all other Varify report tabs first.`
       )
     ) {
       return;
@@ -588,7 +594,9 @@ export class ReportInitializer {
     try {
       await this.genomeDBManager.deleteAllVarifyDatabases();
 
-      alert(`Successfully deleted all Varify databases (${databases.length} database${databases.length !== 1 ? 's' : ''}, ${sizeText})`);
+      alert(
+        `Successfully deleted all Varify databases (${databases.length} database${databases.length !== 1 ? "s" : ""}, ${sizeText})`
+      );
 
       const statusText = document.getElementById("cache-status-text");
       if (statusText) statusText.textContent = "All caches cleared!";
@@ -638,7 +646,10 @@ export class ReportInitializer {
       }
 
       if (totalDbCountEl) {
-        totalDbCountEl.textContent = databases.length > 0 ? `(${databases.length} DB${databases.length !== 1 ? 's' : ''})` : '';
+        totalDbCountEl.textContent =
+          databases.length > 0
+            ? `(${databases.length} DB${databases.length !== 1 ? "s" : ""})`
+            : "";
       }
     } catch (error) {
       logger.error("Cache status error:", error);

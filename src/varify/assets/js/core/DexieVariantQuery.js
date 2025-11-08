@@ -43,7 +43,13 @@ export class DexieVariantQuery {
   }
 
   async queryVariants(prefix, filters = {}, options = {}) {
-    const { offset = 0, limit = 100, sort = null, multiCallerMode = false, queryId = null } = options;
+    const {
+      offset = 0,
+      limit = 100,
+      sort = null,
+      multiCallerMode = false,
+      queryId = null,
+    } = options;
 
     if (queryId) {
       const controller = { cancelled: false };
@@ -62,7 +68,7 @@ export class DexieVariantQuery {
         const singleCategoricalFilter = this.detectSingleCategoricalFilter(filters);
         if (singleCategoricalFilter) {
           const { field, values } = singleCategoricalFilter;
-          const indexExists = table.schema.indexes.some(idx => idx.name === field);
+          const indexExists = table.schema.indexes.some((idx) => idx.name === field);
 
           if (indexExists && values.length > 0) {
             logger.debug(`Using anyOf() index query on ${field} with ${values.length} values`);
@@ -73,19 +79,23 @@ export class DexieVariantQuery {
             const remainingFilters = { ...filters };
             delete remainingFilters[field];
 
-            const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, remainingFilters);
+            const indexedEqualityFilters = this.extractIndexedEqualityFilters(
+              table,
+              remainingFilters
+            );
 
             // Apply indexed filters using and() - these are evaluated in IndexedDB
             for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
-              collection = collection.and(variant => variant[filterField] === filterValue);
+              collection = collection.and((variant) => variant[filterField] === filterValue);
               delete remainingFilters[filterField];
               logger.debug(`Applied indexed equality filter: ${filterField}`);
             }
 
             // Apply remaining complex filters in JavaScript only
             if (Object.keys(remainingFilters).length > 0) {
-              collection = collection.and(variant => {
-                if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+              collection = collection.and((variant) => {
+                if (queryController && queryController.cancelled)
+                  throw new Error("Query cancelled");
                 return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
               });
             }
@@ -96,8 +106,8 @@ export class DexieVariantQuery {
               results.sort((a, b) => {
                 const aVal = a[sort.field];
                 const bVal = b[sort.field];
-                if (aVal < bVal) return sort.direction === 'desc' ? 1 : -1;
-                if (aVal > bVal) return sort.direction === 'desc' ? -1 : 1;
+                if (aVal < bVal) return sort.direction === "desc" ? 1 : -1;
+                if (aVal > bVal) return sort.direction === "desc" ? -1 : 1;
                 return 0;
               });
               return results.slice(offset, offset + limit);
@@ -111,34 +121,35 @@ export class DexieVariantQuery {
       // Strategy 2: Use between() for numeric range filters with indexes
       if (hasFilters && !multiCallerMode && !sort) {
         const bestIndex = VariantFilter.selectBestIndex(filters);
-        if (bestIndex && bestIndex !== 'CHROM_POS') {
-          const indexExists = table.schema.indexes.some(idx => idx.name === bestIndex);
+        if (bestIndex && bestIndex !== "CHROM_POS") {
+          const indexExists = table.schema.indexes.some((idx) => idx.name === bestIndex);
           if (indexExists) {
             const keyRange = VariantFilter.buildKeyRange(filters, bestIndex);
             if (keyRange) {
               logger.debug(`Using index ${bestIndex} for range query`);
 
-              let collection = table.where(bestIndex).between(
-                keyRange.lower,
-                keyRange.upper,
-                !keyRange.lowerOpen,
-                !keyRange.upperOpen
-              );
+              let collection = table
+                .where(bestIndex)
+                .between(keyRange.lower, keyRange.upper, !keyRange.lowerOpen, !keyRange.upperOpen);
 
               const remainingFilters = { ...filters };
               delete remainingFilters[bestIndex];
 
-              const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, remainingFilters);
+              const indexedEqualityFilters = this.extractIndexedEqualityFilters(
+                table,
+                remainingFilters
+              );
 
               for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
-                collection = collection.and(variant => variant[filterField] === filterValue);
+                collection = collection.and((variant) => variant[filterField] === filterValue);
                 delete remainingFilters[filterField];
                 logger.debug(`Applied indexed equality filter: ${filterField}`);
               }
 
               if (Object.keys(remainingFilters).length > 0) {
-                collection = collection.and(variant => {
-                  if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+                collection = collection.and((variant) => {
+                  if (queryController && queryController.cancelled)
+                    throw new Error("Query cancelled");
                   return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
                 });
               }
@@ -150,34 +161,32 @@ export class DexieVariantQuery {
       }
 
       // Strategy 3: Fallback to full scan (slowest)
-      logger.debug('Using full table scan');
+      logger.debug("Using full table scan");
       let collection = table.toCollection();
 
       if (sort && sort.field) {
-        const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
+        const indexExists = table.schema.indexes.some((idx) => idx.name === sort.field);
         if (indexExists) {
           collection = table.orderBy(sort.field);
-          if (sort.direction === 'desc') {
+          if (sort.direction === "desc") {
             collection = collection.reverse();
           }
         }
       }
 
       if (hasFilters || multiCallerMode) {
-        // Try to apply indexed equality filters first with and()
         const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, filters);
         const appliedFilters = { ...filters };
 
         for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
-          collection = collection.and(variant => variant[filterField] === filterValue);
+          collection = collection.and((variant) => variant[filterField] === filterValue);
           delete appliedFilters[filterField];
           logger.debug(`Applied indexed equality filter: ${filterField}`);
         }
 
-        // Apply remaining filters
         if (Object.keys(appliedFilters).length > 0 || multiCallerMode) {
-          collection = collection.and(variant => {
-            if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+          collection = collection.and((variant) => {
+            if (queryController && queryController.cancelled) throw new Error("Query cancelled");
             return VariantFilter.matchesFilters(variant, appliedFilters, multiCallerMode);
           });
         }
@@ -185,14 +194,14 @@ export class DexieVariantQuery {
 
       let results;
       if (sort && sort.field) {
-        const indexExists = table.schema.indexes.some(idx => idx.name === sort.field);
+        const indexExists = table.schema.indexes.some((idx) => idx.name === sort.field);
         if (!indexExists) {
           results = await collection.toArray();
           results.sort((a, b) => {
             const aVal = a[sort.field];
             const bVal = b[sort.field];
-            if (aVal < bVal) return sort.direction === 'desc' ? 1 : -1;
-            if (aVal > bVal) return sort.direction === 'desc' ? -1 : 1;
+            if (aVal < bVal) return sort.direction === "desc" ? 1 : -1;
+            if (aVal > bVal) return sort.direction === "desc" ? -1 : 1;
             return 0;
           });
           results = results.slice(offset, offset + limit);
@@ -213,7 +222,7 @@ export class DexieVariantQuery {
         this.activeQueries.delete(queryId);
       }
 
-      if (error.message === 'Query cancelled') {
+      if (error.message === "Query cancelled") {
         logger.debug(`Query ${queryId} was cancelled`);
         return [];
       }
@@ -222,11 +231,10 @@ export class DexieVariantQuery {
   }
 
   detectSingleCategoricalFilter(filters) {
-    // SUPP_CALLERS is excluded because it requires substring matching, not exact index matching
-    const categoricalFields = ['SVTYPE', 'CHROM', 'FILTER', 'PRIMARY_CALLER'];
+    const categoricalFields = ["SVTYPE", "CHROM", "FILTER", "PRIMARY_CALLER"];
 
     for (const field of categoricalFields) {
-      if (filters[field] && typeof filters[field] === 'object' && filters[field].values) {
+      if (filters[field] && typeof filters[field] === "object" && filters[field].values) {
         return { field, values: filters[field].values };
       }
     }
@@ -236,13 +244,11 @@ export class DexieVariantQuery {
 
   extractIndexedEqualityFilters(table, filters) {
     const indexedFilters = {};
-    const availableIndexes = Array.from(table.schema.indexes).map(idx => idx.name);
+    const availableIndexes = Array.from(table.schema.indexes).map((idx) => idx.name);
 
     for (const [field, filter] of Object.entries(filters)) {
-      // Only handle simple equality filters that have indexes
       if (availableIndexes.includes(field)) {
-        // Check if it's a simple equality (not range, not array)
-        if (typeof filter === 'string' || typeof filter === 'number') {
+        if (typeof filter === "string" || typeof filter === "number") {
           indexedFilters[field] = filter;
         }
       }
@@ -273,12 +279,11 @@ export class DexieVariantQuery {
     try {
       const queryController = queryId ? this.activeQueries.get(queryId) : null;
 
-      // Use same index optimization strategy as queryVariants
       if (hasFilters && !multiCallerMode) {
         const singleCategoricalFilter = this.detectSingleCategoricalFilter(filters);
         if (singleCategoricalFilter) {
           const { field, values } = singleCategoricalFilter;
-          const indexExists = table.schema.indexes.some(idx => idx.name === field);
+          const indexExists = table.schema.indexes.some((idx) => idx.name === field);
 
           if (indexExists && values.length > 0) {
             logger.debug(`Using anyOf() index for count on ${field}`);
@@ -288,16 +293,20 @@ export class DexieVariantQuery {
             const remainingFilters = { ...filters };
             delete remainingFilters[field];
 
-            const indexedEqualityFilters = this.extractIndexedEqualityFilters(table, remainingFilters);
+            const indexedEqualityFilters = this.extractIndexedEqualityFilters(
+              table,
+              remainingFilters
+            );
 
             for (const [filterField, filterValue] of Object.entries(indexedEqualityFilters)) {
-              collection = collection.and(variant => variant[filterField] === filterValue);
+              collection = collection.and((variant) => variant[filterField] === filterValue);
               delete remainingFilters[filterField];
             }
 
             if (Object.keys(remainingFilters).length > 0) {
-              collection = collection.and(variant => {
-                if (queryController && queryController.cancelled) throw new Error('Query cancelled');
+              collection = collection.and((variant) => {
+                if (queryController && queryController.cancelled)
+                  throw new Error("Query cancelled");
                 return VariantFilter.matchesFilters(variant, remainingFilters, multiCallerMode);
               });
             }
@@ -312,12 +321,14 @@ export class DexieVariantQuery {
       }
 
       // Fallback to full scan
-      const count = await table.filter(variant => {
-        if (queryController && queryController.cancelled) {
-          throw new Error('Query cancelled');
-        }
-        return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
-      }).count();
+      const count = await table
+        .filter((variant) => {
+          if (queryController && queryController.cancelled) {
+            throw new Error("Query cancelled");
+          }
+          return VariantFilter.matchesFilters(variant, filters, multiCallerMode);
+        })
+        .count();
 
       if (queryId) {
         this.activeQueries.delete(queryId);
@@ -329,7 +340,7 @@ export class DexieVariantQuery {
         this.activeQueries.delete(queryId);
       }
 
-      if (error.message === 'Query cancelled') {
+      if (error.message === "Query cancelled") {
         logger.debug(`Count query ${queryId} was cancelled`);
         return 0;
       }
@@ -343,7 +354,7 @@ export class DexieVariantQuery {
     logger.debug(`Dexie: Storing ${variants.length} variants in ${prefix}...`);
     const startTime = Date.now();
 
-    const flattened = variants.map(v => VariantFlattener.flattenVariantForStorage(v));
+    const flattened = variants.map((v) => VariantFlattener.flattenVariantForStorage(v));
 
     const BATCH_SIZE = 1000;
     for (let i = 0; i < flattened.length; i += BATCH_SIZE) {
@@ -361,7 +372,9 @@ export class DexieVariantQuery {
     }
 
     const elapsed = Date.now() - startTime;
-    logger.info(`Dexie: Stored ${variants.length} variants in ${elapsed}ms (${Math.round(variants.length / (elapsed / 1000))} variants/sec)`);
+    logger.info(
+      `Dexie: Stored ${variants.length} variants in ${elapsed}ms (${Math.round(variants.length / (elapsed / 1000))} variants/sec)`
+    );
   }
 
   async clearVariants(prefix) {
@@ -379,7 +392,6 @@ export class DexieVariantQuery {
     const table = this.db.getVariantTable(prefix);
     const variants = await table.toArray();
 
-    // Also retrieve header if it exists
     const headerRecord = await this.db.metadata.get(`${prefix}_header`);
     const header = headerRecord ? headerRecord.value : null;
 

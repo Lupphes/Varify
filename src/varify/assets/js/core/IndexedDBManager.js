@@ -5,7 +5,7 @@
  * Handles files, variants, and metadata storage with optimized performance.
  */
 
-import Dexie from 'dexie';
+import Dexie from "dexie";
 import { StorageUtils } from "./storage/StorageUtils.js";
 import { DexieVariantDB } from "./DexieDB.js";
 import { DexieVariantQuery } from "./DexieVariantQuery.js";
@@ -86,11 +86,11 @@ class IndexedDBManager {
   }
 
   async storeVersion(version) {
-    await this.dexieDB.metadata.put({ key: 'version', value: version });
+    await this.dexieDB.metadata.put({ key: "version", value: version });
   }
 
   async getStoredVersion() {
-    const record = await this.dexieDB.metadata.get('version');
+    const record = await this.dexieDB.metadata.get("version");
     return record ? record.value : null;
   }
 
@@ -144,7 +144,7 @@ class IndexedDBManager {
 
   async getAllVarifyDatabases() {
     const databases = await Dexie.getDatabaseNames();
-    return databases.filter(name => name.startsWith('varify-genome-data'));
+    return databases.filter((name) => name.startsWith("varify-genome-data"));
   }
 
   async getTotalStorageSize() {
@@ -155,7 +155,7 @@ class IndexedDBManager {
       const estimate = await navigator.storage.estimate();
       return estimate?.usage || 0;
     } catch (error) {
-      console.warn('Could not estimate storage size:', error);
+      console.warn("Could not estimate storage size:", error);
       return 0;
     }
   }
@@ -168,11 +168,11 @@ class IndexedDBManager {
   }
 
   get storeName() {
-    return 'files';
+    return "files";
   }
 
   get variantStores() {
-    return ['bcf_variants', 'survivor_variants'];
+    return ["bcf_variants", "survivor_variants"];
   }
 }
 

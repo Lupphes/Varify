@@ -11,7 +11,7 @@ A Python-based tool to generate rich, interactive HTML reports from structural v
 ![Vitest](https://img.shields.io/badge/vitest-575%20tests-green)
 ![esbuild](https://img.shields.io/badge/esbuild-bundler-orange)
 
-> **⚠️ v1.0.0 Major Release**: This version includes significant architectural changes. JavaScript assets must be built with `npm run build:package` before packaging. See [BUILD.md](BUILD.md) for details.
+> **⚠️ v1.0.0 Major Release**: This version includes significant architectural changes. JavaScript assets must be built with `npm run build:package` before packaging.
 
 ---
 
@@ -226,7 +226,7 @@ npm run format:check
 
 ### Frontend Testing
 
-Varify includes a comprehensive test suite for the JavaScript frontend with **575 tests** covering core functionality:
+Varify includes a test suite for the JavaScript frontend:
 
 ```bash
 # Run all tests
@@ -257,7 +257,7 @@ npm test -- --coverage
 ## 📜 License
 
 GPL-3.0-or-later.  
-Created with ❤️ by **Luppo** for structural variant exploration.
+Created with ❤️ by **Lupphes** for structural variant exploration.
 
 ---
 

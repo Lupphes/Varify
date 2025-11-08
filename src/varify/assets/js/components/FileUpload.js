@@ -792,11 +792,7 @@ class FileUploadUI {
 
       // Show error
       logger.error("Auto-upload failed:", error);
-      this.updateProgress(
-        "Upload failed",
-        error.message.split("\n")[0],
-        0
-      );
+      this.updateProgress("Upload failed", error.message.split("\n")[0], 0);
 
       // Show selection UI again after delay
       setTimeout(() => {

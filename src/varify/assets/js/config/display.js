@@ -24,7 +24,7 @@ export const COLUMN_PRIORITY_ORDER = [
   "QUAL",
   "REF",
   "ALT",
-  "FILTER", 
+  "FILTER",
   "CHR2",
 
   // Common FORMAT fields

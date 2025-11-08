@@ -13,7 +13,13 @@
 import { createGrid } from "ag-grid-community";
 import { CategoricalFilter } from "./CategoricalFilter.js";
 import { CategoricalFloatingFilter } from "./CategoricalFloatingFilter.js";
-import { FORMAT_FIELD_PRIORITY, COLUMN_PRIORITY_ORDER, COLUMN_WIDTHS, DEFAULT_COLUMN_WIDTH, CALLER_COLUMN_WIDTH } from "../config/display.js";
+import {
+  FORMAT_FIELD_PRIORITY,
+  COLUMN_PRIORITY_ORDER,
+  COLUMN_WIDTHS,
+  DEFAULT_COLUMN_WIDTH,
+  CALLER_COLUMN_WIDTH,
+} from "../config/display.js";
 import { UI_COLORS as THEME } from "../config/colors.js";
 import { CallerDetailsModal } from "./table/CallerDetailsModal.js";
 import { TableExporter } from "./table/TableExporter.js";
@@ -169,7 +175,9 @@ export class VariantTableAGGrid {
         field: field,
         headerName: field,
         cellRenderer: (params) => this.getCellRenderer(params, metadata),
-        width: COLUMN_WIDTHS[field] || (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
+        width:
+          COLUMN_WIDTHS[field] ||
+          (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
       };
 
       if (COLUMN_WIDTHS[field]) {
@@ -190,7 +198,9 @@ export class VariantTableAGGrid {
           field: field,
           headerName: field,
           cellRenderer: (params) => this.getCellRenderer(params, metadata),
-          width: COLUMN_WIDTHS[field] || (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
+          width:
+            COLUMN_WIDTHS[field] ||
+            (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
         };
 
         if (COLUMN_WIDTHS[field]) {
@@ -325,9 +335,7 @@ export class VariantTableAGGrid {
     const value = params.value;
     const span = document.createElement("span");
 
-    if (
-      isMissing(value)
-    ) {
+    if (isMissing(value)) {
       span.style.color = THEME.data.missingValue;
       span.textContent = "—";
       return span;
@@ -455,9 +463,10 @@ export class VariantTableAGGrid {
             }
 
             const filters = this.extractFilters(params.filterModel);
-            const sort = params.sortModel?.length > 0
-              ? { field: params.sortModel[0].colId, direction: params.sortModel[0].sort }
-              : null;
+            const sort =
+              params.sortModel?.length > 0
+                ? { field: params.sortModel[0].colId, direction: params.sortModel[0].sort }
+                : null;
 
             const multiCallerMode = prefix === "survivor" && window.survivorMultiCallerMode;
 
@@ -474,12 +483,14 @@ export class VariantTableAGGrid {
                     multiCallerMode,
                     queryId: countQueryId,
                   })
-                : Promise.resolve(cachedCount)
+                : Promise.resolve(cachedCount),
             ]);
 
             // Check if this request is still current (not superseded by a newer request)
             if (currentRequestId !== thisRequestId) {
-              logger.debug(`Table request ${thisRequestId} superseded by ${currentRequestId}, ignoring results`);
+              logger.debug(
+                `Table request ${thisRequestId} superseded by ${currentRequestId}, ignoring results`
+              );
               return;
             }
 
@@ -487,9 +498,10 @@ export class VariantTableAGGrid {
               cachedCount = count;
             }
 
-            const lastRow = variants.length < (params.endRow - params.startRow)
-              ? params.startRow + variants.length
-              : undefined;
+            const lastRow =
+              variants.length < params.endRow - params.startRow
+                ? params.startRow + variants.length
+                : undefined;
 
             params.successCallback(variants, lastRow !== undefined ? lastRow : cachedCount);
 
@@ -498,12 +510,12 @@ export class VariantTableAGGrid {
               this.navigateToVariant(variants[0], null, false);
             }
           } catch (error) {
-            if (error.message !== 'Query cancelled') {
+            if (error.message !== "Query cancelled") {
               logger.error("Error loading variants from IndexedDB:", error);
               params.failCallback();
             } else {
               // Don't call failCallback for cancelled queries - just ignore them
-              logger.debug('Table query cancelled, ignoring');
+              logger.debug("Table query cancelled, ignoring");
             }
           }
         }, 50);
@@ -645,15 +657,17 @@ export class VariantTableAGGrid {
         const metadata = JSON.parse(text);
         window[`${prefix}FieldMetadata`] = metadata;
         window[`${prefix}FieldMetadataCacheKey`] = cacheKey;
-        logger.info(`Loaded cached metadata for ${prefix} (${Object.keys(metadata).length} fields)`);
+        logger.info(
+          `Loaded cached metadata for ${prefix} (${Object.keys(metadata).length} fields)`
+        );
         return metadata;
       }
     } catch (error) {
       logger.debug(`No cached metadata found for ${prefix}, computing...`);
     }
 
-    await this.genomeDBManager.listFiles().then(files => {
-      files.forEach(file => {
+    await this.genomeDBManager.listFiles().then((files) => {
+      files.forEach((file) => {
         if (file.startsWith(`${prefix}_metadata_cache_`)) {
           this.genomeDBManager.deleteFile(file).catch(() => {});
         }
@@ -672,7 +686,7 @@ export class VariantTableAGGrid {
     // Dynamically detect computed fields from the first variant
     const computedFields = new Set();
     if (variants.length > 0 && variants[0]._variant && variants[0]._variant._computed) {
-      Object.keys(variants[0]._variant._computed).forEach(field => computedFields.add(field));
+      Object.keys(variants[0]._variant._computed).forEach((field) => computedFields.add(field));
     }
 
     const fieldValues = {};
@@ -695,10 +709,11 @@ export class VariantTableAGGrid {
       const fieldMetadata = metadataService.analyzeField(field, values);
       metadata[field] = {
         type: fieldMetadata.type,
-        count: values.filter(v => v !== null && v !== undefined && v !== "" && v !== ".").length,
+        count: values.filter((v) => v !== null && v !== undefined && v !== "" && v !== ".").length,
         min: fieldMetadata.min,
         max: fieldMetadata.max,
-        uniqueValues: fieldMetadata.uniqueValues.size > 0 ? Array.from(fieldMetadata.uniqueValues) : undefined,
+        uniqueValues:
+          fieldMetadata.uniqueValues.size > 0 ? Array.from(fieldMetadata.uniqueValues) : undefined,
       };
     });
 
@@ -744,7 +759,7 @@ export class VariantTableAGGrid {
 
     this._filterTimeout = setTimeout(async () => {
       // Cancel only chart-related queries, not table queries
-      this.genomeDBManager.cancelQueriesByPrefix('chart-update-');
+      this.genomeDBManager.cancelQueriesByPrefix("chart-update-");
 
       const currentQueryId = `chart-update-${Date.now()}`;
       this._chartUpdateQueryId = currentQueryId;
@@ -764,14 +779,14 @@ export class VariantTableAGGrid {
 
         // Check if this query was cancelled while counting
         if (this._chartUpdateQueryId !== currentQueryId) {
-          logger.debug('Query superseded during count');
+          logger.debug("Query superseded during count");
           return;
         }
 
         logger.debug(`Filter changed: ${totalCount} variants match`);
 
         if (totalCount === 0) {
-          logger.info('No variants match filters, updating charts with empty data');
+          logger.info("No variants match filters, updating charts with empty data");
           await this.plotsComponent.updateFromFilteredData([]);
           this.hideChartLoadingOverlay();
           return;
@@ -786,7 +801,7 @@ export class VariantTableAGGrid {
         for (let i = 0; i < numChunks; i++) {
           // Check if cancelled before each chunk
           if (this._chartUpdateQueryId !== currentQueryId) {
-            logger.debug('Query cancelled during chunk loading');
+            logger.debug("Query cancelled during chunk loading");
             return;
           }
 
@@ -805,12 +820,12 @@ export class VariantTableAGGrid {
           }
 
           if (i % 10 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
 
         if (this._chartUpdateQueryId !== currentQueryId) {
-          logger.debug('Query cancelled before chart update');
+          logger.debug("Query cancelled before chart update");
           return;
         }
 
@@ -821,10 +836,10 @@ export class VariantTableAGGrid {
         this.hideChartLoadingOverlay();
       } catch (error) {
         this.hideChartLoadingOverlay();
-        if (error.message !== 'Query cancelled') {
+        if (error.message !== "Query cancelled") {
           logger.error("Error updating plots:", error);
         } else {
-          logger.debug('Query was cancelled');
+          logger.debug("Query was cancelled");
         }
       }
     }, 300);
@@ -834,7 +849,6 @@ export class VariantTableAGGrid {
     if (!this.gridApi) return;
 
     logger.debug("Applying filter from plot:", filterCriteria);
-
 
     const filterModel = {};
 
@@ -885,10 +899,10 @@ export class VariantTableAGGrid {
       return;
     }
 
-    let overlay = container.querySelector('.chart-loading-overlay');
+    let overlay = container.querySelector(".chart-loading-overlay");
     if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.className = 'chart-loading-overlay';
+      overlay = document.createElement("div");
+      overlay.className = "chart-loading-overlay";
       overlay.style.cssText = `
         position: absolute;
         top: 0;
@@ -904,8 +918,8 @@ export class VariantTableAGGrid {
         gap: 16px;
       `;
 
-      const spinner = document.createElement('div');
-      spinner.className = 'spinner';
+      const spinner = document.createElement("div");
+      spinner.className = "spinner";
       spinner.style.cssText = `
         width: 48px;
         height: 48px;
@@ -915,8 +929,8 @@ export class VariantTableAGGrid {
         animation: spin 1s linear infinite;
       `;
 
-      const text = document.createElement('div');
-      text.className = 'loading-text';
+      const text = document.createElement("div");
+      text.className = "loading-text";
       text.style.cssText = `
         font-size: 16px;
         color: #333;
@@ -926,13 +940,12 @@ export class VariantTableAGGrid {
 
       overlay.appendChild(spinner);
       overlay.appendChild(text);
-      container.style.position = 'relative';
+      container.style.position = "relative";
       container.appendChild(overlay);
 
-      // Add animation keyframe if not exists
-      if (!document.getElementById('chart-loading-animation')) {
-        const style = document.createElement('style');
-        style.id = 'chart-loading-animation';
+      if (!document.getElementById("chart-loading-animation")) {
+        const style = document.createElement("style");
+        style.id = "chart-loading-animation";
         style.textContent = `
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -943,13 +956,13 @@ export class VariantTableAGGrid {
       }
 
       window.updateChartLoadingProgress = (msg) => {
-        const textEl = overlay.querySelector('.loading-text');
+        const textEl = overlay.querySelector(".loading-text");
         if (textEl) textEl.textContent = msg;
       };
     } else {
-      const textEl = overlay.querySelector('.loading-text');
+      const textEl = overlay.querySelector(".loading-text");
       if (textEl) textEl.textContent = message;
-      overlay.style.display = 'flex';
+      overlay.style.display = "flex";
     }
   }
 
@@ -961,7 +974,7 @@ export class VariantTableAGGrid {
       return;
     }
 
-    const overlay = container.querySelector('.chart-loading-overlay');
+    const overlay = container.querySelector(".chart-loading-overlay");
     if (overlay) {
       overlay.remove();
     }

@@ -12,13 +12,19 @@
     <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
       <div class="container mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
         <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">Varify</h1>
-        <p class="text-blue-100 mt-1 sm:mt-2 text-sm sm:text-base">Structural Variant Analysis Report</p>
-        <p class="text-xs sm:text-sm mt-2 sm:mt-3 text-blue-200 break-words" id="header-metadata">Loading report information...</p>
+        <p class="text-blue-100 mt-1 sm:mt-2 text-sm sm:text-base">
+          Structural Variant Analysis Report
+        </p>
+        <p class="text-xs sm:text-sm mt-2 sm:mt-3 text-blue-200 break-words" id="header-metadata">
+          Loading report information...
+        </p>
       </div>
     </header>
 
     <div class="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
-      <div class="bg-white rounded-lg shadow-md mb-4 sm:mb-6 p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4">
+      <div
+        class="bg-white rounded-lg shadow-md mb-4 sm:mb-6 p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4"
+      >
         <div class="flex gap-2 flex-1 min-w-fit">
           <button id="tab-bcf" class="tab-button active">
             <svg
@@ -71,7 +77,9 @@
                 d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
               ></path>
             </svg>
-            <span class="text-xs sm:text-sm text-gray-600" id="cache-status-text">Checking cache...</span>
+            <span class="text-xs sm:text-sm text-gray-600" id="cache-status-text"
+              >Checking cache...</span
+            >
             <span class="text-xs sm:text-sm text-gray-500" id="cache-size-text"></span>
           </div>
 
@@ -93,12 +101,19 @@
               ></path>
             </svg>
             <span class="text-xs sm:text-sm text-gray-600">All reports:</span>
-            <span class="text-xs sm:text-sm font-medium text-orange-600" id="total-storage-text">--</span>
+            <span class="text-xs sm:text-sm font-medium text-orange-600" id="total-storage-text"
+              >--</span
+            >
             <span class="text-xs text-gray-500" id="total-db-count"></span>
           </div>
 
           <button id="load-data-btn" class="btn-primary text-xs sm:text-sm">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -110,7 +125,12 @@
           </button>
 
           <button id="clear-cache-btn" class="btn-danger text-xs sm:text-sm">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -121,8 +141,17 @@
             Clear Cache
           </button>
 
-          <button id="clear-all-cache-btn" class="btn-danger text-xs sm:text-sm" title="Delete all Varify databases from all reports">
-            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            id="clear-all-cache-btn"
+            class="btn-danger text-xs sm:text-sm"
+            title="Delete all Varify databases from all reports"
+          >
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -139,12 +168,20 @@
         <div id="bcf-empty-state"></div>
 
         <div id="bcf-content" class="hidden">
-          <div id="bcf-summary-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6"></div>
+          <div
+            id="bcf-summary-cards"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6"
+          ></div>
 
           <div class="grid grid-cols-1 gap-4 sm:gap-6 mb-4 sm:mb-6">
             <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <h2 class="section-header text-base sm:text-lg">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -201,14 +238,19 @@
 
               <div
                 id="bcf-table-container"
-                class="ag-theme-alpine overflow-x-auto"
+                class="overflow-x-auto"
                 style="height: 400px; width: 100%"
               ></div>
             </div>
 
             <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <h2 class="section-header text-base sm:text-lg">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -226,7 +268,9 @@
           </div>
 
           <details class="mb-4 sm:mb-6" open>
-            <summary class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors">
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
                 class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
@@ -247,12 +291,17 @@
                 Click on any plot element to filter the variant table. Charts update dynamically
                 based on table filters.
               </p>
-              <div id="bcf-charts-container" class="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6"></div>
+              <div
+                id="bcf-charts-container"
+                class="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6"
+              ></div>
             </div>
           </details>
 
           <details class="mb-4 sm:mb-6">
-            <summary class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors">
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
                 class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
@@ -281,12 +330,20 @@
         <div id="survivor-empty-state"></div>
 
         <div id="survivor-content" class="hidden">
-          <div id="survivor-summary-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6"></div>
+          <div
+            id="survivor-summary-cards"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6"
+          ></div>
 
           <div class="grid grid-cols-1 gap-4 sm:gap-6 mb-4 sm:mb-6">
             <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <h2 class="section-header text-base sm:text-lg">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -369,14 +426,19 @@
 
               <div
                 id="survivor-table-container"
-                class="ag-theme-alpine overflow-x-auto"
+                class="overflow-x-auto"
                 style="height: 400px; width: 100%"
               ></div>
             </div>
 
             <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <h2 class="section-header text-base sm:text-lg">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  class="w-5 h-5 sm:w-6 sm:h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -389,12 +451,18 @@
               <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 Click on any variant in the table to navigate the genome browser to that locus.
               </p>
-              <div id="survivor-igv-div" class="w-full" style="height: 300px; min-height: 300px"></div>
+              <div
+                id="survivor-igv-div"
+                class="w-full"
+                style="height: 300px; min-height: 300px"
+              ></div>
             </div>
           </div>
 
           <details class="mb-4 sm:mb-6" open>
-            <summary class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors">
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
                 class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
@@ -423,7 +491,9 @@
           </details>
 
           <details class="mb-4 sm:mb-6">
-            <summary class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors">
+            <summary
+              class="text-base sm:text-lg cursor-pointer hover:text-blue-600 transition-colors"
+            >
               <svg
                 class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2"
                 fill="none"
@@ -464,7 +534,11 @@
           ></div>
           <p id="loading-text" class="text-2xl font-semibold text-gray-800 mb-3">Loading...</p>
           <p class="text-gray-500 mb-2">Please wait while we prepare your data</p>
-          <p id="loading-subtitle" class="text-sm text-blue-600 font-mono" style="display: none;"></p>
+          <p
+            id="loading-subtitle"
+            class="text-sm text-blue-600 font-mono"
+            style="display: none"
+          ></p>
         </div>
       </div>
     </div>
