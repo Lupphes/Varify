@@ -166,11 +166,7 @@ export class VariantTableAGGrid {
       return true;
     };
 
-    for (const field of COLUMN_PRIORITY_ORDER) {
-      const metadata = fieldMetadata[field];
-      if (!metadata) continue;
-      if (!hasData(metadata)) continue;
-
+    const createFieldColumn = (field, metadata) => {
       const colDef = {
         field: field,
         headerName: field,
@@ -186,7 +182,15 @@ export class VariantTableAGGrid {
 
       this.configureColumnFilter(colDef, metadata);
 
-      columnDefs.push(colDef);
+      return colDef;
+    };
+
+    for (const field of COLUMN_PRIORITY_ORDER) {
+      const metadata = fieldMetadata[field];
+      if (!metadata) continue;
+      if (!hasData(metadata)) continue;
+
+      columnDefs.push(createFieldColumn(field, metadata));
     }
 
     for (const field of Object.keys(fieldMetadata)) {
@@ -194,22 +198,7 @@ export class VariantTableAGGrid {
         const metadata = fieldMetadata[field];
         if (!hasData(metadata)) continue;
 
-        const colDef = {
-          field: field,
-          headerName: field,
-          cellRenderer: (params) => this.getCellRenderer(params, metadata),
-          width:
-            COLUMN_WIDTHS[field] ||
-            (field.includes("CALLER") ? CALLER_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH),
-        };
-
-        if (COLUMN_WIDTHS[field]) {
-          colDef.suppressSizeToFit = true;
-        }
-
-        this.configureColumnFilter(colDef, metadata);
-
-        columnDefs.push(colDef);
+        columnDefs.push(createFieldColumn(field, metadata));
       }
     }
 
@@ -227,26 +216,30 @@ export class VariantTableAGGrid {
       suppressSizeToFit: !!COLUMN_WIDTHS["caller"],
     });
 
+    const createDetailColumn = (field, metadata) => {
+      const colDef = {
+        field: field,
+        headerName: field,
+        width: COLUMN_WIDTHS[field] || DEFAULT_COLUMN_WIDTH,
+      };
+
+      if (COLUMN_WIDTHS[field]) {
+        colDef.suppressSizeToFit = true;
+      }
+
+      if (metadata.type === "numeric") {
+        colDef.type = "numericColumn";
+      }
+
+      return colDef;
+    };
+
     const formatPriorityOrder = FORMAT_FIELD_PRIORITY;
 
     for (const field of formatPriorityOrder) {
       const metadata = fieldMetadata[field];
       if (metadata) {
-        const colDef = {
-          field: field,
-          headerName: field,
-          width: COLUMN_WIDTHS[field] || DEFAULT_COLUMN_WIDTH,
-        };
-
-        if (COLUMN_WIDTHS[field]) {
-          colDef.suppressSizeToFit = true;
-        }
-
-        if (metadata.type === "numeric") {
-          colDef.type = "numericColumn";
-        }
-
-        columnDefs.push(colDef);
+        columnDefs.push(createDetailColumn(field, metadata));
       }
     }
 
@@ -254,21 +247,7 @@ export class VariantTableAGGrid {
       if (!formatPriorityOrder.includes(field) && field !== "caller") {
         if (/^[A-Z]{1,3}$/.test(field)) {
           const metadata = fieldMetadata[field];
-          const colDef = {
-            field: field,
-            headerName: field,
-            width: COLUMN_WIDTHS[field] || DEFAULT_COLUMN_WIDTH,
-          };
-
-          if (COLUMN_WIDTHS[field]) {
-            colDef.suppressSizeToFit = true;
-          }
-
-          if (metadata.type === "numeric") {
-            colDef.type = "numericColumn";
-          }
-
-          columnDefs.push(colDef);
+          columnDefs.push(createDetailColumn(field, metadata));
         }
       }
     }
@@ -281,20 +260,31 @@ export class VariantTableAGGrid {
   }
 
   configureColumnFilter(colDef, metadata) {
+    const applyCategoricalFilter = (valuesArray, tooltip) => {
+      colDef.filter = "categoricalFilter";
+      colDef.floatingFilter = true;
+      colDef.floatingFilterComponent = "categoricalFloatingFilter";
+      colDef.filterParams = {
+        uniqueValues: valuesArray,
+      };
+      colDef.minWidth = 150;
+      colDef.headerTooltip = tooltip;
+    };
+
+    const applyTextFilter = () => {
+      colDef.filter = "agTextColumnFilter";
+      colDef.filterParams = {
+        maxNumConditions: 1,
+      };
+    };
+
     // Special handling for SVTYPE and SUPP_CALLERS - always use categorical filter
     if (colDef.field === "SVTYPE" || colDef.field === "SUPP_CALLERS") {
       const valuesArray = metadataService.getUniqueValues(metadata);
 
       if (valuesArray.length > 0) {
-        colDef.filter = "categoricalFilter";
-        colDef.floatingFilter = true;
-        colDef.floatingFilterComponent = "categoricalFloatingFilter";
-        colDef.filterParams = {
-          uniqueValues: valuesArray,
-        };
-        colDef.minWidth = 150;
         const fieldLabel = colDef.field === "SVTYPE" ? "SV Type" : "Caller";
-        colDef.headerTooltip = `${fieldLabel} (categorical). Values: ${valuesArray.join(", ")}`;
+        applyCategoricalFilter(valuesArray, `${fieldLabel} (categorical). Values: ${valuesArray.join(", ")}`);
         return;
       }
     }
@@ -309,25 +299,12 @@ export class VariantTableAGGrid {
       const valuesArray = metadataService.getUniqueValues(metadata);
 
       if (valuesArray.length > 0 && valuesArray.length < 20) {
-        colDef.filter = "categoricalFilter";
-        colDef.floatingFilter = true;
-        colDef.floatingFilterComponent = "categoricalFloatingFilter";
-        colDef.filterParams = {
-          uniqueValues: valuesArray,
-        };
-        colDef.minWidth = 150;
-        colDef.headerTooltip = `Categorical field. Values: ${valuesArray.join(", ")}`;
+        applyCategoricalFilter(valuesArray, `Categorical field. Values: ${valuesArray.join(", ")}`);
       } else {
-        colDef.filter = "agTextColumnFilter";
-        colDef.filterParams = {
-          maxNumConditions: 1,
-        };
+        applyTextFilter();
       }
     } else {
-      colDef.filter = "agTextColumnFilter";
-      colDef.filterParams = {
-        maxNumConditions: 1,
-      };
+      applyTextFilter();
     }
   }
 
@@ -341,7 +318,13 @@ export class VariantTableAGGrid {
       return span;
     }
 
-    const hasConflict = this.checkFieldConflict(params);
+    const addConflictIfNeeded = (element) => {
+      const hasConflict = this.checkFieldConflict(params);
+      if (hasConflict) {
+        this.addConflictIndicator(element, params);
+      }
+      return element;
+    };
 
     if (
       (params.colDef.field === "CIPOS" || params.colDef.field === "CIEND") &&
@@ -349,10 +332,7 @@ export class VariantTableAGGrid {
       value.includes(",")
     ) {
       span.textContent = `[${value.replace(/,/g, ", ")}]`;
-      if (hasConflict) {
-        this.addConflictIndicator(span, params);
-      }
-      return span;
+      return addConflictIfNeeded(span);
     }
 
     if (typeof value === "string" && value.includes(",")) {
@@ -371,28 +351,19 @@ export class VariantTableAGGrid {
           span.appendChild(document.createTextNode(", "));
         }
       });
-      if (hasConflict) {
-        this.addConflictIndicator(span, params);
-      }
-      return span;
+      return addConflictIfNeeded(span);
     }
 
     if (metadata && metadata.type === "numeric") {
       const num = parseFloat(value);
       if (!isNaN(num)) {
         span.textContent = num.toLocaleString();
-        if (hasConflict) {
-          this.addConflictIndicator(span, params);
-        }
-        return span;
+        return addConflictIfNeeded(span);
       }
     }
 
     span.textContent = String(value);
-    if (hasConflict) {
-      this.addConflictIndicator(span, params);
-    }
-    return span;
+    return addConflictIfNeeded(span);
   }
 
   checkFieldConflict(params) {
@@ -582,6 +553,12 @@ export class VariantTableAGGrid {
     const maxlen = 10000;
     const flanking = 1000;
 
+    const createMultiLocus = (chrom1, pos1, chrom2, pos2) => {
+      const locus1 = `${chrom1}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
+      const locus2 = `${chrom2}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
+      return `${locus1} ${locus2}`;
+    };
+
     const isTranslocation = variant.CHR2 && variant.CHR2 !== variant.CHROM;
     const svlen = variant.SVLEN ? Math.abs(parseInt(variant.SVLEN)) : 0;
     const isLargeSV = svlen > maxlen;
@@ -591,16 +568,12 @@ export class VariantTableAGGrid {
     if (isTranslocation) {
       const pos1 = parseInt(variant.POS);
       const pos2 = parseInt(variant.END || variant.POS);
-      const locus1 = `${variant.CHROM}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
-      const locus2 = `${variant.CHR2}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
-      locus = `${locus1} ${locus2}`;
+      locus = createMultiLocus(variant.CHROM, pos1, variant.CHR2, pos2);
       logger.debug(`Navigating IGV to translocation (multi-locus): ${locus}`);
     } else if (isLargeSV && variant.END) {
       const pos1 = parseInt(variant.POS);
       const pos2 = parseInt(variant.END);
-      const locus1 = `${variant.CHROM}:${Math.max(1, pos1 - flanking)}-${pos1 + flanking}`;
-      const locus2 = `${variant.CHROM}:${Math.max(1, pos2 - flanking)}-${pos2 + flanking}`;
-      locus = `${locus1} ${locus2}`;
+      locus = createMultiLocus(variant.CHROM, pos1, variant.CHROM, pos2);
       logger.debug(`Navigating IGV to large SV (multi-locus): ${locus}`);
     } else {
       locus = variant.locus || `${variant.CHROM || variant.chr}:${variant.POS || variant.pos}`;
