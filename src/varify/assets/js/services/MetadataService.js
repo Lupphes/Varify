@@ -50,16 +50,11 @@ export class MetadataService {
 
       // Special handling for SUPP_CALLERS: extract individual callers from comma-separated string
       if (fieldName === "SUPP_CALLERS" && typeof value === "string") {
-        if (value.includes(",")) {
-          stats.hasMultiple = true;
-          const callers = value.split(",").map((c) => c.trim());
-          callers.forEach((caller) => {
-            if (caller) stats.uniqueValues.add(caller);
-          });
-        } else {
-          // Single caller
-          stats.uniqueValues.add(value);
-        }
+        stats.hasMultiple = true;
+        const callers = value.split(",").map((c) => c.trim());
+        callers.forEach((caller) => {
+          if (caller) stats.uniqueValues.add(caller);
+        });
         hasNonNumeric = true;
         continue;
       }
