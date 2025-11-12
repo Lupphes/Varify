@@ -16,29 +16,25 @@ class IGVIndexedDBLoader {
   }
 
   async loadFile(filename) {
-    const data = await this.dbManager.getFile(filename, true);
-    if (!data) {
+    const result = await this.dbManager.getFile(filename, true);
+    if (!result) {
       throw new Error(`File not found in IndexedDB: ${filename}`);
     }
 
-    let file;
-    if (data instanceof Blob) {
-      file = new File([data], filename, {
-        type: this.getMimeType(filename),
-      });
-      logger.debug(
-        `Loaded large file from IndexedDB: ${filename} (${this.dbManager.formatBytes(data.size)})`
+    const blob = result.data || result;
+
+    if (result.isFileReference && blob instanceof File) {
+      logger.info(
+        `Using original File reference for ${filename} (${this.dbManager.formatBytes(blob.size)})`
       );
-    } else {
-      const blob = new Blob([data]);
-      file = new File([blob], filename, {
-        type: this.getMimeType(filename),
-      });
-      logger.debug(
-        `Loaded file from IndexedDB: ${filename} (${this.dbManager.formatBytes(data.byteLength)})`
-      );
+      return blob;
     }
 
+    const file = new File([blob], filename, {
+      type: this.getMimeType(filename),
+    });
+
+    logger.debug(`Loaded ${filename} as File (${this.dbManager.formatBytes(file.size)})`);
     return file;
   }
 

@@ -48,7 +48,41 @@ export class DexieVariantDB extends Dexie {
     const fileInfo = await this.files.get(name);
     if (!fileInfo) return null;
 
+    if (fileInfo.isFileReference) {
+      if (window.__igvFileReferences && window.__igvFileReferences.has(name)) {
+        const file = window.__igvFileReferences.get(name);
+        return {
+          name: fileInfo.name,
+          data: file,
+          size: fileInfo.size,
+          type: fileInfo.type,
+          timestamp: fileInfo.timestamp,
+          isFileReference: true,
+        };
+      }
+    }
+
     if (fileInfo.isChunked) {
+      if (returnAsBlob && fileInfo.size > 100 * 1024 * 1024) {
+        const chunkBlobs = [];
+        const chunks = await this.fileChunks.where("name").equals(name).sortBy("chunkIndex");
+
+        for (const chunk of chunks) {
+          chunkBlobs.push(new Blob([chunk.data]));
+        }
+
+        const blob = new Blob(chunkBlobs, { type: fileInfo.type || "application/octet-stream" });
+
+        return {
+          name: fileInfo.name,
+          data: blob,
+          size: fileInfo.size,
+          type: fileInfo.type,
+          timestamp: fileInfo.timestamp,
+          isChunked: true,
+        };
+      }
+
       const chunks = await this.fileChunks.where("name").equals(name).sortBy("chunkIndex");
 
       if (returnAsBlob) {
@@ -102,6 +136,13 @@ export class DexieVariantDB extends Dexie {
     const CHUNK_SIZE = 64 * 1024 * 1024;
     const size = data.byteLength || data.size;
     const isLargeFile = size > 100 * 1024 * 1024;
+
+    if (isLargeFile && data instanceof File) {
+      if (!window.__igvFileReferences) {
+        window.__igvFileReferences = new Map();
+      }
+      window.__igvFileReferences.set(name, data);
+    }
 
     if (!isLargeFile) {
       let dataToStore = data;

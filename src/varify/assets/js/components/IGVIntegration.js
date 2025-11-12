@@ -240,7 +240,8 @@ export class IGVIntegration {
     try {
       logger.info("Initializing BCF IGV browser...");
 
-      const vcfFiles = this.requiredFiles.vcf.filter((f) => f);
+      const bcfVcfFile = this.requiredFiles.vcf[0];
+      const vcfFiles = bcfVcfFile ? [bcfVcfFile] : [];
 
       let roiFeatures = [];
       if (this.bcfVariants && this.bcfVariants.length > 0) {
@@ -305,7 +306,8 @@ export class IGVIntegration {
     try {
       logger.info("Initializing SURVIVOR IGV browser...");
 
-      const vcfFiles = this.requiredFiles.vcf.filter((f) => f);
+      const survivorVcfFile = this.requiredFiles.vcf[1];
+      const vcfFiles = survivorVcfFile ? [survivorVcfFile] : [];
 
       // Convert variants to ROI features array for IGV
       let roiFeatures = [];

@@ -92,7 +92,7 @@ export class VariantTableAGGrid {
         minWidth: 80,
         width: DEFAULT_COLUMN_WIDTH,
         flex: 0,
-        suppressHeaderMenuButton: false,
+        suppressMenu: false,
       },
       overlayLoadingTemplate: '<span class="ag-overlay-loading-center">Loading variants...</span>',
       overlayNoRowsTemplate:
@@ -121,7 +121,7 @@ export class VariantTableAGGrid {
       width: 50,
       pinned: "left",
       lockPosition: true,
-      suppressHeaderMenuButton: true,
+      suppressMenu: true,
       filter: false,
       sortable: false,
     });
@@ -133,7 +133,7 @@ export class VariantTableAGGrid {
         width: 40,
         pinned: "left",
         lockPosition: true,
-        suppressHeaderMenuButton: true,
+        suppressMenu: true,
         filter: false,
         sortable: false,
         cellRenderer: (params) => {
