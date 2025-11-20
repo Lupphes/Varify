@@ -10,6 +10,7 @@ Uses shared field configuration to avoid hardcoding.
 """
 
 import os
+from collections import OrderedDict
 from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
@@ -132,19 +133,22 @@ class VcfWriter:
 
         if "SUPP_CALLERS" not in existing_info_ids:
             header.add_info_line(
-                vcfpy.OrderedDict(
+                OrderedDict(
                     [
                         ("ID", "SUPP_CALLERS"),
                         ("Number", "."),
                         ("Type", "String"),
-                        ("Description", "Comma-separated list of supporting callers (computed)"),
+                        (
+                            "Description",
+                            "Comma-separated list of supporting callers (computed)",
+                        ),
                     ]
                 )
             )
 
         if "PRIMARY_CALLER" not in existing_info_ids:
             header.add_info_line(
-                vcfpy.OrderedDict(
+                OrderedDict(
                     [
                         ("ID", "PRIMARY_CALLER"),
                         ("Number", "1"),
@@ -156,12 +160,15 @@ class VcfWriter:
 
         if "NUM_CALLERS" not in existing_info_ids:
             header.add_info_line(
-                vcfpy.OrderedDict(
+                OrderedDict(
                     [
                         ("ID", "NUM_CALLERS"),
                         ("Number", "1"),
                         ("Type", "Integer"),
-                        ("Description", "Number of callers supporting this variant (computed)"),
+                        (
+                            "Description",
+                            "Number of callers supporting this variant (computed)",
+                        ),
                     ]
                 )
             )
@@ -317,7 +324,11 @@ class VcfWriter:
             if field_value is None or (isinstance(field_value, float) and pd.isna(field_value)):
                 continue
 
-            if isinstance(field_value, str) and field_value.upper() in ("NAN", "NA", "NULL"):
+            if isinstance(field_value, str) and field_value.upper() in (
+                "NAN",
+                "NA",
+                "NULL",
+            ):
                 field_value = "."
 
             if field_value == "-":
